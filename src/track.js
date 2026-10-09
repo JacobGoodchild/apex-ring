@@ -57,6 +57,15 @@ export class TrackPath {
         if (this.y[i] - this.y[(i + 1) % N] > 2.5) { this.cliff[i] = 1; this.slope[i] = 0; this.slope[(i + 1) % N] = 0; }
       }
     }
+    // lift banked sections so the low edge of the road (and run-off) never dips below the ground plane;
+    // otherwise the grass showed through on the inside of banked bends and cars looked like they sank into it
+    {
+      const reach = this.width / 2 + this.runoff, lift = A();
+      for (let i = 0; i < N; i++) lift[i] = Math.max(0, 0.08 + reach * Math.abs(Math.sin(this.bank[i])) - this.y[i]);
+      const sm = this.smooth(lift, 6);
+      for (let i = 0; i < N; i++) { const l = Math.max(lift[i], sm[i]); if (l > 0) this.y[i] += l; }
+      for (let i = 0; i < N; i++) if (!this.cliff[i] && !this.cliff[(i - 1 + N) % N]) this.slope[i] = (this.y[(i + 1) % N] - this.y[(i - 1 + N) % N]) / (2 * this.ds);
+    }
     // ramps: wedges on the road; the car leaves the ground at the lip
     this.ramps = (def.ramps || []).map((r) => ({ d: r.at * this.length, len: r.len || 16, h: r.h || 1.4, lat: r.lat || 0, half: r.half || this.width / 2 }));
     this.findBridges();

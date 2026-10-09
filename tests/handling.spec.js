@@ -19,6 +19,18 @@ test("tracks are wide, rated, and Easy tracks have no tight corners", () => {
   }
 });
 
+test("no part of any road or run-off dips below the grass (banked bends used to)", () => {
+  const pt = {}, low = [];
+  for (const t of TRACKS) {
+    const P = paths[t.id];
+    for (let i = 0; i < P.N; i++) for (let f = -1; f <= 1; f += 0.25) {
+      P.pointAt(i * P.ds, f * (P.width / 2 + P.runoff), pt);
+      if (pt.y < -0.05) low.push(`${t.id}@${i}`);
+    }
+  }
+  expect(low.length, low.slice(0, 5).join(" ")).toBe(0);
+});
+
 test("career starts on Easy tracks and gets harder", () => {
   const diff = EVENTS.map((e) => TRACKS.find((t) => t.id === e.track).difficulty);
   expect(diff.slice(0, 5).every((d) => d === 1)).toBe(true);
