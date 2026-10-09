@@ -43,6 +43,25 @@ test.describe("Apex Ring", () => {
     expect(Math.abs(d(h1 - h0))).toBeGreaterThan(0.05);
   });
 
+  test("drifting leaves skid marks and fills boost; boost spends it", async ({ page }) => {
+    await openGame(page, "rivals=0");
+    await startRace(page);
+    await page.waitForFunction(() => window.__apex.player.vF > 30, null, { timeout: 30_000 });
+    const b0 = (await game(page, () => window.__apex.player)).boost;
+    await page.keyboard.down("ArrowLeft");
+    await page.keyboard.down(" ");
+    await page.waitForFunction(() => window.__apex.player.drifting, null, { timeout: 10_000 });
+    await page.waitForFunction(() => window.__apex.skidCount > 5, null, { timeout: 10_000 });
+    await page.keyboard.up(" ");
+    await page.keyboard.up("ArrowLeft");
+    expect((await game(page, () => window.__apex.player)).boost).toBeGreaterThan(b0);
+    await page.evaluate(() => window.__apex.setBoost(1));
+    await page.keyboard.down("ArrowUp");
+    await page.waitForFunction(() => window.__apex.player.boosting, null, { timeout: 10_000 });
+    await page.waitForFunction(() => window.__apex.player.boost < 0.9, null, { timeout: 10_000 });
+    await page.keyboard.up("ArrowUp");
+  });
+
   test("HUD shows speed and lap time", async ({ page }) => {
     await openGame(page);
     await startRace(page);

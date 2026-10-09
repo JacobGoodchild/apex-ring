@@ -15,6 +15,7 @@ import * as sfx from "./audio.js";
 import { ChaseCam } from "./camera.js";
 import { Driver, RIVALS, collide } from "./ai.js";
 import { makeRng } from "./rng.js";
+import { Skids, Smoke, SpeedLines, addFlames, updateFlames } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
 
 const $ = (id) => document.getElementById(id);
@@ -26,6 +27,8 @@ loadSave();
 const world = new World($("stage"), save.settings.quality || autoQuality());
 const { scene, camera } = world;
 const chase = new ChaseCam(camera);
+scene.add(camera);
+const skids = new Skids(scene), smoke = new Smoke(scene), speedLines = new SpeedLines(camera);
 chase.mode = save.settings.camera === "bonnet" ? "bonnet" : "chase";
 
 const QS = new URLSearchParams(location.search);
@@ -63,6 +66,7 @@ function buildPlayer() {
   const def = carById(save.car), cs = carSave(def.id);
   if (G.car) scene.remove(G.car.group);
   G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex);
+  addFlames(G.car);
   G.car.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   scene.add(G.car.group);
   G.player = new Vehicle(carSpec(def, cs.upgrades), G.path);
@@ -80,6 +84,7 @@ function buildRivals() {
     const prof = RIVALS[k % RIVALS.length], def = CARS[k % CARS.length];
     const veh = new Vehicle(carSpec(def, {}), G.path);
     const model = makeCar(def, prof.color);
+    addFlames(model);
     setDoors(model, 0);
     scene.add(model.group);
     G.rivals.push({ veh, model, driver: new Driver(veh, prof, 0.95 + rnd() * 0.05, (SEED + k * 977) >>> 0), name: prof.name, color: prof.color });
@@ -96,6 +101,7 @@ function gridUp() {
     const [d, lat] = slot(k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
   G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null;
+  skids.clear(); G.driftPts = 0; G.driftShow = 0; G.totalDrift = 0;
 }
 
 // Everyone in the race, ordered by position.
@@ -115,7 +121,7 @@ const laps = () => G.lapsOverride || G.track.laps;
 // ---------- UI ----------
 function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), ms); }
 const fmt = (t) => { if (t == null || !isFinite(t)) return "–"; const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); };
-function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); }
+function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; } }
 
 function buildPaints() {
   const el = $("paints"); el.innerHTML = "";
@@ -233,6 +239,11 @@ function stepRivals(dt) {
   }
 }
 
+function popDrift(n) {
+  const el = $("driftPop"); el.textContent = "DRIFT +" + n; el.hidden = false; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  clearTimeout(popDrift._t); popDrift._t = setTimeout(() => (el.hidden = true), 1200);
+}
+
 // ---------- simulation ----------
 const lookAt = new THREE.Vector3(), camPos = new THREE.Vector3();
 
@@ -266,6 +277,11 @@ function step(dt) {
   }
 
   if (racing) {
+    // drift points: build while sliding, banked when the slide ends
+    if (v.driftTime > 0.25) { G.driftPts += dt * v.vF * Math.abs(v.driftAngle) * 6; G.driftShow = 1.5; }
+    else if (G.driftPts > 0 && v.driftTime === 0) { if (G.driftPts > 20) { G.totalDrift += Math.round(G.driftPts); popDrift(Math.round(G.driftPts)); sfx.chime(); } G.driftPts = 0; }
+    if (v.boosting && !G.wasBoosting) sfx.whoosh();
+    G.wasBoosting = v.boosting;
     G.raceTime += dt;
     const L = G.path.length, done = G.lapTimes.length;
     if (v.totalD >= (done + 1) * L) {
@@ -278,7 +294,21 @@ function step(dt) {
   if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
 }
 
+const wp = new THREE.Vector3();
+// Smoke + skid marks from the rear wheels when a car slides or brakes hard.
+function tyreFx(key, m, v, dt) {
+  const slide = Math.abs(v.driftAngle) > 0.12 && v.vF > 12 ? Math.min(1, (Math.abs(v.driftAngle) - 0.08) * 4) : 0;
+  const lock = v.lonAcc < -18 && v.vF > 15 ? 0.6 : 0;
+  const k = Math.max(slide, lock);
+  for (let w = 2; w < 4; w++) {
+    m.wheels[w].parent.getWorldPosition(wp);
+    skids.mark(key + w, wp.x, v.y, wp.z, v.h, k);
+    if (k > 0.2 && Math.random() < k * dt * 40) smoke.emit(wp.x, v.y, wp.z, v.vx, v.vz, k);
+  }
+}
+
 function poseCar(m, v, dt) {
+  updateFlames(m, v.boosting, performance.now() / 1000);
   m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(0, v.h, 0);
   m.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06); m.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   m.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36)); m.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
@@ -293,6 +323,13 @@ function render(dt) {
   car.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36));
   car.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
   for (const r of G.rivals) poseCar(r.model, r.veh, dt);
+  updateFlames(car, v.boosting, performance.now() / 1000);
+  if (G.mode === "race" || G.mode === "done") {
+    tyreFx("p", car, v, dt);
+    G.rivals.forEach((r, i) => tyreFx("r" + i, r.model, r.veh, dt));
+  }
+  smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight);
+  speedLines.update(dt, v.vF, G.mode === "race" ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
 
   car.group.position.y += Math.sin(G.bob = (G.bob || 0) + dt * v.vF * 0.9) * 0.006 * Math.min(1, v.vF / 30);
   const portrait = camera.aspect < 1;
@@ -314,6 +351,10 @@ function render(dt) {
     $("lapV").textContent = Math.min(G.lapTimes.length + 1, laps()) + "/" + laps();
     $("timeV").textContent = fmt(G.mode === "race" ? G.raceTime - G.lapStart : G.lapTimes[G.lapTimes.length - 1] || 0);
     if ((G.hudTick = (G.hudTick || 0) + 1) % 6 === 0) { const o = standings(); $("posV").textContent = ordinal(o.findIndex((e) => e.me) + 1) + "/" + o.length; }
+    $("boostFill").style.width = Math.round(v.boost * 100) + "%";
+    $("padBoost").classList.toggle("ready", v.boost > 0.15);
+    $("drift").hidden = !(G.driftPts > 5);
+    if (G.driftPts > 5) $("driftV").textContent = "+" + Math.round(G.driftPts);
     $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
     $("spdBar").style.width = Math.min(100, (v.vF / v.spec.vmax) * 100) + "%";
     $("offtrack").hidden = !(v.offTrack && G.mode === "race");
@@ -350,7 +391,9 @@ addEventListener("error", (e) => errors.push(String(e.message)));
 if (TEST) {
   window.__apex = {
     get mode() { return G.mode; },
-    get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, drifting: v.drifting, lat: v.lat }; },
+    get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, boosting: v.boosting, drifting: v.drifting, driftAngle: v.driftAngle, lat: v.lat }; },
+    get skidCount() { return skids.n; },
+    setBoost(b) { G.player.boost = b; },
     get laps() { return G.lapTimes.slice(); },
     get place() { return G.place; },
     get rivals() { return G.rivals.map((r) => ({ totalD: r.veh.totalD, vF: r.veh.vF, lat: r.veh.lat, finished: r.finished })); },

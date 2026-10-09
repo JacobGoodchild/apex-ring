@@ -103,14 +103,14 @@ export function updateFlames(model, on, t) {
 export class SpeedLines {
   constructor(camera, n = 70) {
     this.n = n; const pos = new Float32Array(n * 6); this.seed = [];
-    for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, r = 1.6 + Math.random() * 2.2; this.seed.push({ a, r, z: -Math.random() * 30, len: 1.5 + Math.random() * 3 }); }
+    for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, r = 2.6 + Math.random() * 3; this.seed.push({ a, r, z: -Math.random() * 30, len: 1.5 + Math.random() * 3 }); }
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
     this.mat = new THREE.LineBasicMaterial({ color: 0xdff6ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false });
     this.lines = new THREE.LineSegments(g, this.mat); this.lines.frustumCulled = false; this.lines.renderOrder = 10;
     camera.add(this.lines); this.geo = g;
   }
   update(dt, speed, amount) {
-    this.mat.opacity += (amount * 0.45 - this.mat.opacity) * Math.min(1, dt * 5);
+    this.mat.opacity += (amount * 0.3 - this.mat.opacity) * Math.min(1, dt * 5);
     this.lines.visible = this.mat.opacity > 0.01;
     if (!this.lines.visible) return;
     const P = this.geo.attributes.position.array;
