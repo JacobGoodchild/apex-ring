@@ -228,9 +228,9 @@ button { font-family: inherit; }
 .evhead.fail .evstate { color: var(--hot); }
 .evreward, .evunlock { font: 600 14px var(--display); margin-top: 4px; }
 .evreward b { color: #ffd479; } .evreward b.gem { color: var(--cyan); } .evunlock b { color: var(--go); }
-#eventTag { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t) + 66px); max-width: min(60vw, 420px); text-align: center;
+#eventTag { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t) + 96px); max-width: min(60vw, 420px); text-align: center;
   font: 600 12px var(--body); color: var(--text); background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 5px 10px; pointer-events: none; }
-@media (max-width: 500px) { #eventTag { top: calc(var(--safe-t) + 190px); max-width: 80vw; } }
+@media (max-width: 500px) { #eventTag { top: calc(var(--safe-t) + 226px); max-width: 80vw; } }
 
 #loading { position: fixed; inset: 0; z-index: 100; background: var(--ink); display: grid; place-content: center; gap: 18px; transition: opacity .5s; }
 #loading.gone { opacity: 0; pointer-events: none; }
@@ -255,3 +255,8 @@ button { font-family: inherit; }
 @media (orientation: landscape) and (max-height: 600px) { .podium { display: none; } }
 
 #garage .tab { padding: 8px 4px; font-size: 13px; }
+
+#gapV { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t) + 66px); font: 700 14px var(--display); letter-spacing: .04em;
+  background: var(--panel); border-radius: 12px; padding: 3px 10px; pointer-events: none; border: 1px solid rgba(255,255,255,.12); }
+#gapV.behind { color: #ffb08a; } #gapV.ahead { color: var(--go); }
+@media (max-width: 500px) { #gapV { left: auto; right: calc(var(--safe-r) + 12px); transform: none; top: calc(var(--safe-t) + 188px); } }

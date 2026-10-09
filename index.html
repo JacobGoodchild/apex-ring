@@ -32,6 +32,7 @@
   <button class="pill" id="muteBtn" type="button" aria-label="Sound">♪ On</button>
   <button class="pill" id="tiltBtn" type="button" aria-label="Tilt steering">Tilt</button>
   <button class="pill" id="camBtn" type="button" aria-label="Camera">Cam 1</button>
+  <button class="pill" id="respawnBtn" type="button" aria-label="Back on track">↺</button>
 </div>
 
 <canvas id="minimap" hidden aria-hidden="true"></canvas>
@@ -42,6 +43,7 @@
   <div class="boostbar" aria-label="Boost meter"><div class="fill" id="boostFill"></div></div>
 </div>
 <div id="eventTag" hidden></div>
+<div id="gapV" hidden></div>
 <div id="drift" hidden><span class="k">DRIFT</span> <span id="driftV">+0</span></div>
 <div id="driftPop" hidden></div>
 <div id="offtrack" hidden>OFF TRACK</div>
@@ -140,6 +142,8 @@
     </div>
     <div class="label">Camera</div>
     <div class="tabs" id="camTabs"><button class="tab" data-c="chase" type="button">Chase</button><button class="tab" data-c="bonnet" type="button">Bonnet</button></div>
+    <div class="label">Rivals</div>
+    <div class="tabs" id="diffTabs"><button class="tab" data-d="easy" type="button">Easy</button><button class="tab" data-d="normal" type="button">Normal</button><button class="tab" data-d="hard" type="button">Hard</button></div>
     <div class="label">Sound</div>
     <div class="tabs" id="soundTabs"><button class="tab" data-s="1" type="button">On</button><button class="tab" data-s="0" type="button">Off</button></div>
     <button class="btn ghost danger" id="resetBtn" type="button">Reset all progress</button>

@@ -19,7 +19,7 @@ import * as sfx from "./audio.js";
 import { ChaseCam } from "./camera.js";
 import { Driver, RIVALS, collide } from "./ai.js";
 import { makeRng } from "./rng.js";
-import { Skids, Smoke, SpeedLines, addFlames, updateFlames } from "./effects.js";
+import { Skids, Smoke, SpeedLines, addFlames, updateFlames, addBeams } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
 
 const $ = (id) => document.getElementById(id);
@@ -52,6 +52,9 @@ function loadTrack(id) {
   const grp = buildTrackMeshes(G.path, theme);
   grp.add(buildScenery(G.path, theme, world.qname === "low" ? 0.45 : world.qname === "medium" ? 0.75 : 1, SEED ^ 0x1234));
   world.setTrack(grp); world.setTheme(theme);
+  G.night = !!theme.stars;
+  if (G.car && G.car.beams) G.car.beams.visible = G.night;
+  for (const r of G.rivals || []) if (r.model.beams) r.model.beams.visible = G.night;
   if (G.player) { G.player.track = G.path; gridUp(); }
   save.track = def.id;
   $("trackName").textContent = def.name; $("trackBlurb").textContent = def.blurb + " " + def.laps + " laps.";
@@ -82,7 +85,7 @@ function buildPlayer(id = save.car) {
   const def = carById(id), cs = carSave(def.id);
   if (G.car) G.car.group.removeFromParent();
   G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex, cs.rims, cs.decal || 0);
-  addFlames(G.car);
+  addFlames(G.car); addBeams(G.car); G.car.beams.visible = !!G.night;
   if (G.mode === "menu") showroom.setCar(G.car); else scene.add(G.car.group);
   if (!G.player) { G.player = new Vehicle(carSpec(def, cs.upgrades), G.path); G.player.reset(-8, 0); }
   G.player.spec = carSpec(def, cs.upgrades);
@@ -101,10 +104,10 @@ function buildRivals() {
     const model = makeCar(def, prof.color, k % 4, [1, 4, 2, 3, 0, 4, 1][k % 7]);
     model.group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
     model.body.children[0].castShadow = true;
-    addFlames(model);
+    addFlames(model); addBeams(model); model.beams.visible = !!G.night;
     setDoors(model, 0);
     scene.add(model.group);
-    G.rivals.push({ carId: def.id, veh, model, driver: new Driver(veh, prof, 0.95 + rnd() * 0.05, (SEED + k * 977) >>> 0), name: prof.name, color: prof.color });
+    G.rivals.push({ carId: def.id, veh, model, driver: new Driver(veh, prof, 0.95 + rnd() * 0.05, (SEED + k * 977) >>> 0), baseSkill: 0.95 + rnd() * 0.05, name: prof.name, color: prof.color });
   }
 }
 
@@ -114,7 +117,8 @@ function gridUp() {
   const ps = slot(Math.min(G.gridSlot, G.rivals.length)); G.player.reset(ps[0], ps[1]);
   let k = 0;
   const ps2 = G.player.spec;
-  for (const r of G.rivals) r.out = false;
+  const DIFF = { easy: 0.93, normal: 1, hard: 1.035 }[save.settings.difficulty || "normal"];
+  for (const r of G.rivals) { r.out = false; r.driver.skill = (r.driver.baseSkill ?? r.baseSkill) * DIFF; }
   for (const r of G.field) {
     // rivals drive their own cars, but tuned halfway toward yours so races stay close
     const base = carSpec(carById(r.carId), {});
@@ -144,7 +148,7 @@ const laps = () => G.lapsOverride || (G.event ? G.event.laps : G.track.laps);
 // ---------- UI ----------
 function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), ms); }
 const fmt = (t) => { if (t == null || !isFinite(t)) return "–"; const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); };
-function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; } }
+function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; } }
 
 const SCREENS = ["menu", "setup", "garage", "settings", "career"];
 function show(id) {
@@ -391,10 +395,12 @@ function refreshSettings() {
   document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.q === world.qname)));
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
+  document.querySelectorAll("#diffTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === (save.settings.difficulty || "normal"))));
 }
 document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.quality = b.dataset.q; world.applyQuality(b.dataset.q); writeSave(); refreshSettings(); }));
 document.querySelectorAll("#camTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); if (chase.mode !== b.dataset.c) $("camBtn").click(); refreshSettings(); }));
 document.querySelectorAll("#soundTabs .tab").forEach((b) => b.addEventListener("click", () => { if ((b.dataset.s === "1") !== save.settings.sound) $("muteBtn").click(); sfx.click(); refreshSettings(); }));
+document.querySelectorAll("#diffTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.difficulty = b.dataset.d; writeSave(); refreshSettings(); }));
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
   resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
@@ -413,6 +419,7 @@ $("tiltBtn").addEventListener("click", async () => {
   const on = await setTilt(!input.tiltOn, toast);
   $("tiltBtn").textContent = on ? "Tilt ✓" : "Tilt"; $("tiltBtn").classList.toggle("on", on);
 });
+$("respawnBtn").addEventListener("click", () => { if (G.mode === "race") G.player.respawn(); });
 bindPad($("padL"), "left"); bindPad($("padR"), "right"); bindPad($("padBoost"), "boost"); bindPad($("padDrift"), "drift");
 $("camBtn").addEventListener("click", () => {
   chase.mode = chase.mode === "chase" ? "bonnet" : "chase"; save.settings.camera = chase.mode; writeSave();
@@ -568,6 +575,7 @@ function render(dt) {
   car.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
   for (const r of G.field) poseCar(r.model, r.veh, dt);
   updateFlames(car, v.boosting, performance.now() / 1000);
+  if (car.beams) car.beams.visible = !!G.night && G.mode !== "menu" && chase.mode !== "bonnet";
   if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.mode === "race" || G.mode === "done") {
     tyreFx("p", car, v, dt);
@@ -593,7 +601,17 @@ function render(dt) {
   if (G.mode !== "menu") {
     $("lapV").textContent = Math.min(G.lapTimes.length + 1, laps()) + "/" + laps();
     $("timeV").textContent = fmt(G.mode === "race" ? G.raceTime - G.lapStart : G.lapTimes[G.lapTimes.length - 1] || 0);
-    if ((G.hudTick = (G.hudTick || 0) + 1) % 6 === 0) { const o = standings(); $("posV").textContent = ordinal(o.findIndex((e) => e.me) + 1) + "/" + o.length; }
+    if ((G.hudTick = (G.hudTick || 0) + 1) % 6 === 0) {
+      const o = standings(), i = o.findIndex((e) => e.me);
+      $("posV").textContent = ordinal(i + 1) + "/" + o.length;
+      // gap to the car ahead (or behind when leading), in seconds at current speed
+      const other = i > 0 ? o[i - 1] : o[1];
+      if (other && G.mode === "race") {
+        const gap = Math.abs(other.veh.totalD - v.totalD) / Math.max(15, v.vF);
+        $("gapV").hidden = false; $("gapV").className = i > 0 ? "behind" : "ahead";
+        $("gapV").textContent = (i > 0 ? "+" : "−") + gap.toFixed(1) + "s " + (i > 0 ? "to " : "over ") + other.name.split(" ")[0];
+      } else $("gapV").hidden = true;
+    }
     $("boostFill").style.width = Math.round(v.boost * 100) + "%";
     $("padBoost").classList.toggle("ready", v.boost > 0.15);
     $("drift").hidden = !(G.driftPts > 5);

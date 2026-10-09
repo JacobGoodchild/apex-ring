@@ -122,3 +122,18 @@ export class SpeedLines {
     this.geo.attributes.position.needsUpdate = true;
   }
 }
+
+// Fake headlight beams for night tracks: two soft additive cones and a glow pool on the road. No real lights (cheap).
+let beamTex = null;
+export function addBeams(model) {
+  if (!beamTex) {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 128; const g = c.getContext("2d");
+    const r = g.createLinearGradient(0, 0, 0, 128); r.addColorStop(0, "rgba(255,244,214,0)"); r.addColorStop(0.7, "rgba(255,244,214,.12)"); r.addColorStop(1, "rgba(255,244,214,.26)");
+    g.fillStyle = r; g.beginPath(); g.moveTo(0, 0); g.lineTo(64, 0); g.lineTo(40, 128); g.lineTo(24, 128); g.closePath(); g.fill();
+    beamTex = new THREE.CanvasTexture(c); beamTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  const mat = new THREE.MeshBasicMaterial({ map: beamTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+  const geo = new THREE.PlaneGeometry(10, 22); geo.rotateX(Math.PI / 2); geo.translate(0, 0.06, 13.2);
+  const pool = new THREE.Mesh(geo, mat);
+  const grp = new THREE.Group(); grp.add(pool); model.group.add(grp); model.beams = grp;
+}
