@@ -294,7 +294,7 @@ function startRace() {
   gridUp();
   [...SCREENS, "finish", "pause", "topbar"].forEach((id) => ($(id).hidden = true));
   setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
-  $("count").hidden = false; G.countT = 0; G.lastBeep = -1;
+  $("count").hidden = false; G.countT = 0; G.lastBeep = -1; G.launch = null; G.bog = 0;
   const f = $("fade"); f.classList.remove("out"); void f.offsetWidth; f.classList.add("out");
   G.tips = !save.tipsSeen && !TEST ? [[5, "Hold ◀ ▶ (or ← →) to steer. The car speeds up and brakes for corners by itself."], [13, "Tap DRIFT while steering to slide. Drifting fills your BOOST bar."], [22, "Press BOOST (or ↑) when the blue bar has charge for a burst of speed."]] : [];
 }
@@ -512,7 +512,17 @@ function step(dt) {
     [$("l1"), $("l2"), $("l3")].forEach((l, i) => { l.className = "lamp" + (c >= 4 ? " green" : c >= 1 + i ? " red" : ""); });
     $("countV").textContent = c < 1 ? "" : c < 4 ? String(3 - Math.floor(c - 1)) : "GO";
     const b = Math.floor(c); if (b !== G.lastBeep && b >= 1 && b <= 4) { G.lastBeep = b; sfx.beep(b === 4); }
-    if (c >= 4) G.mode = "race";
+    // launch control: hold BOOST in the last moment before green for a perfect start; too early and you bog down
+    const held = readControls().boost;
+    if (held && c > 3.55 && c < 4 && G.launch !== "early") G.launch = "perfect";
+    else if (held && c > 2.6 && c <= 3.55) G.launch = "early";
+    if (c >= 4) {
+      G.mode = "race";
+      const v = G.player;
+      if (G.launch === "perfect") { v.vx += Math.sin(v.h) * 22; v.vz += Math.cos(v.h) * 22; toast("Perfect start!", 1500); sfx.whoosh(); }
+      else if (G.launch === "early") { G.bog = 0.8; toast("Too early: wheelspin!", 1500); }
+      G.launch = null;
+    }
   }
   if (G.mode === "race" && G.countT < 5) { G.countT += dt; if (G.countT >= 5) $("count").hidden = true; }
 
@@ -522,6 +532,7 @@ function step(dt) {
   v.ctl.steer = ap ? ap.steer : ctl.steer;
   v.ctl.boost = ctl.boost; v.ctl.drift = ctl.drift; v.ctl.brake = ctl.brake;
   v.ctl.targetSpeed = ap ? ap.targetSpeed : assistSpeed(v);
+  if (G.bog > 0) { G.bog -= dt; v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, 4); }
   if (G.mode === "race" || G.mode === "done") {
     v.step(dt, racing);
     stepRivals(dt);
@@ -705,6 +716,7 @@ if (TEST) {
     get place() { return G.place; },
     get eventOk() { return G.eventOk; },
     get fieldSize() { return G.field.length; },
+    get countT() { return G.countT; },
     get ghostVisible() { return !!(G.ghost && G.ghost.model.group.visible); },
     get drawCalls() { return world.renderer.info.render.calls; },
     get triangles() { return world.renderer.info.render.triangles; },

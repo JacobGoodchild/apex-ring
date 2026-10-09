@@ -68,6 +68,17 @@ test.describe("Apex Ring", () => {
     await page.keyboard.up("ArrowUp");
   });
 
+  test("holding boost just before GO gives a perfect start", async ({ page }) => {
+    await openGame(page, "speed=1&rivals=0");
+    await page.click("#raceBtn");
+    await page.click("#startBtn");
+    await page.waitForFunction(() => window.__apex.countT > 3.3, null, { timeout: 20_000 });
+    await page.keyboard.down("ArrowUp");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 10_000 });
+    await page.keyboard.up("ArrowUp");
+    await expect(page.locator("#toast")).toHaveText(/Perfect start|Too early/);
+  });
+
   test("HUD shows speed and lap time", async ({ page }) => {
     await openGame(page);
     await startRace(page);
