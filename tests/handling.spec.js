@@ -36,19 +36,16 @@ test("hitting a wall glances off and keeps most of the speed", () => {
   expect(hit / before).toBeGreaterThan(0.8);
 });
 
-test("steering assist alone gets round every Easy track without touching a wall", () => {
-  for (const t of TRACKS.filter((t) => t.difficulty === 1)) {
-    const path = paths[t.id], v = new Vehicle(carSpec(CARS[0]), path);
-    v.reset(-8, 0);
-    let walls = 0;
-    for (let k = 0; k < 60 * 120 && v.totalD < path.length; k++) {
-      v.ctl.steer = assistSteer(v, path, 0, 0.55);
-      v.ctl.targetSpeed = cornerSpeed(v, path);
-      v.step(1 / 60, true);
-      if (v.wallHit > 1) walls++;
-    }
-    expect(v.totalD, t.id).toBeGreaterThanOrEqual(path.length);
-    expect(walls, t.id).toBe(0);
+test("with no steering input the car goes straight, even with the assist on", () => {
+  const path = paths.oval, v = new Vehicle(carSpec(CARS[0]), path);
+  v.reset(-8, 0);
+  const h0 = v.h;
+  for (let k = 0; k < 60 * 6; k++) {
+    v.ctl.steer = assistSteer(v, path, 0, 0.55);
+    v.ctl.targetSpeed = cornerSpeed(v, path, 0.9, 1);
+    v.step(1 / 60, true);
+    if (v.wallHit) break;
+    expect(Math.abs(Math.atan2(Math.sin(v.h - h0), Math.cos(v.h - h0))), `t=${k / 60}`).toBeLessThan(1e-6);
   }
 });
 

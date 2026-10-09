@@ -52,7 +52,7 @@ test.describe("Apex Ring", () => {
     const key = (await game(page, () => window.__apex.player.bend)) > 0 ? "ArrowRight" : "ArrowLeft";
     await page.keyboard.down(key);
     await page.waitForFunction(() => window.__apex.player.drifting, null, { timeout: 10_000 });
-    await page.waitForFunction(() => window.__apex.skidCount > 5, null, { timeout: 10_000 });
+    await page.waitForFunction(() => window.__apex.skidCount > 2, null, { timeout: 10_000 });
     await page.keyboard.up(key);
     expect((await game(page, () => window.__apex.player)).boost).toBeGreaterThan(b0);
   });

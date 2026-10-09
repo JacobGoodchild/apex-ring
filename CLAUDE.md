@@ -135,3 +135,7 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
   Version: package.json is 1.4.0; scripts/version.mjs stamps src/version.js with the version plus commit date and
   short hash during the deploy job (the copy in git says "dev"); Settings shows it. CI test timeout raised to 35 min
   (the suite is ~11 min now). tests/pwa.spec.js covers the banner, the next-launch update and the version line.
+- Fix 6 — no self-steering (from the phone playtest: the car followed the track by itself). The assist used to pull
+  toward the racing line when you weren't steering; now it only shapes steering you're already doing (light line
+  pull, heading limiter, wall guard). With no input the car goes dead straight (unit test). The auto-brake can still
+  slow you for a corner or a wall, but never steers. Rival pace retuned for the beginner bot: Easy 0.66, Medium 0.71.

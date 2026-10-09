@@ -27,10 +27,11 @@ export function cornerSpeed(v, t, margin = 1.06, guard = 0) {
 }
 
 // Blend the player's steering with the assist. strength 0..1 (0 = off).
+// The assist only shapes steering the player is already doing: with no input the car simply goes straight.
 export function assistSteer(v, t, input, strength) {
-  if (!strength) return input;
+  if (!strength || Math.abs(input) < 0.05) return input;
   let out = input;
-  // toward the racing line: strongest when the player isn't steering, light touch when they are
+  // a light pull toward the racing line while you steer
   const ls = lineSteer(v, t);
   // heading limiter: you can't swing the nose much more than ~15-20 degrees off the track's direction,
   // which stops a late correction turning into a weave from wall to wall
@@ -39,8 +40,8 @@ export function assistSteer(v, t, input, strength) {
   if (away > 0.12) input *= Math.max(0, 1 - (away - 0.12) / (0.18 / Math.max(0.3, strength * 1.8)));
   out = input;
   const fighting = Math.abs(input) > 0.05 && Math.sign(input) !== Math.sign(ls) && Math.abs(ls) > 0.2;
-  out += (ls - input) * strength * (Math.abs(input) < 0.05 ? 0.6 : fighting ? 0.45 : 0.2);
-  // wall guard: predict where the car will be in ~0.7 s and steer away if that's near the barrier
+  out += (ls - input) * strength * (fighting ? 0.45 : 0.2);
+  // wall guard (only while steering): if your steering is taking you into the barrier within ~0.7 s, ease it off
   const trx = -Math.cos(v.p.h), trz = Math.sin(v.p.h);
   const latV = v.vx * trx + v.vz * trz;
   const ahead = v.lat + latV * 0.7, lim = t.width / 2 + t.runoff - 3.5;
