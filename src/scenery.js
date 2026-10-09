@@ -2,6 +2,8 @@
 import * as THREE from "three";
 import { makeRng } from "./rng.js";
 import { canvasTex } from "./textures.js";
+import { photo } from "./photo.js";
+import { Terrain, hasTerrain } from "./terrain.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 // Spatial hash of centre-line samples so we can keep scenery off the road cheaply.
@@ -55,35 +57,40 @@ export function buildScenery(path, theme, density, seed) {
   const bounds = { minX: Math.min(...path.x), maxX: Math.max(...path.x), minZ: Math.min(...path.z), maxZ: Math.max(...path.z) };
   const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
   const radius = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2;
+  // rolling ground and mountains (city tracks stay flat); everything else sits on it
+  const terrain = hasTerrain(theme) ? new Terrain(path, theme, density < 0.6 ? "low" : density < 0.9 ? "medium" : "high", seed) : null;
+  if (terrain) g.add(terrain.mesh);
+  const ground = (x, z) => (terrain ? terrain.heightAt(x, z) : 0);
+  g.userData.terrain = terrain;
 
   // far mountains / mesas / hills on the horizon
-  if (kind === "mountain" || kind === "desert" || kind === "forest" || kind === "parkland") {
+  if (kind === "desert") {
     const n = kind === "mountain" ? 34 : 24, peaks = [], caps = [];
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2 + rnd() * 0.2, r = radius + 420 + rnd() * 380;
       const h = kind === "mountain" ? 220 + rnd() * 260 : kind === "desert" ? 60 + rnd() * 90 : 50 + rnd() * 70;
       const w = kind === "desert" ? 90 + rnd() * 120 : h * (0.9 + rnd() * 0.6);
-      peaks.push({ x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r, sx: w, sy: h, sz: w, r: rnd() * 6 });
+      peaks.push({ x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r, y: ground(cx + Math.cos(a) * r, cz + Math.sin(a) * r) - 4, sx: w, sy: h, sz: w, r: rnd() * 6 });
       if (kind === "mountain") caps.push({ x: cx + Math.cos(a) * r, y: h * 0.62, z: cz + Math.sin(a) * r, sx: w * 0.395, sy: h * 0.38, sz: w * 0.395, r: peaks[k].r });
     }
     const geo = kind === "desert" ? new THREE.CylinderGeometry(0.42, 0.5, 1, 7) : new THREE.ConeGeometry(1, 1, 7); geo.translate(0, 0.5, 0);
     const col = kind === "mountain" ? 0x5d6470 : kind === "desert" ? 0xb4583a : 0x355a35;
-    add(instanced(geo, new THREE.MeshStandardMaterial({ color: col, roughness: 1, flatShading: true }), peaks));
-    if (caps.length) add(instanced(geo, new THREE.MeshStandardMaterial({ color: 0xc9d0da, roughness: 0.95, flatShading: true }), caps));
+    add(instanced(geo, new THREE.MeshStandardMaterial({ color: kind === "mountain" ? 0x9aa0aa : kind === "desert" ? 0xd8805a : 0x6a8a5a, map: photo(kind === "desert" ? "rock" : kind === "mountain" ? "rock" : "grass", { repeat: [5, 3] }), roughness: 1, flatShading: true }), peaks));
+    if (caps.length) add(instanced(geo, new THREE.MeshStandardMaterial({ color: 0xd4dae2, map: photo("snow", { repeat: [3, 2] }), roughness: 0.95, flatShading: true }), caps));
   }
 
   // rocks and boulders
-  if (kind === "mountain" || kind === "desert") {
-    const rocks = scatter(path, grid, rnd, Math.round(220 * density), edge + 6, 160, (x, z) => ({ x, z, y: -0.5, s: 1 + rnd() * 4, r: rnd() * 6 }));
-    add(instanced(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: kind === "desert" ? 0xa8603e : 0x7d7f84, roughness: 1, flatShading: true }), rocks));
+  if (kind === "mountain" || kind === "desert" || kind === "coastal") {
+    const rocks = scatter(path, grid, rnd, Math.round(220 * density), edge + 6, 160, (x, z) => ({ x, z, y: ground(x, z) - 0.5, s: 1 + rnd() * 4, r: rnd() * 6 }));
+    add(instanced(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: kind === "desert" ? 0xe0906a : 0xb0b2b8, map: photo("rock"), roughness: 1, flatShading: true }), rocks));
   }
   if (kind === "desert") {
     // mesas close to the track, and cacti
-    const mesas = scatter(path, grid, rnd, Math.round(26 * density) + 6, edge + 45, 220, (x, z) => ({ x, z, sx: 30 + rnd() * 50, sy: 25 + rnd() * 55, sz: 30 + rnd() * 50, r: rnd() * 6 }));
+    const mesas = scatter(path, grid, rnd, Math.round(26 * density) + 6, edge + 45, 220, (x, z) => ({ x, z, y: ground(x, z) - 3, sx: 30 + rnd() * 50, sy: 25 + rnd() * 55, sz: 30 + rnd() * 50, r: rnd() * 6 }));
     const mg = new THREE.CylinderGeometry(0.45, 0.5, 1, 8); mg.translate(0, 0.5, 0);
     const band = canvasTex(8, 64, (c, w, h) => { for (let y = 0; y < h; y += 4) { c.fillStyle = `hsl(${14 + Math.random() * 12},${45 + Math.random() * 15}%,${36 + Math.random() * 14}%)`; c.fillRect(0, y, w, 4); } });
     add(instanced(mg, new THREE.MeshStandardMaterial({ map: band, roughness: 1, flatShading: true }), mesas));
-    const cacti = scatter(path, grid, rnd, Math.round(160 * density), edge + 5, 120, (x, z) => ({ x, z, s: 0.8 + rnd() * 0.8, r: rnd() * 6 }));
+    const cacti = scatter(path, grid, rnd, Math.round(160 * density), edge + 5, 120, (x, z) => ({ x, z, y: ground(x, z) - 0.2, s: 0.8 + rnd() * 0.8, r: rnd() * 6 }));
     const parts = [new THREE.CylinderGeometry(0.28, 0.32, 4, 7).translate(0, 2, 0), new THREE.CylinderGeometry(0.18, 0.18, 1.4, 6).translate(0.7, 2.6, 0), new THREE.CylinderGeometry(0.18, 0.18, 0.5, 6).rotateZ(Math.PI / 2).translate(0.4, 1.9, 0)];
     add(instanced(mergeGeometries(parts), new THREE.MeshStandardMaterial({ color: 0x4f7a3a, roughness: 0.9 }), cacti));
   }
@@ -118,20 +125,30 @@ export function buildScenery(path, theme, density, seed) {
     });
   }
   if (theme.sea) {
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(4000, 6000), new THREE.MeshStandardMaterial({ color: 0x0a1a33, metalness: 0.7, roughness: 0.18 }));
-    sea.rotation.x = -Math.PI / 2; sea.position.set(bounds.maxX + 40 + 2000, 0, cz); g.add(sea);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(4000, 6000), new THREE.MeshStandardMaterial({ color: theme.seaColor || 0x0a1a33, metalness: theme.seaColor ? 0.35 : 0.7, roughness: theme.seaColor ? 0.12 : 0.18 }));
+    sea.rotation.x = -Math.PI / 2; sea.position.set(bounds.maxX + 40 + 2000, theme.seaY || 0, cz); g.add(sea);
     // a lit far shore
   }
 
-  // trees (pines and round trees)
-  if (kind === "parkland" || kind === "forest" || kind === "mountain") {
-    const n = Math.round((kind === "forest" ? 1100 : kind === "mountain" ? 380 : 520) * density);
-    const cone = new THREE.ConeGeometry(2.4, 7, 7); cone.translate(0, 5.5, 0);
-    const trunk = new THREE.CylinderGeometry(0.3, 0.4, 2.2, 5); trunk.translate(0, 1.1, 0);
-    const trees = scatter(path, grid, rnd, n, edge + 8, 260, (x, z) => ({ x, z, s: 0.7 + rnd() * 0.9, r: rnd() * 6, c: new THREE.Color(theme.tree || 0x1f4a32).offsetHSL(0, 0, (rnd() - 0.5) * 0.08) }));
-    const leaves = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true });
-    add(instanced(cone, leaves, trees, { shadow: false }));
-    add(instanced(trunk, new THREE.MeshStandardMaterial({ color: 0x4a3626 }), trees.map((t) => ({ ...t, c: null }))));
+  // trees: layered pines and round broadleaf trees, scattered near the track and out across the hills
+  if (kind === "parkland" || kind === "forest" || kind === "mountain" || kind === "coastal") {
+    const n = Math.round((kind === "forest" ? 1100 : kind === "mountain" ? 420 : kind === "coastal" ? 220 : 560) * density);
+    const jitter = (geo, amt, k) => { const p = geo.attributes.position; for (let v = 0; v < p.count; v++) { const h = Math.sin(v * 12.9898 + k * 78.233) * 43758.5453; const r = (h - Math.floor(h)) - 0.5; p.setXYZ(v, p.getX(v) * (1 + r * amt), p.getY(v) + r * amt * 0.6, p.getZ(v) * (1 + r * amt)); } return geo; };
+    const tiers = [[2.6, 4.2, 3.2], [2.1, 3.8, 5.4], [1.6, 3.4, 7.4], [1.0, 2.8, 9.2]];
+    const pine = mergeGeometries(tiers.map(([r, h, y], k) => jitter(new THREE.ConeGeometry(r, h, 7, 1, true).translate(0, y, 0), 0.18, k)));
+    const blob = (r, x, y, z, k) => { const b = new THREE.IcosahedronGeometry(r, 0); jitter(b, 0.25, k); return b.translate(x, y, z); };
+    const round = mergeGeometries([blob(2.6, 0, 5.2, 0, 1), blob(2.0, 1.4, 6.6, 0.6, 2), blob(1.9, -1.2, 6.3, -0.8, 3), blob(1.7, 0.2, 7.6, -0.3, 4)]);
+    const trunk = new THREE.CylinderGeometry(0.22, 0.38, 4.2, 5); trunk.translate(0, 2.1, 0);
+    const leafTex = canvasTex(64, 64, (c, w, h) => { c.fillStyle = "#8a8a8a"; c.fillRect(0, 0, w, h); for (let k = 0; k < 700; k++) { const l = 30 + Math.random() * 70; c.fillStyle = `rgb(${l},${l},${l})`; c.fillRect(Math.random() * w, Math.random() * h, 2, 2); } }, { repeat: [2, 2] });
+    const leaves = new THREE.MeshStandardMaterial({ color: 0xffffff, map: leafTex, roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
+    const pick = kind === "mountain" || kind === "coastal" ? 1 : kind === "forest" ? 0.72 : 0.35; // share of pines
+    const base = new THREE.Color(theme.tree || 0x1f4a32);
+    const make = (x, z) => (theme.sea && theme.seaY != null && x > bounds.maxX + 20 ? null : { x, z, y: ground(x, z) - 0.3, s: 0.9 + rnd() * 0.9, r: rnd() * 6, pine: rnd() < pick, c: base.clone().offsetHSL((rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.08) });
+    const trees = [...scatter(path, grid, rnd, n, edge + 8, 260, make), ...(terrain ? scatter(path, grid, rnd, Math.round(n * 0.5), edge + 60, 700, make) : [])];
+    const pines = trees.filter((t) => t.pine), rounds = trees.filter((t) => !t.pine);
+    add(instanced(pine, leaves, pines));
+    add(instanced(round, leaves, rounds.map((t) => ({ ...t, c: t.c.clone().offsetHSL(0.03, 0.05, 0.06) }))));
+    add(instanced(trunk, new THREE.MeshStandardMaterial({ color: 0x4a3626, roughness: 1 }), trees.map((t) => ({ ...t, c: null }))));
   }
 
   // grandstand by the start line, on the right-hand side
@@ -181,8 +198,35 @@ export function buildScenery(path, theme, density, seed) {
     add(instanced(lg, new THREE.MeshStandardMaterial({ color: 0x30384a }), legs.flatMap((b) => [-3, 3].map((o) => ({ x: b.x + Math.cos(b.r) * o, y: b.y - 3.6 + 0.7, z: b.z - Math.sin(b.r) * o, r: b.r })))));
   }
 
+  // wooden telephone poles along the inland side with sagging wires between them
+  if (theme.poles) {
+    const poles = [], arms = [], wire = [];
+    let prev = null;
+    for (let d = 0; d < path.length; d += 42) {
+      const i = Math.floor(d / path.ds) % path.N;
+      path.pointAt(d, -(edge + 5), tmp);
+      const top = { x: tmp.x, y: tmp.y + 9.2, z: tmp.z, h: tmp.h };
+      poles.push({ x: tmp.x, y: tmp.y - 0.3, z: tmp.z, r: tmp.h });
+      arms.push({ x: tmp.x, y: tmp.y + 8.6, z: tmp.z, r: tmp.h });
+      if (prev) for (const o of [-0.9, 0, 0.9]) {
+        const ax = prev.x - Math.cos(prev.h) * o, az = prev.z + Math.sin(prev.h) * o, bx = top.x - Math.cos(top.h) * o, bz = top.z + Math.sin(top.h) * o;
+        for (let k = 0; k < 8; k++) {
+          const f0 = k / 8, f1 = (k + 1) / 8, sag = (f) => 4 * f * (1 - f) * 1.1;
+          wire.push(ax + (bx - ax) * f0, prev.y + (top.y - prev.y) * f0 - sag(f0) - 0.6, az + (bz - az) * f0, ax + (bx - ax) * f1, prev.y + (top.y - prev.y) * f1 - sag(f1) - 0.6, az + (bz - az) * f1);
+        }
+      }
+      prev = top; void i;
+    }
+    const pg = new THREE.CylinderGeometry(0.13, 0.18, 9.5, 6); pg.translate(0, 4.75, 0);
+    const wood = new THREE.MeshStandardMaterial({ color: 0x4a3a2c, roughness: 1 });
+    add(instanced(pg, wood, poles));
+    add(instanced(new THREE.BoxGeometry(2.4, 0.14, 0.14), wood, arms));
+    const wg = new THREE.BufferGeometry(); wg.setAttribute("position", new THREE.Float32BufferAttribute(wire, 3));
+    add(new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: 0x1a1c1e })));
+  }
+
   // light poles along the outside of the track
-  {
+  if (!theme.poles) {
     const poles = [], heads = [];
     for (let d = 0; d < path.length; d += 48) {
       const i = Math.floor(d / path.ds) % path.N; if (path.bridge[i] || path.tunnel[i]) continue;

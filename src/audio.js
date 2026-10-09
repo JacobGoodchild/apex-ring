@@ -1,4 +1,7 @@
-// All sound is synthesised with Web Audio: engine with gears, tyre squeal, boost whoosh, beeps and clicks.
+// All sound is synthesised with Web Audio: engine with gears, tyre squeal, boost whoosh, beeps and clicks,
+// rival engines placed left/right of you with a Doppler shift as they pass, and the procedural soundtrack.
+import { initMusic } from "./music.js";
+let rivalsV = [];
 let ctx = null, master = null, eng = null, squeal = null, wind = null, muted = false, lastGear = 0, shiftT = 0;
 
 // Each car has its own engine character: pitch, harmonic mix, filter brightness and gearbox.
@@ -8,6 +11,7 @@ const ENGINES = {
   v8: { pitch: 0.8, ratio: 1.25, sub: 0.8, bright: 0.8, gears: 6 },
   flat6: { pitch: 1.15, ratio: 2.0, sub: 0.35, bright: 1.2, gears: 7 },
   v12: { pitch: 1.3, ratio: 1.5, sub: 0.25, bright: 1.35, gears: 8 },
+  i4: { pitch: 1.45, ratio: 2.0, sub: 0.2, bright: 1.5, gears: 6 },
   electric: { pitch: 2.6, ratio: 2.0, sub: 0.05, bright: 1.6, gears: 1, electric: true },
 };
 let engine = ENGINES.v10;
@@ -38,6 +42,16 @@ export function startAudio() {
     // wind / boost rush
     const wn = ctx.createBufferSource(); wn.buffer = nb; wn.loop = true; const wf = ctx.createBiquadFilter(); wf.type = "lowpass"; wf.frequency.value = 600;
     const wg = ctx.createGain(); wg.gain.value = 0; wn.connect(wf); wf.connect(wg); wg.connect(comp); wn.start(); wind = { g: wg, f: wf };
+    // three pooled voices for the nearest rival cars: saw + sub through a low-pass, panned left/right
+    rivalsV = [0, 1, 2].map(() => {
+      const o = ctx.createOscillator(); o.type = "sawtooth"; const s = ctx.createOscillator(); s.type = "square";
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 3; lp.frequency.value = 900;
+      const g = ctx.createGain(); g.gain.value = 0; const sg = ctx.createGain(); sg.gain.value = 0.4;
+      const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+      o.connect(lp); s.connect(sg); sg.connect(lp); lp.connect(g); g.connect(pan); pan.connect(comp); o.start(); s.start();
+      return { o, s, lp, g, pan };
+    });
+    initMusic(ctx, master);
   } catch (e) { ctx = null; }
 }
 
@@ -64,10 +78,28 @@ export function updateAudio(v, vmax, on, slip, boost) {
   eng.g3.gain.setTargetAtTime(E.sub, t, 0.1);
   eng.lp.frequency.setTargetAtTime((400 + rpm * 2200 + (boost ? 900 : 0)) * E.bright, t, 0.04);
   eng.g.gain.setTargetAtTime(on ? 0.075 + rpm * 0.03 : 0, t, 0.08);
-  squeal.g.gain.setTargetAtTime(on ? Math.min(0.12, slip * 0.14) : 0, t, 0.05);
-  squeal.bp.frequency.setTargetAtTime(1400 + slip * 700, t, 0.1);
+  // squeal grows with the drift angle (slip) and with speed; pitch rises as the slide gets wider
+  const sq = slip * Math.min(1, v / 25);
+  squeal.g.gain.setTargetAtTime(on ? Math.min(0.13, sq * sq * 0.16 + sq * 0.03) : 0, t, 0.05);
+  squeal.bp.frequency.setTargetAtTime(1250 + slip * 900, t, 0.1);
   wind.g.gain.setTargetAtTime(on ? f * 0.05 + (boost ? 0.12 : 0) : 0, t, 0.12);
   wind.f.frequency.setTargetAtTime(boost ? 2400 : 500 + f * 900, t, 0.1);
+}
+
+// Rival engines: list of { pan -1..1, dist m, rpm 0..1, closing m/s } for the nearest cars (up to 3).
+export function updateRivalAudio(list, on) {
+  if (!ctx || !rivalsV.length) return;
+  const t = ctx.currentTime;
+  rivalsV.forEach((v, i) => {
+    const r = on ? list[i] : null;
+    if (!r) { v.g.gain.setTargetAtTime(0, t, 0.15); return; }
+    const doppler = 343 / Math.max(200, 343 - r.closing * 1.6); // exaggerated a little so passes are audible
+    const f = (55 + r.rpm * 160) * doppler * (0.9 + i * 0.07);
+    v.o.frequency.setTargetAtTime(f, t, 0.05); v.s.frequency.setTargetAtTime(f / 2, t, 0.05);
+    v.lp.frequency.setTargetAtTime(Math.max(200, 500 + r.rpm * 1400 - r.dist * 6), t, 0.08);
+    v.g.gain.setTargetAtTime(0.05 * Math.max(0, 1 - r.dist / 70) ** 1.5, t, 0.08);
+    if (v.pan.pan) v.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, r.pan)), t, 0.05);
+  });
 }
 
 // A quick dip and crackle on each upshift.

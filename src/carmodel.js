@@ -217,6 +217,19 @@ export function setRims(car, idx) {
   car.rimMat.color.setHex(rim.color);
 }
 
+// Paint finishes: changes how the paint reflects light (gloss is the default clear-coat look).
+export const FINISHES = [{ name: "Gloss" }, { name: "Matte" }, { name: "Metallic" }, { name: "Pearl" }, { name: "Neon glow" }];
+export function setFinish(model, idx, paintHex) {
+  const m = model.paint;
+  Object.assign(m, { metalness: 0.5, roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.08, iridescence: 0, emissiveIntensity: 0 });
+  m.emissive.setHex(0x000000);
+  if (idx === 1) Object.assign(m, { metalness: 0.15, roughness: 0.62, clearcoat: 0 });
+  else if (idx === 2) Object.assign(m, { metalness: 0.92, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.04 });
+  else if (idx === 3) Object.assign(m, { metalness: 0.35, roughness: 0.25, clearcoat: 1, iridescence: 0.85, iridescenceIOR: 1.5, iridescenceThicknessRange: [180, 520] });
+  else if (idx === 4) { m.emissive.setHex(paintHex); m.emissiveIntensity = 0.32; }
+  m.needsUpdate = true;
+}
+
 export const DECALS = [{ name: "None" }, { name: "Twin stripes" }, { name: "Centre stripe" }, { name: "Side flash" }, { name: "Race number" }];
 
 // Decals are thin patches lifted just off the bodywork, in a colour that contrasts with the paint.

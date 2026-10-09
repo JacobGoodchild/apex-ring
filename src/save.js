@@ -12,7 +12,7 @@ function defaults() {
     best: {}, // best lap per track id
     ghosts: {}, // best time-trial lap recording per track id
     career: {}, // event id -> { place, stars }
-    settings: { quality: "", sound: true, tilt: false, camera: "chase", difficulty: "easy", assist: "auto", line: "auto" },
+    settings: { quality: "", sound: true, tilt: false, camera: "chase", difficulty: "easy", assist: "auto", line: "auto", music: 0.6 },
   };
 }
 

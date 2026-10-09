@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 const walk = (d) => readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : [p]; });
 export function shippedFiles() {
-  return ["index.html", "styles.css", "manifest.webmanifest", ...walk("src"), ...walk("vendor").filter((f) => f.endsWith(".js")), ...walk("icons")].sort();
+  return ["index.html", "styles.css", "manifest.webmanifest", ...walk("src"), ...walk("vendor").filter((f) => f.endsWith(".js")), ...walk("icons"), ...walk("assets")].sort();
 }
 const files = shippedFiles();
 const hash = createHash("sha1"); for (const f of files) hash.update(f).update(readFileSync(f));

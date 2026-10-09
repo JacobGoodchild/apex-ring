@@ -1,21 +1,36 @@
 # Apex Ring
 
-An arcade hypercar racing game that runs in the browser, on phones and desktops. No accounts, no ads, no purchases.
+An arcade hypercar racing game that runs in the browser, on phones and desktops. No accounts, no ads, no purchases,
+no servers: everything (saves, leaderboards, ghosts) stays on your device.
 
 **Play:** the `main` branch deploys to GitHub Pages after the tests pass. On a phone, open it and use
 "Add to Home screen" to install it; it then works offline.
 
 ## How to play
-- The car accelerates on its own and lifts for tight corners. You steer.
-- **Steer:** the ◀ ▶ pads (or touch either half of the screen, see Settings), phone tilt, or ← → / A D.
-- **Drift:** tap DRIFT while steering (Space on a keyboard). Drifting fills the blue boost bar.
-- **Brake:** hold DRIFT without steering, or ↓.
-- **Boost:** BOOST or ↑ when the bar has charge.
-- **Other keys:** C camera, P pause, R back on track, M mute.
+**Casual driving** (default): the car speeds up, brakes and drifts by itself. You steer and boost.
+- **Steer:** hold the left or right half of the screen, tilt the phone (Settings > Controls), or ← → / A D.
+- **Drift:** steer hard into a fast bend and the car slides. Drifting fills the blue boost bar; linking drifts
+  quickly builds a multiplier (up to x5).
+- **Boost:** tap both sides of the screen together twice, or Space / ↑.
+- **Slipstream:** sit right behind a rival to fill the draft bar; when it's full you get a free slingshot.
 
-## Modes
-Quick race (8 cars), time trial (with a ghost of your best lap), and a 12-event career with races,
-time trials, drift challenges, elimination and head-to-heads. Coins and gems buy cars, upgrades, rims and decals.
+**Pro driving** (Settings > Driving > Pro): you work the pedals.
+- ↑ / W accelerate, ↓ / S brake, Space handbrake (kicks the car into a drift), Shift boost.
+- On a touch screen, steering buttons and GAS / BRAKE / HAND / BOOST pedals appear.
+
+Other keys: C camera, P pause, R back on track, M mute.
+
+## Modes and content
+- **Quick race** against 7 rule-based rivals with personalities (aggressive, careful, wild card, blocker, apex hunter),
+  **time trial** with ghosts (your best lap, plus a friend's lap shared as a code), and a local leaderboard of your
+  best laps this week / month / ever.
+- **Career:** 20 events on a map: races, time trials, drift challenges, timed Drift Attacks, eliminations, timed
+  Knockouts, head-to-heads and Boss battles that win you the boss's car.
+- **9 tracks**, each also raceable Reversed or Mirrored: Dusk Oval, Apex Ring GP, Greenwood, Red Canyon,
+  Harbour Lights, Neon District, Alpine Pass, Xtreme (cliffs and ramps) and Coastal Highway (rain, wet road).
+- **9 cars** in four classes (Compact, Muscle, Supercar, Prototype), upgrades (Engine, Tyres, ECU, Turbo, Weight),
+  paints, finishes (matte, metallic, pearl, neon), rims, decals and boost flame colours.
+- Procedural synthwave soundtrack and engine sounds, all made in code.
 
 ## Run it locally
 ```

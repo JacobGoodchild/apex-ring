@@ -79,6 +79,9 @@ export class Smoke {
 }
 
 // Exhaust flames for boost, attached to a car model.
+// Boost flame colours (outer flame; the core stays white-hot).
+export const TRAILS = [{ name: "Ice blue", hex: 0x4cc9f0 }, { name: "Inferno", hex: 0xff6a2a }, { name: "Toxic", hex: 0x7dff4a }, { name: "Magenta", hex: 0xff3fd2 }, { name: "Violet", hex: 0x9d6bff }, { name: "Ghost", hex: 0xe8f4ff }];
+export function setTrail(model, idx) { if (model.flameOuter) model.flameOuter.color.setHex(TRAILS[idx % TRAILS.length].hex); }
 export function addFlames(model) {
   const g = new THREE.ConeGeometry(0.13, 0.9, 10, 1, true); g.rotateX(-Math.PI / 2); g.translate(0, 0, -0.45);
   const outer = new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -89,7 +92,7 @@ export function addFlames(model) {
     const o = new THREE.Mesh(g, outer); const i = new THREE.Mesh(g, inner); i.scale.set(0.5, 0.5, 0.6);
     f.add(o, i); f.visible = false; model.body.add(f); flames.push(f);
   }
-  model.flames = flames;
+  model.flames = flames; model.flameOuter = outer;
 }
 export function updateFlames(model, on, t) {
   if (!model.flames) return;
@@ -100,6 +103,32 @@ export function updateFlames(model, on, t) {
 }
 
 // Speed lines: streaks in a tube around the camera that rush past at high speed or under boost.
+// Rain: streaks in a box that travels with the camera. Each drop falls, and the streak leans with the car's
+// motion so it rushes at you at speed. One draw call.
+export class Rain {
+  constructor(scene, n = 900) {
+    this.n = n; this.p = new Float32Array(n * 3); this.box = 28;
+    for (let i = 0; i < n; i++) { this.p[i * 3] = (Math.random() * 2 - 1) * this.box; this.p[i * 3 + 1] = Math.random() * 22; this.p[i * 3 + 2] = (Math.random() * 2 - 1) * this.box; }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 6), 3).setUsage(THREE.DynamicDrawUsage));
+    this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xc4ced6, transparent: true, opacity: 0.2, depthWrite: false }));
+    this.lines.frustumCulled = false; this.lines.visible = false; scene.add(this.lines); this.geo = g;
+  }
+  update(dt, cam, vx, vz) {
+    if (!this.lines.visible) return;
+    const P = this.p, out = this.geo.attributes.position.array, B = this.box, fall = 24;
+    for (let i = 0; i < this.n; i++) {
+      let x = P[i * 3], y = P[i * 3 + 1] - fall * dt, z = P[i * 3 + 2];
+      x -= vx * dt; z -= vz * dt; // the car drives through the rain
+      if (y < -2) y += 24; if (x < -B) x += 2 * B; else if (x > B) x -= 2 * B; if (z < -B) z += 2 * B; else if (z > B) z -= 2 * B;
+      P[i * 3] = x; P[i * 3 + 1] = y; P[i * 3 + 2] = z;
+      const k = i * 6, wx = cam.x + x, wy = cam.y + y - 6, wz = cam.z + z;
+      out[k] = wx; out[k + 1] = wy; out[k + 2] = wz;
+      out[k + 3] = wx + vx * 0.02 + 0.05; out[k + 4] = wy + 0.7; out[k + 5] = wz + vz * 0.02;
+    }
+    this.geo.attributes.position.needsUpdate = true;
+  }
+}
+
 export class SpeedLines {
   constructor(camera, n = 70) {
     this.n = n; const pos = new Float32Array(n * 6); this.seed = [];

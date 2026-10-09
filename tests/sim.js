@@ -30,7 +30,7 @@ export function race(trackId, levelName, { seed = 7, aids = AUTO_ASSIST[levelNam
   const rivals = [];
   for (let k = 0, s = 0; k < 7; k++, s++) {
     if (s === 5) s++;
-    const cdef = CARS[(k + 1) % CARS.length], veh = new Vehicle(rivalSpec(carSpec(cdef), player.spec), path);
+    const cdef = CARS[(k + 1) % 7], veh = new Vehicle(rivalSpec(carSpec(cdef), player.spec), path);
     const [d, lat] = slot(s); veh.reset(d, lat);
     const drv = new Driver(veh, RIVALS[k], 0.95 + rnd() * 0.05, seed * 31 + k, level);
     rivals.push({ veh, drv, name: RIVALS[k].name });

@@ -3,19 +3,33 @@ import { tiltCfg, tiltRoll, tiltSteer } from "./tilt.js";
 // Keyboard, touch and optional phone tilt, merged into one control state.
 // Touch: hold the left or right half of the screen to steer. Touch BOTH halves together twice (within ~0.45 s)
 // to fire boost. Keyboard: arrows / A-D steer, Space (or up arrow) boosts.
-export const input = { kl: false, kr: false, tilt: 0, tiltOn: false, onKey: null, boostTaps: 0, touchL: 0, touchR: 0, lastBoth: -1, both: false };
+// Pro mode (input.pro): Up/W accelerate, Down/S brake, Space handbrake, Shift/B boost; on touch, on-screen pedals.
+export const input = { kl: false, kr: false, ku: false, kd: false, kh: false, tilt: 0, tiltOn: false, onKey: null, boostTaps: 0, touchL: 0, touchR: 0, lastBoth: -1, both: false, pro: false, pad: {} };
 
 const KEYS = { ArrowLeft: "kl", a: "kl", A: "kl", ArrowRight: "kr", d: "kr", D: "kr" };
+const PRO_KEYS = { ArrowUp: "ku", w: "ku", W: "ku", ArrowDown: "kd", s: "kd", S: "kd", " ": "kh" };
 const BOOST_KEYS = new Set([" ", "ArrowUp", "w", "W"]);
+const PRO_BOOST = new Set(["Shift", "b", "B", "n", "N"]);
 
 addEventListener("keydown", (e) => {
-  const k = KEYS[e.key];
-  if (k) { input[k] = true; if (e.key.startsWith("Arrow")) e.preventDefault(); }
-  else if (BOOST_KEYS.has(e.key)) { e.preventDefault(); if (!e.repeat) input.boostTaps++; }
+  const k = KEYS[e.key] || (input.pro && PRO_KEYS[e.key]);
+  if (k) { input[k] = true; if (e.key.startsWith("Arrow") || e.key === " ") e.preventDefault(); }
+  else if ((input.pro ? PRO_BOOST : BOOST_KEYS).has(e.key)) { e.preventDefault(); if (!e.repeat) input.boostTaps++; }
   else if (input.onKey && !e.repeat) input.onKey(e.key);
 });
-addEventListener("keyup", (e) => { const k = KEYS[e.key]; if (k) input[k] = false; });
-addEventListener("blur", () => { input.kl = input.kr = false; });
+addEventListener("keyup", (e) => { const k = KEYS[e.key] || PRO_KEYS[e.key]; if (k) input[k] = false; });
+addEventListener("blur", () => { input.kl = input.kr = input.ku = input.kd = input.kh = false; input.pad = {}; });
+
+// Pro-mode on-screen buttons: each element's data-pad names what it holds (l, r, gas, brake, hand) or "boost".
+export function bindPads(root) {
+  root.querySelectorAll("[data-pad]").forEach((el) => {
+    const key = el.dataset.pad;
+    const down = (e) => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ } if (key === "boost") input.boostTaps++; else input.pad[key] = true; el.classList.add("on"); };
+    const up = () => { input.pad[key] = false; el.classList.remove("on"); };
+    el.addEventListener("pointerdown", down); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("lostpointercapture", up);
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+  });
+}
 
 const pointers = new Map(); // pointerId -> "L" | "R"
 function recount() {
@@ -56,11 +70,12 @@ export function readControls(consume = true) {
     if (input.touchL) s -= 1;
     if (input.touchR) s += 1;
   }
-  if (input.kl) s -= 1;
-  if (input.kr) s += 1;
+  if (input.kl || input.pad.l) s -= 1;
+  if (input.kr || input.pad.r) s += 1;
   const boost = input.boostTaps > 0;
   if (consume) input.boostTaps = 0;
-  return { steer: Math.max(-1, Math.min(1, s)), boost };
+  const p = input.pad;
+  return { steer: Math.max(-1, Math.min(1, s)), boost, throttle: input.ku || p.gas ? 1 : 0, brake: input.kd || p.brake ? 1 : 0, handbrake: !!(input.kh || p.hand) };
 }
 
 // ---------- tilt ---------- (maths in tilt.js)

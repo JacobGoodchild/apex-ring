@@ -27,3 +27,24 @@ for (const t of TRACKS) {
     expect(problems).toEqual([]);
   });
 }
+
+// Reverse and Mirror layouts: picked from the race setup tabs, and a full lap is driven on each.
+test("reverse and mirror layouts can be picked and raced", async ({ page }) => {
+  test.setTimeout(240_000);
+  const problems = await openGame(page, "track=gp&autopilot=1&speed=12&laps=1&rivals=2");
+  await page.click("#raceBtn");
+  await page.click('#layoutTabs [data-l="r"]');
+  expect(await page.evaluate(() => window.__apex.track)).toBe("gp:r");
+  await expect(page.locator("#trackName")).toHaveText(/Reverse/);
+  await page.click("#startBtn");
+  await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 100_000 });
+  expect((await page.evaluate(() => window.__apex.save)).best["gp:r"]).toBeGreaterThan(10);
+  await page.click("#menuBtn");
+  await page.click("#raceBtn");
+  await page.click('#layoutTabs [data-l="m"]');
+  expect(await page.evaluate(() => window.__apex.track)).toBe("gp:m");
+  await page.click("#startBtn");
+  await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 100_000 });
+  expect(problems).toEqual([]);
+  await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+});

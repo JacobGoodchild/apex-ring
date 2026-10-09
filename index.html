@@ -41,11 +41,12 @@
   <div class="unit">KM/H</div>
   <div class="bar"><div class="fill" id="spdBar"></div></div>
   <div class="boostbar" aria-label="Boost meter"><div class="fill" id="boostFill"></div></div>
+  <div id="draft" aria-label="Slipstream"><i id="draftFill"></i></div>
 </div>
 <div id="eventTag" hidden></div>
 <div id="gapV" hidden></div>
 <div id="tags" hidden></div>
-<div id="drift" hidden><span class="k">DRIFT</span> <span id="driftV">+0</span></div>
+<div id="drift" hidden><span class="k">DRIFT</span> <span id="driftV">+0</span> <span id="driftX" class="mult"></span></div>
 <div id="driftPop" hidden></div>
 <div id="boostFlash" aria-hidden="true"></div>
 <div id="offtrack" hidden>OFF TRACK</div>
@@ -53,6 +54,13 @@
 <div class="pads" id="pads" hidden>
   <div class="zone" id="zoneL" aria-label="Steer left"></div><div class="zone" id="zoneR" aria-label="Steer right"></div>
   <div class="zhint" aria-hidden="true"><span>◀</span><span>▶</span></div>
+</div>
+<div class="propads" id="proPads" hidden>
+  <div class="pgroup left" id="proSteer"><button class="pbtn" data-pad="l" type="button" aria-label="Steer left">◀</button><button class="pbtn" data-pad="r" type="button" aria-label="Steer right">▶</button></div>
+  <div class="pgroup right">
+    <button class="pbtn small" data-pad="boost" type="button">BOOST</button><button class="pbtn small" data-pad="hand" type="button">HAND</button>
+    <button class="pbtn" data-pad="brake" type="button">BRAKE</button><button class="pbtn gas" data-pad="gas" type="button">GAS</button>
+  </div>
 </div>
 
 <div id="count" hidden>
@@ -94,6 +102,13 @@
       <div class="trackinfo"><div class="label" id="trackTheme">Track</div><div class="trackName" id="trackName"></div><div class="hint" id="trackBlurb"></div></div>
       <button class="arrow" id="trackNext" type="button" aria-label="Next track">›</button>
     </div>
+    <div class="board" id="board"><div class="row between"><div class="label">Your best laps</div>
+      <div class="tabs mini" id="boardTabs"><button class="tab" data-p="week" type="button">Week</button><button class="tab" data-p="month" type="button">Month</button><button class="tab" data-p="all" type="button">All</button></div></div>
+      <ol class="boardlist" id="boardList"></ol></div>
+    <div class="ghostbar" id="ghostBar" hidden><button class="chipbtn" id="ghostShare" type="button">Share my ghost</button><button class="chipbtn" id="ghostImport" type="button">Race a friend's ghost</button></div>
+    <div class="ghostpanel" id="ghostPanel" hidden><textarea id="ghostCode" rows="3" spellcheck="false" aria-label="Ghost code"></textarea>
+      <div class="row"><button class="chipbtn" id="ghostCopy" type="button">Copy</button><button class="chipbtn" id="ghostLoad" type="button">Load code</button><span class="hint" id="ghostMsg"></span></div></div>
+    <div class="tabs" id="layoutTabs"><button class="tab" data-l="" type="button">Normal</button><button class="tab" data-l="r" type="button">Reverse</button><button class="tab" data-l="m" type="button">Mirror</button></div>
     <button class="btn" id="startBtn" type="button">Start race</button>
     <button class="btn ghost" id="setupBack" type="button">Back</button>
   </div>
@@ -114,7 +129,9 @@
       <button class="tab" id="tabDecal" type="button" aria-pressed="false">Decals</button>
       <button class="tab" id="tabUp" type="button" aria-pressed="false">Upgrades</button>
     </div>
-    <div class="panel" id="panelPaint"><div class="row"><div class="paints" id="paints"></div><div class="paintName" id="paintName"></div></div></div>
+    <div class="panel" id="panelPaint"><div class="row"><div class="paints" id="paints"></div><div class="paintName" id="paintName"></div></div>
+      <div class="label">Finish</div><div class="chips" id="finishes"></div>
+      <div class="label">Boost flame</div><div class="chips" id="trails"></div></div>
     <div class="panel" id="panelRims" hidden><div class="chips" id="rims"></div></div>
     <div class="panel" id="panelDecal" hidden><div class="chips" id="decals"></div></div>
     <div class="panel" id="panelUp" hidden><div id="upgrades"></div></div>
@@ -128,6 +145,8 @@
   <div class="card">
     <div class="row between"><div class="brand small">CAREER</div><div class="stars" id="careerStars"></div></div>
     <div class="events" id="events"></div>
+    <div class="evdetail" id="evDetail" hidden><div class="evdn" id="evDName"></div><div class="hint" id="evDDesc"></div><div class="evdr" id="evDReward"></div>
+      <button class="btn" id="evGo" type="button">Start event</button></div>
     <button class="btn ghost" id="careerBack" type="button">Back</button>
   </div>
 </div>
@@ -142,6 +161,9 @@
     </div>
     <div class="label">Camera</div>
     <div class="tabs" id="camTabs"><button class="tab" data-c="chase" type="button">Chase</button><button class="tab" data-c="bonnet" type="button">Bonnet</button></div>
+    <div class="label">Driving</div>
+    <div class="tabs" id="driveTabs"><button class="tab" data-d="casual" type="button">Casual</button><button class="tab" data-d="pro" type="button">Pro</button></div>
+    <div class="hint" id="driveHint">Casual: the car speeds up, brakes and drifts by itself; you steer and boost.</div>
     <div class="label">Controls</div>
     <div class="tabs" id="ctrlTabs"><button class="tab" data-m="touch" type="button">Touch</button><button class="tab" data-m="tilt" type="button">Tilt</button></div>
     <div id="tiltOpts" class="tiltopts" hidden>
@@ -152,6 +174,9 @@
     </div>
     <div class="label">Rivals</div>
     <div class="tabs" id="diffTabs"><button class="tab" data-d="easy" type="button">Easy</button><button class="tab" data-d="normal" type="button">Medium</button><button class="tab" data-d="hard" type="button">Hard</button></div>
+    <div class="label">Rival catch-up</div>
+    <div class="tabs" id="bandTabs"><button class="tab" data-b="off" type="button">Off</button><button class="tab" data-b="low" type="button">Low</button><button class="tab" data-b="normal" type="button">Normal</button><button class="tab" data-b="high" type="button">High</button></div>
+    <div class="hint">How much rivals ease off when you fall behind (and push when you get far ahead). Off = pure racing.</div>
     <div class="label">Steering assist</div>
     <div class="tabs" id="assistTabs"><button class="tab" data-a="auto" type="button">Auto</button><button class="tab" data-a="on" type="button">On</button><button class="tab" data-a="off" type="button">Off</button></div>
     <div class="label">Racing line on the road</div>
@@ -159,6 +184,8 @@
     <div class="hint">Auto: assist is full on Easy, lighter on Medium, off on Hard; the racing line shows on Easy.</div>
     <div class="label">Sound</div>
     <div class="tabs" id="soundTabs"><button class="tab" data-s="1" type="button">On</button><button class="tab" data-s="0" type="button">Off</button></div>
+    <label class="label" for="musicVol">Music volume</label>
+    <input type="range" id="musicVol" min="0" max="1" step="0.05" value="0.6">
     <button class="btn ghost danger" id="resetBtn" type="button">Reset all progress</button>
     <button class="btn ghost" id="settingsBack" type="button">Back</button>
     <div class="hint version" id="versionV"></div>

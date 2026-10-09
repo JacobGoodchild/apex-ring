@@ -4,9 +4,9 @@ import * as THREE from "three";
 const RATE = 10;
 
 export class Ghost {
-  constructor(model) {
+  constructor(model, color = 0x7fe3ff) {
     this.model = model;
-    const mat = new THREE.MeshBasicMaterial({ color: 0x7fe3ff, transparent: true, opacity: 0.28, depthWrite: false });
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: false });
     model.group.traverse((o) => { if (o.isMesh) { o.material = mat; o.castShadow = false; } });
     model.group.visible = false;
     this.rec = []; this.data = null; this.nextT = 0;

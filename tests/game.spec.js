@@ -195,12 +195,32 @@ test.describe("Apex Ring", () => {
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 
+  test("pro driving: the car only goes when you press accelerate, and the brake slows it", async ({ page }) => {
+    const problems = await openGame(page, "rivals=0&track=oval");
+    await page.click("#settingsBtn");
+    await page.click('#driveTabs [data-d="pro"]');
+    expect((await game(page, () => window.__apex.save)).settings.drive).toBe("pro");
+    await page.click("#settingsBack");
+    await startRace(page);
+    await page.waitForTimeout(1500);
+    expect((await game(page, () => window.__apex.player)).vF).toBeLessThan(1);
+    await page.keyboard.down("ArrowUp");
+    await page.waitForFunction(() => window.__apex.player.vF > 25, null, { timeout: 15_000 });
+    await page.keyboard.up("ArrowUp");
+    const fast = (await game(page, () => window.__apex.player)).vF;
+    await page.keyboard.down("ArrowDown");
+    await page.waitForFunction((f) => window.__apex.player.vF < f - 15, fast, { timeout: 10_000 });
+    await page.keyboard.up("ArrowDown");
+    expect(problems).toEqual([]);
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
   test("career: a time trial event can be completed and is saved", async ({ page }) => {
     test.setTimeout(120_000);
     const problems = await openGame(page, "autopilot=1&speed=12");
     await page.click("#careerBtn");
-    await expect(page.locator("#events .event")).toHaveCount(13);
-    await page.click("#ev-c2");
+    await expect(page.locator("#events .event")).toHaveCount(20);
+    await page.click("#ev-c2"); await page.click("#evGo");
     await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 90_000 });
     await expect(page.locator("#finish")).toBeVisible({ timeout: 10_000 });
     await expect(page.locator(".evhead")).toBeVisible();
@@ -214,11 +234,34 @@ test.describe("Apex Ring", () => {
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 
+  test("career map: drift attack runs on a clock, and a boss battle is a 1v1 in the boss's own car", async ({ page }) => {
+    test.setTimeout(200_000);
+    const problems = await openGame(page, "autopilot=1&speed=12");
+    await page.click("#careerBtn");
+    await expect(page.locator(".chapter")).toHaveCount(4);
+    await page.click("#ev-a1");
+    await expect(page.locator("#evDDesc")).toContainText("60 s");
+    await page.click("#evGo");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 30_000 });
+    await expect(page.locator("#eventTag")).toContainText(/Drift Attack · [01]:\d\d/);
+    await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 60_000 });
+    expect(await page.evaluate(() => window.__apex.raceTime)).toBeLessThan(61);
+    await page.click("#menuBtn");
+    await page.click("#ev-b1"); await page.click("#evGo");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 30_000 });
+    expect(await page.evaluate(() => window.__apex.fieldSize)).toBe(1);
+    expect(await page.evaluate(() => window.__apex.fieldCars)).toEqual(["brute"]);
+    await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 120_000 });
+    await expect(page.locator(".evhead")).toBeVisible();
+    expect(problems).toEqual([]);
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
   test("career: elimination drops the last car each lap", async ({ page }) => {
     test.setTimeout(120_000);
     await openGame(page, "autopilot=1&speed=12&laps=3");
     await page.click("#careerBtn");
-    await page.click("#ev-c7");
+    await page.click("#ev-c7"); await page.click("#evGo");
     await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 20_000 });
     expect(await game(page, () => window.__apex.fieldSize)).toBe(7);
     await page.waitForFunction(() => window.__apex.fieldSize <= 6 || window.__apex.mode === "done", null, { timeout: 90_000 });
@@ -262,6 +305,17 @@ test.describe("Apex Ring", () => {
     await page.setViewportSize({ width: 915, height: 412 });
     await page.waitForTimeout(300);
     await page.screenshot({ path: "screenshots/ghost-landscape.png" });
+    // the lap is on the local leaderboard, and the ghost can be shared as a code and loaded back as a friend's ghost
+    await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 60_000 });
+    await page.click("#menuBtn");
+    await page.click("#raceBtn");
+    await page.click("#modeTrial");
+    await expect(page.locator("#boardList li").first()).toContainText(/\d:\d\d\.\d\d/);
+    await page.click("#ghostShare");
+    await expect(page.locator("#ghostCode")).toHaveValue(/^APXG1/);
+    await page.click("#ghostLoad");
+    await expect(page.locator("#ghostMsg")).toContainText("Loaded");
+    expect((await game(page, () => window.__apex.save)).friendGhosts.oval.s.length).toBeGreaterThan(40);
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 

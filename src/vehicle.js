@@ -13,7 +13,7 @@ export class Vehicle {
 
   reset(d, lat) {
     const p = this.track.pointAt(d, lat, {});
-    this.x = p.x; this.z = p.z; this.y = p.y; this.h = p.h; this.vy = 0; this.airborne = false; this.groundPrev = null; this.landed = 0; this.airT = 0; this.airDone = 0;
+    this.x = p.x; this.z = p.z; this.y = p.y; this.h = p.h; this.vy = 0; this.airborne = false; this.groundPrev = null; this.landed = 0; this.slingT = 0; this.airT = 0; this.airDone = 0;
     this.vx = 0; this.vz = 0; this.vF = 0; this.vL = 0;
     this.yawRate = 0; this.steer = 0; this.latAcc = 0; this.lonAcc = 0;
     this.drifting = false; this.driftAngle = 0; this.driftTime = 0; this.driftScore = 0;
@@ -43,7 +43,9 @@ export class Vehicle {
     const p = t.project(this.x, this.z, this.hint, this.p); this.hint = p.i;
     const halfW = t.width / 2;
     this.offTrack = Math.abs(p.lat) > halfW + 0.7;
-    const surf = this.offTrack ? 0.8 : 1; // run-off is grippy enough to recover on
+    const surf = (this.offTrack ? 0.8 : 1) * t.surfaceAt(p.d, p.lat); // run-off is grippy enough to recover on; oil and water aren't
+    this.onOil = surf < 0.5;
+    if (this.onOil && active && vF > 20) this.yawRate += Math.sin(this.totalD * 0.9) * 0.5 * dt; // the tail wriggles on oil
 
     // steering input is smoothed; less lock at speed keeps it stable but responsive
     const sIn = active ? clamp(c.steer, -1, 1) : 0;
@@ -52,23 +54,34 @@ export class Vehicle {
     // automatic drift: steering hard at speed asks for more turn than the tyres give, so the car slides into a
     // controlled drift that actually turns a little tighter (it makes corners easier, not harder)
     const bend = t.cs[p.i] || 0; // only in real corners, steering into the bend (not swerves on a straight)
-    const demand = Math.abs(this.steer) > 0.55 && vF > s.vmax * 0.5 && Math.abs(bend) > 0.004 && Math.sign(bend) === Math.sign(this.steer) && Math.abs(this.yawRate) > (s.grip * 0.9) / Math.max(6, vF);
+    const pro = !!c.pro;
+    // Pro: the handbrake kicks the tail out on demand (any bend or none), at a decent speed with some steering
+    if (active && pro && c.handbrake && !this.drifting && vF > 14 && Math.abs(this.steer) > 0.2) { this.drifting = true; this.driftDir = Math.sign(this.steer); this.yawRate += this.driftDir * 0.35; }
+    const demand = !pro && Math.abs(this.steer) > 0.55 && vF > s.vmax * 0.5 && Math.abs(bend) > 0.004 && Math.sign(bend) === Math.sign(this.steer) && Math.abs(this.yawRate) > (s.grip * 0.9) / Math.max(6, vF);
     if (active && demand && !this.drifting) { this.drifting = true; this.driftDir = Math.sign(this.steer); this.yawRate += this.driftDir * 0.3; }
-    if (this.drifting && (this.steer * this.driftDir < 0.35 || vF < s.vmax * 0.35 || !active)) this.drifting = false;
+    if (this.drifting && !(pro && c.handbrake) && (this.steer * this.driftDir < 0.35 || vF < s.vmax * 0.35 || !active)) this.drifting = false;
+    if (this.drifting && pro && c.handbrake && (vF < 10 || this.steer * this.driftDir < -0.2)) this.drifting = false;
 
     // boost: a tap fires a burst that lasts up to 2.5 s while the meter has charge
-    if (active && c.boost && this.boost > 0.12 && !(this.boostT > 0)) this.boostT = Math.min(2.5, this.boost / 0.3);
+    const drain = 0.3 / (s.boostDur || 1); // a longer boost duration spends the meter more slowly
+    if (active && c.boost && this.boost > 0.12 && !(this.boostT > 0)) this.boostT = Math.min(2.5 * (s.boostDur || 1), this.boost / drain);
     c.boost = false;
     if (this.boostT > 0) this.boostT -= dt;
-    this.boosting = active && this.boostT > 0 && this.boost > 0.01;
-    if (this.boosting) this.boost = Math.max(0, this.boost - dt * 0.3); else this.boostT = 0;
+    // a slipstream slingshot is a free burst that doesn't spend the meter
+    const sling = active && this.slingT > 0; if (this.slingT > 0) this.slingT -= dt;
+    const metered = active && this.boostT > 0 && this.boost > 0.01;
+    this.boosting = metered || sling;
+    if (metered) this.boost = Math.max(0, this.boost - dt * drain); else this.boostT = 0;
 
     // longitudinal
     const vmax = s.vmax * (this.offTrack ? 0.82 : 1) * (this.boosting ? 1.16 : 1) * (this.draft || 1);
-    let a = active && !this.airborne ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) : 0;
+    let a = active && !this.airborne ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) * (pro ? c.throttle || 0 : 1) : 0;
     if (this.boosting) a += s.boostPower;
     let decel = 0;
-    if (vF > c.targetSpeed && !this.airborne) decel = Math.max(decel, Math.min(26, (vF - c.targetSpeed) * 4));
+    if (pro) {
+      // manual: brake pedal, engine braking when off the throttle, and the handbrake scrubs a little speed
+      if (!this.airborne) decel = (c.brake || 0) * 28 + (c.throttle ? 0 : 2.5) + (c.handbrake ? 5 : 0);
+    } else if (vF > c.targetSpeed && !this.airborne) decel = Math.max(decel, Math.min(26, (vF - c.targetSpeed) * 4));
     if (vF > vmax) decel = Math.max(decel, (vF - vmax) * 0.8);
     if (!active) decel = Math.max(decel, 10);
     const drag = 0.0009 * vF * vF + (this.offTrack ? 1.2 : 0) + Math.abs(vL) * (this.drifting ? 0.08 : 0.2);
@@ -80,7 +93,7 @@ export class Vehicle {
 
     // lateral grip
     const grip = s.grip * surf * (this.airborne ? 0.08 : 1);
-    let latCap = grip * (this.drifting ? 1.02 : 1); // drifting tyres still bite, so the slide doesn't run wide
+    let latCap = grip * (this.drifting ? 1.02 * (s.driftGrip || 1) : 1); // drifting tyres still bite, so the slide doesn't run wide
     if (!this.drifting && vF > s.vmax * 0.85 && Math.abs(this.steer) > 0.7) latCap *= 0.82; // a little slide flat out
     const dvL = Math.min(Math.abs(vL), latCap * dt);
     vL -= Math.sign(vL) * dvL;
@@ -157,7 +170,7 @@ export class Vehicle {
     this.totalD += dd; this.lastD = q.d;
 
     // stuck detection
-    if (active && this.vF < 3) this.stuckT += dt; else this.stuckT = 0;
+    if (active && this.vF < 3 && !(pro && !c.throttle)) this.stuckT += dt; else this.stuckT = 0; // a Pro driver standing still on purpose is not stuck
     if (this.stuckT > 1.6) { this.stuckT = 0; this.respawn(); }
     if (this.respawnFlash) this.respawnFlash = Math.max(0, this.respawnFlash - dt);
   }

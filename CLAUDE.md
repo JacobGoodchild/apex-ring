@@ -7,7 +7,8 @@ An import map in `index.html` points `three` and `three/addons/` at the vendored
 GitHub Actions (`.github/workflows/deploy.yml`) runs the tests on every push to `main` and deploys to GitHub Pages only if they pass.
 
 The player drives original hypercars (the Vanta S1 and friends) round spline-built tracks against rule-based rivals.
-The car accelerates by itself; the player steers, and has boost and drift/brake buttons.
+Casual mode: the car accelerates, brakes and drifts by itself; the player steers and boosts. Pro mode adds manual
+throttle, brake and handbrake.
 
 ## Code map
 - `src/main.js` — boot, fixed-step game loop (60 Hz), menus, race flow, test hook (`window.__apex` in test mode).
@@ -15,7 +16,10 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 - `src/track.js` — `TrackPath`: Catmull-Rom centre-line, projection, banking, racing line, speed profile, bridge detection.
 - `src/trackmesh.js`, `src/scenery.js` — track meshes and themed scenery. `src/tracks.js` — track + theme data.
 - `src/vehicle.js` — arcade physics shared by player and AI. `src/cars.js` — car stats and upgrades. `src/carmodel.js` — car meshes.
-- `src/scene.js` — renderer, sky, lights, quality presets, bloom. `src/input.js`, `src/audio.js`, `src/save.js`, `src/rng.js`, `src/textures.js`.
+- `src/scene.js` — renderer, sky (with clouds), sky-based reflections, quality presets, bloom. `src/input.js`, `src/audio.js`, `src/save.js`, `src/rng.js`, `src/textures.js`.
+- `src/photo.js` — CC0 photo textures from `assets/tex/` (+ shader helpers). `src/terrain.js` — heightfield landscape per track.
+- `src/music.js` — procedural synthwave soundtrack. `src/ghostcode.js` — ghost laps as shareable text codes.
+- `src/career.js` — career events, unlocks and judging. `src/race.js` — difficulty levels shared with `tests/sim.js`.
 
 ## Rules
 - Never use real car brands, logos or exact copies of real car designs.
@@ -151,23 +155,61 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
 ## Overnight release push (2026-10-09 19:05 UTC → 2026-10-10 05:40 UTC = 06:40 UK)
 The user asked for a full-release push overnight: work flat out until 05:40 UTC, one tested feature per commit, push to
 `claude/bold-cray-7rck1e` and `main`. Plan, in order (tick as done, note choices in the progress log):
-- [ ] R1 Realism pass (top priority, see user's reference screenshot of a rainy coastal road): CC0 photo textures
+- [x] R1 Realism pass (top priority, see user's reference screenshot of a rainy coastal road): CC0 photo textures
       (Poly Haven / ambientCG, small jpgs, credited) for asphalt, grass, rock, sand; clouds in the sky; atmospheric haze;
       terrain around the track instead of a flat plane; road markings; better trees/rocks; colour grading; keep 60fps on a phone.
-- [ ] R2 Fixed-timestep determinism: physics at a fixed 60 Hz tick independent of refresh rate, render interpolation for
+- [x] R2 Fixed-timestep determinism: physics at a fixed 60 Hz tick independent of refresh rate, render interpolation for
       120 Hz screens, input sampled per tick, determinism test (same seed + inputs at 30/60/144 fps → identical result).
-- [ ] R3 Audio: RPM engine (exists, refine), spatial sound for passing rivals (panner, nearest 2-3), squeal from drift angle,
+- [x] R3 Audio: RPM engine (exists, refine), spatial sound for passing rivals (panner, nearest 2-3), squeal from drift angle,
       procedural synthwave soundtrack (Web Audio sequencer, no files) with music volume + on/off.
-- [ ] R4 Pro controls toggle: manual throttle, brake, handbrake drift (keyboard + on-screen pedals); casual stays default.
-- [ ] R5 Slipstream meter (visible draft bar, fills behind a rival, gives a tow/boost); drift multiplier chain (x2..x5 for
+- [x] R4 Pro controls toggle: manual throttle, brake, handbrake drift (keyboard + on-screen pedals); casual stays default.
+- [x] R5 Slipstream meter (visible draft bar, fills behind a rival, gives a tow/boost); drift multiplier chain (x2..x5 for
       continuous/linked drifts, lost on wall hit).
-- [ ] R6 AI: blocker personality (defends the line), apex-hunter, settings sliders for rubber-banding and AI skill.
-- [ ] R7 Car classes (Compact, Muscle, Supercar, Prototype) with Top Speed / Accel / Drift Grip / Boost Duration; new
+- [x] R6 AI: blocker personality (defends the line), apex-hunter, settings sliders for rubber-banding and AI skill.
+- [x] R7 Car classes (Compact, Muscle, Supercar, Prototype) with Top Speed / Accel / Drift Grip / Boost Duration; new
       compact + muscle cars; paint finishes (gloss, matte, metallic, pearl, neon glow); boost trail colours; parts shop
       lines Engine, Tyres, ECU, Turbo (map old upgrade saves).
-- [ ] R8 Tracks: Reverse and Mirror variants for every circuit (not reverse on Xtreme); Coastal Highway track (like the
+- [x] R8 Tracks: Reverse and Mirror variants for every circuit (not reverse on Xtreme); Coastal Highway track (like the
       reference: sea, cliffs, rain/wet road); hazards: oil slicks, wet patches (less grip); a split-path shortcut if time.
-- [ ] R9 Career node map; Drift Attack (timed score); timed elimination (every 15 s); Rival boss 1v1 that unlocks their car.
-- [ ] R10 Ghosts/leaderboards without servers: local weekly/monthly bests per track, ghost export/import as a file/code.
+- [x] R9 Career node map; Drift Attack (timed score); timed elimination (every 15 s); Rival boss 1v1 that unlocks their car.
+- [x] R10 Ghosts/leaderboards without servers: local weekly/monthly bests per track, ghost export/import as a file/code.
       Online leaderboards, global ghosts and online multiplayer need a server + accounts, which the safety rules forbid
       (no external requests, no accounts) — left for the user to decide. Local 2-player split-screen (keyboard) if time.
+
+### Overnight progress log
+- Realism: CC0 Poly Haven photo textures in assets/tex (asphalt with cracks + normal map, grass, gravel, sand, rock,
+  dark rock, snow, concrete; 512 px jpgs, ~0.7 MB), loaded by src/photo.js. Road = photo asphalt with the painted
+  markings from a canvas overlaid in the shader. src/terrain.js: one heightfield per track (4x4 culled tiles, denser
+  near the track) that sits under the road, rolls into hills/mountains, rock on steep slopes, snow up high, colour
+  variation baked per vertex (one texture lookup for grass: the first version with 6 lookups cost ~40 ms/frame in
+  software GL). Replaces the flat ground and embankments on non-city tracks. Layered pines + round broadleaf trees,
+  procedural clouds in the sky shader, concrete barriers with a painted band, sky-based environment map (cars and wet
+  roads reflect the real sky). Racing line now only shows (amber/red) in braking zones; it used to compare against a
+  500 km/h profile cap, which made a pale stripe on every straight.
+- Physics/timing: fixed 1/60 s tick (already), now with render interpolation for 90/120 Hz screens; test-mode `fps=`
+  and `stopTick=` options; tests/determinism.spec.js proves the race state is bit-identical at 20 fps and full rate.
+- Audio: src/music.js procedural synthwave (4 songs: pads, driving bass, arps with echo, drums, seeded lead in the
+  chorus; calmer menu version), Music volume slider; 3 pooled rival engine voices panned left/right with Doppler;
+  tyre squeal scales with drift angle and speed.
+- Pro driving (Settings > Driving): manual throttle/brake/handbrake (↑/W, ↓/S, Space; Shift boosts), on-screen
+  pedals + steer buttons on touch, no auto-brake or auto-drift, assist off by default; standing still isn't "stuck".
+- Slipstream meter (fills behind a rival, full = free 1.3 s slingshot that doesn't spend boost); drift combo
+  multiplier x2..x5 for drifts linked within 1.5 s, a wall hit mid-drift loses it.
+- AI: blocker (Dev Okoro) and apex hunter (Kenji Arata) personalities; Settings > Rival catch-up Off/Low/Normal/High.
+- Cars: classes Compact / Muscle / Supercar / Prototype; new Pico RS (compact, i4 engine sound) and Ironhide 427
+  (muscle); new stats Drift grip + Boost duration; upgrades renamed Engine / Tyres / ECU / Turbo / Weight reduction
+  (same save keys); paint finishes (gloss, matte, metallic, pearl, neon glow) and boost flame colours per car. New cars
+  sit at the end of CARS so rivals (CARS[(k+1)%7]) and old saves are unchanged; the garage sorts by class.
+- Tracks: Reverse and Mirror layouts for every circuit (ids like "gp:r", "gp:m"; Xtreme can't be reversed), layout
+  tabs in race setup, records/ghosts per layout. Oil slicks (grip x0.35, tail wriggle, AI steers round) and wet patches
+  (x0.72). New Medium track Coastal Highway: rain, wet reflective road (grip x0.86), double yellow line, telephone
+  poles and wires, sea + beach on one side, cliffs and mountains on the other, tyre spray.
+- Career: 20 events on a node map in chapters (Easy / Medium / Hard / Final), tap a node for details then Start.
+  New types: Drift Attack (timed score), Knockout (last car out every 15 s), Boss battles (1v1 vs a legend in their
+  own tuned car, a level above your difficulty; winning gives you the car: Ironhide 427, Razor LM, Tempest X).
+  Inserting events never locks old progress (an event you already finished stays open).
+- Local leaderboard per track layout (Week / Month / All, every finished lap logged in save.laps) and ghost codes:
+  "Share my ghost" turns your best time-trial lap into a text code (delta-encoded, deflated, base64, ~2-4 KB);
+  "Race a friend's ghost" loads one, and it races as an orange ghost next to yours. No server involved.
+- Tests run on a frozen copy (scratchpad snaptest.sh, PW_PORT=4175) so edits during a 15-min run don't leak in.
+  Don't run other heavy Playwright tests at the same time: CPU contention made a countdown time out once.

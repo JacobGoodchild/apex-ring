@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { photo, antiTile } from "./photo.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { noiseTex } from "./textures.js";
@@ -38,21 +39,26 @@ export class World {
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 2600);
 
     // reflections for glossy paint
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const pmrem = (this.pmrem = new THREE.PMREMGenerator(this.renderer));
+    this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; // studio reflections for the showroom
     this.scene.environment = this.envMap;
     this.scene.environmentIntensity = 0.55;
 
     this.skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: { top: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, hor: { value: new THREE.Color() },
-        sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, stars: { value: 0 } },
+        sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, stars: { value: 0 }, clouds: { value: 0 }, cloudCol: { value: new THREE.Color() } },
       vertexShader: "varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}",
-      fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float stars; varying vec3 vP;
+      fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float stars; uniform float clouds; uniform vec3 cloudCol; varying vec3 vP;
+        float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+        float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
+        float cfbm(vec2 p){ float s = 0.0, a = 0.5; for (int o = 0; o < 5; o++) { s += vn(p)*a; p = p*2.07 + 3.1; a *= 0.5; } return s; }
         float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
         void main(){ vec3 d = normalize(vP); float h = d.y;
           vec3 c = mix(hor, mid, smoothstep(-0.02, 0.22, h)); c = mix(c, top, smoothstep(0.22, 0.75, h));
           float s = max(dot(d, sunDir), 0.0); c += sunCol*(pow(s, 300.0)*1.4 + pow(s, 40.0)*0.3 + pow(s,6.0)*0.08);
+          if (clouds > 0.0 && h > 0.0) { vec2 cp = d.xz / (h + 0.12) * 1.6; float n = cfbm(cp); float cov = smoothstep(0.62 - clouds*0.3, 0.86 - clouds*0.2, n) * smoothstep(0.0, 0.1, h);
+            vec3 cc = mix(cloudCol, cloudCol*0.55 + hor*0.25, smoothstep(0.55, 0.95, n)) + sunCol*pow(s, 8.0)*0.35; c = mix(c, cc, cov*0.92); }
           if(stars > 0.0){ vec3 q = floor(d*420.0); float st = step(0.9975, hash(q)); c += vec3(st)*stars*smoothstep(0.05,0.3,h); }
           gl_FragColor = vec4(c,1.0);
           #include <tonemapping_fragment>
@@ -72,7 +78,7 @@ export class World {
     this.scene.add(this.sun, this.sun.target);
     this.sunOff = new THREE.Vector3(-45, 60, -30);
 
-    this.ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x2a4a33, map: noiseTex("#8a9a8a", 40, 128, 360), roughness: 1 }));
+    this.ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), antiTile(new THREE.MeshStandardMaterial({ roughness: 1 })));
     this.ground.rotation.x = -Math.PI / 2; this.ground.position.y = -0.1; this.ground.receiveShadow = true;
     this.scene.add(this.ground);
 
@@ -123,14 +129,30 @@ export class World {
     const u = this.skyMat.uniforms;
     u.top.value.set(t.sky[0]); u.mid.value.set(t.sky[1]); u.hor.value.set(t.sky[2]);
     u.sunDir.value.set(...t.sunDir).normalize(); u.sunCol.value.set(t.sunColor); u.stars.value = t.stars || 0;
+    u.clouds.value = t.clouds ?? 0.4; u.cloudCol.value.set(t.cloudColor ?? 0xe4e8ee);
     this.scene.fog = new THREE.Fog(t.fog, t.fogNear || 160, t.fogFar || 1100);
     this.hemi.color.set(t.hemi[0]); this.hemi.groundColor.set(t.hemi[1]); this.hemi.intensity = t.hemi[2] * 0.85;
     // everything is toned down from the theme values: at full strength races felt blinding on a phone
     this.sun.color.set(t.sunColor); this.sun.intensity = t.sunIntensity * 0.8;
     this.sunOff.set(...t.sunDir).normalize().multiplyScalar(90);
-    this.ground.material.color.set(t.ground);
+    const gm = this.ground.material, gt = t.groundTex || "grass";
+    if (gm.userData.tex !== gt) { if (gm.map) gm.map.dispose(); gm.map = photo(gt, { repeat: [700, 700] }); gm.userData.tex = gt; gm.needsUpdate = true; }
+    gm.color.set(t.groundTint || 0xd8d8d8);
     this.renderer.toneMappingExposure = (t.exposure || 1) * 0.88;
     this.scene.environmentIntensity = (t.envIntensity ?? 0.55) * 0.6;
+    // outdoor reflections: render this track's sky (plus a dark ground) into the environment map, so paint
+    // and wet roads reflect the real sky instead of a studio
+    if (!this.envScene) {
+      this.envScene = new THREE.Scene();
+      this.envSky = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), this.skyMat); this.envScene.add(this.envSky);
+      this.envGround = new THREE.Mesh(new THREE.CircleGeometry(90, 24).rotateX(-Math.PI / 2).translate(0, -2, 0), new THREE.MeshBasicMaterial({ color: 0x222222 }));
+      this.envScene.add(this.envGround);
+    }
+    this.envGround.material.color.set(t.ground || 0x222222).multiplyScalar(0.35);
+    if (this.skyEnv) this.skyEnv.dispose();
+    this.skyEnv = this.pmrem.fromScene(this.envScene, 0, 0.1, 200).texture;
+    this.scene.environment = this.skyEnv;
+    this.scene.environmentIntensity = (t.envIntensity ?? 0.55) * 1.3;
     if (this.bloom) this.bloom.strength = (t.bloom ?? 0.55) * 0.5;
   }
 

@@ -2,6 +2,7 @@
 // Everything long and continuous is one ribbon mesh so the draw-call count stays low on phones.
 import * as THREE from "three";
 import { canvasTex } from "./textures.js";
+import { photo, overlayMarkings } from "./photo.js";
 
 const tmp = { x: 0, y: 0, z: 0, h: 0 };
 
@@ -42,33 +43,40 @@ function merge(geos) {
   return g;
 }
 
-export function roadTexture(theme) {
+// Painted markings only (transparent elsewhere); the asphalt itself is a photo texture under it.
+export function roadMarkings(theme) {
   return canvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = theme.asphalt || "#3c4048"; g.fillRect(0, 0, w, h);
-    const img = g.getImageData(0, 0, w, h), d = img.data;
-    for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 26; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
-    g.putImageData(img, 0, 0);
-    g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(w * 0.22, 0, w * 0.1, h); g.fillRect(w * 0.68, 0, w * 0.1, h); // racing-line grime
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = "rgba(0,0,0,.16)"; g.fillRect(w * 0.22, 0, w * 0.1, h); g.fillRect(w * 0.68, 0, w * 0.1, h); // racing-line rubber
     g.fillStyle = theme.lines || "#e8ecf0"; g.fillRect(w * 0.035, 0, w * 0.022, h); g.fillRect(w * 0.943, 0, w * 0.022, h);
-    g.fillRect(w * 0.494, 0, w * 0.012, h * 0.45);
+    if (theme.centreLine) { g.fillStyle = theme.centreLine; g.fillRect(w * 0.484, 0, w * 0.01, h); g.fillRect(w * 0.506, 0, w * 0.01, h); } // double line
+    else g.fillRect(w * 0.494, 0, w * 0.012, h * 0.45);
   }, { repeat: [1, 1], aniso: 8 });
 }
 
-export function buildTrackMeshes(path, theme) {
+// A photo-textured surface material, tinted per theme (tint can be a colour or a brightness factor).
+export function surface(name, tint, rep, extra = {}) {
+  const m = new THREE.MeshStandardMaterial({ map: photo(name, { repeat: rep }), roughness: 1, ...extra });
+  if (typeof tint === "number" && tint > 16) m.color.set(tint); else if (tint) m.color.setScalar(tint);
+  return m;
+}
+
+export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
   const group = new THREE.Group();
   const W = path.width / 2, R = path.runoff, N = path.N;
 
   // road
   const solid = (i) => !path.cliff[i]; // no road surface across a cliff drop
-  const road = new THREE.Mesh(strip(path, -W, W, { vScale: 12, mask: solid }), new THREE.MeshStandardMaterial({ map: roadTexture(theme), roughness: 0.88, metalness: 0.0 }));
+  const rep = [(2 * W) / 6, 2]; // one asphalt photo tile is ~6 m across
+  // wet roads are darker and much smoother, so they mirror the sky and the lights
+  const roadMat = new THREE.MeshStandardMaterial({ map: photo("asphalt"), normalMap: photo("asphalt_n", { repeat: rep, srgb: false }), normalScale: new THREE.Vector2(0.6, 0.6), roughness: theme.wetRoad ? 0.22 : 0.82, metalness: theme.wetRoad ? 0.15 : 0, envMapIntensity: theme.wetRoad ? 1.6 : 1 });
+  roadMat.color.setScalar(theme.asphaltTint || 0.8);
+  overlayMarkings(roadMat, roadMarkings(theme), rep);
+  const road = new THREE.Mesh(strip(path, -W, W, { vScale: 12, mask: solid }), roadMat);
   road.receiveShadow = true; road.name = "road"; group.add(road);
 
   // run-off on both sides
-  const runTex = canvasTex(64, 64, (g, w, h) => {
-    g.fillStyle = theme.runoff || "#4b6b3f"; g.fillRect(0, 0, w, h);
-    for (let k = 0; k < 500; k++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? "0,0,0" : "255,255,255"},${Math.random() * 0.12})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
-  }, { repeat: [1, 1] });
-  const runMat = new THREE.MeshStandardMaterial({ map: runTex, roughness: 1 });
+  const runMat = surface(theme.runTex || "grass", theme.runTint || 0xd8d8d8, [R / 5, 6 / 5]);
   const run = new THREE.Mesh(merge([strip(path, -W - R, -W, { yA: -0.02, vScale: 6, mask: solid }), strip(path, W, W + R, { yB: -0.02, vScale: 6, mask: solid })]), runMat);
   run.receiveShadow = true; group.add(run);
 
@@ -80,27 +88,28 @@ export function buildTrackMeshes(path, theme) {
   kerb.receiveShadow = true; group.add(kerb);
 
   // barriers
-  const wallTex = canvasTex(128, 32, (g, w, h) => {
-    g.fillStyle = theme.wallA || "#d9dde3"; g.fillRect(0, 0, w, h);
-    g.fillStyle = theme.wallB || "#1d2533";
-    for (let x = 0; x < w; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 16, 0); g.lineTo(x + 32, 16); g.lineTo(x + 16, 32); g.lineTo(x, 32); g.lineTo(x + 16, 16); g.closePath(); g.fill(); }
-  }, { repeat: [1, 1] });
-  wallTex.rotation = Math.PI / 2; // run the chevrons along the ribbon's v axis
+  // concrete barriers with a painted band along the top in the theme colours
+  const wallBand = canvasTex(64, 64, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = theme.wallA || "#d9dde3"; g.fillRect(w * 0.72, 0, w * 0.28, h / 2);
+    g.fillStyle = theme.wallB || "#c2332b"; g.fillRect(w * 0.72, h / 2, w * 0.28, h / 2);
+    g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(0, 0, w * 0.08, h); // grime at the foot
+  });
   const wallH = 1.1, wl = -W - R, wr = W + R;
   const wallEdge = (lat) => (i, side) => { path.pointAt(i * path.ds, lat, tmp); return { lat, y: tmp.y + (side ? wallH : 0) }; };
   const walls = new THREE.Mesh(merge([
     strip(path, wl, wl, { vScale: 4, edgeFn: wallEdge(wl), mask: solid }),
     strip(path, wr, wr, { vScale: 4, edgeFn: wallEdge(wr), mask: solid }),
-  ]), new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.6, side: THREE.DoubleSide, emissive: theme.wallGlow || 0x000000, emissiveIntensity: theme.wallGlow ? 0.6 : 0 }));
+  ]), overlayMarkings(new THREE.MeshStandardMaterial({ map: photo("concrete"), color: 0xd0d0d0, roughness: 0.9, side: THREE.DoubleSide, emissive: theme.wallGlow || 0x000000, emissiveIntensity: theme.wallGlow ? 0.6 : 0 }), wallBand, [0.55, 2], "wallBand"));
   walls.receiveShadow = true; group.add(walls);
 
   // embankments under raised road (skipped on bridges so the lower road stays open)
-  const embMask = (i) => !path.cliff[i] && !path.bridge[i] && !path.bridge[(i + 1) % N] && (path.y[i] > 0.4 || path.y[(i + 1) % N] > 0.4);
+  const embMask = (i) => embankments && !path.cliff[i] && !path.bridge[i] && !path.bridge[(i + 1) % N] && (path.y[i] > 0.4 || path.y[(i + 1) % N] > 0.4);
   const embEdge = (lat, dir) => (i, side) => {
     if (!side) { path.pointAt(i * path.ds, lat, tmp); return { lat, y: tmp.y }; }
     const y = path.y[i]; return { lat: lat + dir * (y * 1.4 + 1), y: -0.05 };
   };
-  const embMat = new THREE.MeshStandardMaterial({ color: theme.embankment || 0x3d5a35, roughness: 1, side: THREE.DoubleSide });
+  const embMat = surface(theme.embTex || theme.groundTex || "grass", theme.groundTint || 0xd8d8d8, [3, 1], { side: THREE.DoubleSide });
   const emb = new THREE.Mesh(merge([strip(path, 0, 0, { mask: embMask, edgeFn: embEdge(wl, -1) }), strip(path, 0, 0, { mask: embMask, edgeFn: embEdge(wr, 1) })]), embMat);
   emb.receiveShadow = true; group.add(emb);
 
@@ -155,20 +164,42 @@ export function buildTrackMeshes(path, theme) {
     lm.userData.glow = true; group.add(lm);
   }
 
-  // racing-line guide: a soft stripe along the ideal line, turning amber/red where you need to slow down
+  // hazards: glossy oil slicks with a rainbow sheen, and dark puddles
+  {
+    const oil = new THREE.MeshPhysicalMaterial({ color: 0x07080a, roughness: 0.06, metalness: 0.4, iridescence: 1, iridescenceIOR: 1.3, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
+    const wet = new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.04, metalness: 0.2, transparent: true, opacity: 0.65, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
+    for (const h of path.hazards) {
+      if (h.all) continue;
+      const blobs = h.type === "oil" ? 3 : 4;
+      for (let k = 0; k < blobs; k++) {
+        const g = new THREE.CircleGeometry(1, 20); g.rotateX(-Math.PI / 2);
+        const off = (k - (blobs - 1) / 2) * h.len * 0.22, side = (k % 2 ? 1 : -1) * h.w * 0.12;
+        path.pointAt(h.d + off, h.lat + side, tmp);
+        const m = new THREE.Mesh(g, h.type === "oil" ? oil : wet);
+        m.position.set(tmp.x, tmp.y + 0.035, tmp.z); m.rotation.y = tmp.h + k * 0.7;
+        m.scale.set(h.w * (0.32 + 0.1 * (k % 2)), 1, h.len * (0.26 + 0.06 * k));
+        m.receiveShadow = true; group.add(m);
+      }
+    }
+  }
+
+  // racing-line guide: an amber/red stripe on the ideal line in the braking zones before corners
   {
     const prof = path.speedProfile(34), pos = [], col = [], idx = [];
     const c = new THREE.Color();
     for (let i = 0; i <= N; i++) {
       const k = i % N, lat = path.line[k];
-      const drop = Math.max(0, prof[k] - prof[(k + 14) % N]) / 12; // how much speed the next ~28 m asks you to lose
-      c.setRGB(0.55 + 0.45 * Math.min(1, drop), 0.95 - 0.65 * Math.min(1, drop), 1 - 0.85 * Math.min(1, drop));
+      // how much speed the next ~28 m asks you to lose, judged against a real top speed (~300 km/h), not the
+      // profile's 500 km/h ceiling, so the stripe only shows where you actually need to brake
+      const drop = Math.max(0, Math.min(84, prof[k]) - Math.min(84, prof[(k + 14) % N])) / 12;
+      c.setRGB(1, 0.62 - 0.45 * Math.min(1, drop), 0.12);
       for (const o of [-0.45, 0.45]) { path.pointAt(k * path.ds, lat + o, tmp); pos.push(tmp.x, tmp.y + 0.03, tmp.z); col.push(c.r, c.g, c.b); }
-      if (i < N) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      if (i < N && drop > 0.25) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } // only in braking zones
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.2, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
+    // faint on the straights, clear amber/red where you need to brake
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
     m.name = "racingLine"; group.add(m);
   }
 
@@ -206,7 +237,7 @@ export function buildTrackMeshes(path, theme) {
 
   // cliff faces: a rock wall where the road drops away, with hazard stripes along the lip
   if (path.cliff.some((c) => c)) {
-    const rock = new THREE.MeshStandardMaterial({ color: theme.rock || 0x6b5a4c, roughness: 1, flatShading: true, side: THREE.DoubleSide });
+    const rock = new THREE.MeshStandardMaterial({ color: 0xc8b8a8, map: photo("darkrock", { repeat: [4, 2] }), normalMap: photo("darkrock_n", { repeat: [4, 2], srgb: false }), roughness: 1, side: THREE.DoubleSide });
     const lipTex = canvasTex(64, 8, (g, w, h) => { for (let x = 0; x < w; x += 16) { g.fillStyle = "#ffcc1f"; g.fillRect(x, 0, 8, h); g.fillStyle = "#11141b"; g.fillRect(x + 8, 0, 8, h); } }, { repeat: [8, 1] });
     for (let i = 0; i < N; i++) {
       if (!path.cliff[i]) continue;

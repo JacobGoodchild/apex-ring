@@ -67,7 +67,15 @@ export class TrackPath {
       for (let i = 0; i < N; i++) if (!this.cliff[i] && !this.cliff[(i - 1 + N) % N]) this.slope[i] = (this.y[(i + 1) % N] - this.y[(i - 1 + N) % N]) / (2 * this.ds);
     }
     // ramps: wedges on the road; the car leaves the ground at the lip
-    this.ramps = (def.ramps || []).map((r) => ({ d: r.at * this.length, len: r.len || 16, h: r.h || 1.4, lat: r.lat || 0, half: r.half || this.width / 2 }));
+    this.ramps = (def.ramps || []).map((r) => {
+      const len = r.len || 16;
+      // reversed layouts: same physical spot, but the lip now faces the other way
+      const d = def.reversed ? this.wrapD((1 - r.at) * this.length + len) : r.at * this.length;
+      return { d, len, h: r.h || 1.4, lat: def.reversed ? -(r.lat || 0) : r.lat || 0, half: r.half || this.width / 2 };
+    });
+    // hazards: oil slicks (very slippery) and wet patches (less grip). Given per track as { type, at, lat, len, w }.
+    this.hazards = (def.hazards || []).map((h) => ({ type: h.type, d: (def.reversed ? 1 - h.at : h.at) * this.length, lat: (def.reversed ? -1 : 1) * (h.lat || 0) * (def.layout === "m" ? -1 : 1), len: h.len || 10, w: h.w || 3.5 }));
+    if (def.wet) this.hazards.push({ type: "wet", d: 0, lat: 0, len: 1e9, w: 1e9, all: true });
     this.findBridges();
     this._profiles = new Map();
     this.out = { i: 0, t: 0, d: 0, lat: 0, y: 0, h: 0 };
@@ -107,6 +115,17 @@ export class TrackPath {
       if (x >= 0 && x <= r.len) return r.h * (x / r.len);
     }
     return 0;
+  }
+
+  // grip multiplier for the surface at (d, lat): 1 normally, lower on oil or water
+  surfaceAt(d, lat) {
+    let g = 1;
+    for (const h of this.hazards) {
+      if (h.all) { g = Math.min(g, 0.86); continue; }
+      let x = d - h.d; if (x > this.length / 2) x -= this.length; if (x < -this.length / 2) x += this.length;
+      if (Math.abs(x) < h.len / 2 && Math.abs(lat - h.lat) < h.w / 2) g = Math.min(g, h.type === "oil" ? 0.35 : 0.72);
+    }
+    return g;
   }
 
   wrapD(d) { const L = this.length; return ((d % L) + L) % L; }

@@ -1,10 +1,10 @@
 // Coins, gems, upgrade prices and race rewards. No real money anywhere.
 export const UPGRADES = [
   { key: "engine", name: "Engine", desc: "Top speed and acceleration" },
-  { key: "tyres", name: "Tyres", desc: "More grip in corners" },
-  { key: "handling", name: "Handling", desc: "Sharper steering response" },
-  { key: "boost", name: "Boost", desc: "Stronger boost, fills faster" },
-  { key: "weight", name: "Weight", desc: "Lighter: quicker off the line" },
+  { key: "tyres", name: "Tyres", desc: "More grip in corners and slides" },
+  { key: "handling", name: "ECU", desc: "Sharper response, better drift grip" },
+  { key: "boost", name: "Turbo", desc: "Stronger, longer boost that fills faster" },
+  { key: "weight", name: "Weight reduction", desc: "Lighter: quicker off the line" },
 ];
 export const MAX_LEVEL = 5;
 
