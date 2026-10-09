@@ -110,3 +110,12 @@ test("a ghost lap survives being shared as a code and pasted back", async () => 
   back.ghost.s.forEach((v, i) => expect(Math.abs(v - s[i])).toBeLessThan(0.051));
   await expect(decodeGhost("hello")).rejects.toThrow();
 });
+
+test("trophies pay out once", async () => {
+  const { award, TROPHY_COINS, TROPHIES } = await import("../src/trophies.js");
+  const save = { coins: 0 };
+  expect(award(save, "win").name).toBe("First win");
+  expect(award(save, "win")).toBeNull();
+  expect(save.coins).toBe(TROPHY_COINS);
+  expect(new Set(TROPHIES.map((t) => t.id)).size).toBe(TROPHIES.length);
+});

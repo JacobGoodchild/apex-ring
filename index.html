@@ -215,11 +215,13 @@
     <div class="brand small">PAUSED</div>
     <div class="hint">Steer: hold the left or right half of the screen, or ← → / A D. Drifting and braking happen by themselves; steer hard into fast corners to drift and fill the boost bar. Boost: tap both halves together twice, or Space (do it just before GO for a perfect start). Camera: C. Back on track: ↺ or R.</div>
     <button class="btn" id="resumeBtn" type="button">Resume</button>
+    <button class="btn ghost" id="photoBtn" type="button">Photo mode</button>
     <button class="btn ghost" id="restartBtn" type="button">Restart</button>
     <button class="btn ghost" id="quitBtn" type="button">Quit to menu</button>
   </div>
 </div>
 
+<div id="photoBar" hidden><span class="hint">Drag to move the camera · scroll or pinch to zoom</span><button class="btn" id="photoSave" type="button">Save photo</button><button class="btn ghost" id="photoDone" type="button">Done</button></div>
 <div id="toast" hidden></div>
 <button id="updateBanner" type="button" hidden>Update ready — tap to reload</button>
 <script type="module" src="src/main.js"></script>

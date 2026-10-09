@@ -32,6 +32,7 @@ player 2: ← → + ↑) or with two gamepads.
   Knockouts, head-to-heads and Boss battles that win you the boss's car.
 - **Weather:** race any track Dry or in the Rain (wet, reflective road and less grip).
 - **Replays:** watch your best time-trial lap back from the chase camera.
+- **Daily Challenge** (a new event every day), **Trophies** to collect, and **Photo mode** in the pause menu.
 - **9 tracks**, each also raceable Reversed or Mirrored: Dusk Oval, Apex Ring GP, Greenwood, Red Canyon,
   Harbour Lights, Neon District, Alpine Pass, Xtreme (cliffs and ramps) and Coastal Highway (rain, wet road).
 - **9 cars** in four classes (Compact, Muscle, Supercar, Prototype), upgrades (Engine, Tyres, ECU, Turbo, Weight),

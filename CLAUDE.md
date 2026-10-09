@@ -222,5 +222,10 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   ghost with the chase cam; tap to exit), spoke blur discs on the wheels at speed, rival personality labels in the
   results, livery colour for decals, menu music starts on the first tap, rear number plates (made-up "APX 123 AB"),
   a real spotlight headlight for the player on night tracks (rivals keep the cheap fake beams).
+- Part 4: Daily Challenge (career.js dailyEvent: seeded by the date, so everyone gets the same one with no server;
+  race / drift attack / knockout on a random track, layout and weather; 900 coins + a gem once a day), Photo mode
+  (pause > Photo mode: HUD hidden, drag/pinch/scroll to orbit, Save photo downloads a PNG from the canvas), Trophies
+  (src/trophies.js, 14 one-off achievements worth 300 coins each, listed at the bottom of the career map), near trees
+  cast shadows on High quality.
 - Tests run on a frozen copy (scratchpad snaptest.sh, PW_PORT=4175) so edits during a 15-min run don't leak in.
   Don't run other heavy Playwright tests at the same time: CPU contention made a countdown time out once.

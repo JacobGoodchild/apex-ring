@@ -17,5 +17,5 @@ export async function startRace(page) {
   await page.click("#raceBtn");
   await page.click("#startBtn");
   await expect(page.locator("#count")).toBeVisible();
-  await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 20_000 });
+  await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 45_000 }); // slow CI machines can take a while to get past the countdown
 }

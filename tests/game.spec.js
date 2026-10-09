@@ -241,7 +241,7 @@ test.describe("Apex Ring", () => {
     test.setTimeout(120_000);
     const problems = await openGame(page, "autopilot=1&speed=12");
     await page.click("#careerBtn");
-    await expect(page.locator("#events .event")).toHaveCount(20);
+    await expect(page.locator("#events .event:not(.daily)")).toHaveCount(20);
     await page.click("#ev-c2"); await page.click("#evGo");
     await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 90_000 });
     await expect(page.locator("#finish")).toBeVisible({ timeout: 10_000 });
@@ -260,7 +260,8 @@ test.describe("Apex Ring", () => {
     test.setTimeout(200_000);
     const problems = await openGame(page, "autopilot=1&speed=12");
     await page.click("#careerBtn");
-    await expect(page.locator(".chapter")).toHaveCount(4);
+    await expect(page.locator(".chapter:not(.daily):not(.trophies)")).toHaveCount(4);
+    await expect(page.locator(".chapter.trophies li")).toHaveCount(14);
     await page.click("#ev-a1");
     await expect(page.locator("#evDDesc")).toContainText("60 s");
     await page.click("#evGo");
@@ -277,6 +278,33 @@ test.describe("Apex Ring", () => {
     await expect(page.locator(".evhead")).toBeVisible();
     expect(problems).toEqual([]);
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
+  test("daily challenge: a dated event on the career map that starts on its own track", async ({ page }) => {
+    test.setTimeout(150_000);
+    const problems = await openGame(page, "autopilot=1&speed=12");
+    await page.click("#careerBtn");
+    await page.click("#ev-daily");
+    await expect(page.locator("#evDName")).toHaveText("Daily Challenge");
+    await expect(page.locator("#evDDesc")).toContainText("every day");
+    await page.click("#evGo");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 30_000 });
+    expect(await page.evaluate(() => window.__apex.eventId)).toMatch(/^daily-\d{8}$/);
+    expect(problems).toEqual([]);
+  });
+
+  test("photo mode: hides the HUD, orbits the camera, and back to the pause screen", async ({ page }) => {
+    const problems = await openGame(page, "rivals=2");
+    await startRace(page);
+    await page.click("#pauseBtn");
+    await page.click("#photoBtn");
+    await expect(page.locator("#photoBar")).toBeVisible();
+    await expect(page.locator("#hud")).toBeHidden();
+    await page.mouse.move(300, 300); await page.mouse.down(); await page.mouse.move(380, 280, { steps: 5 }); await page.mouse.up();
+    await page.screenshot({ path: "screenshots/photo-mode.png" });
+    await page.click("#photoDone");
+    await expect(page.locator("#pause")).toBeVisible();
+    expect(problems).toEqual([]);
   });
 
   test("career: elimination drops the last car each lap", async ({ page }) => {

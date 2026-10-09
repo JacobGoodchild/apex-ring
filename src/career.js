@@ -1,3 +1,4 @@
+import { TRACKS, canReverse } from "./tracks.js";
 // Career mode: a ladder of events that unlock tracks, cars and rewards.
 // type: race (finish in `target` place or better), trial (best lap under `target` s), drift (score `target` points),
 // elim (last car drops out each lap, or every `every` seconds: survive to the end), h2h (beat one named rival),
@@ -45,4 +46,21 @@ export function judge(ev, r) {
   else if (ev.type === "elim") { ok = !r.eliminated; stars = ok ? (r.place === 1 ? 3 : r.place === 2 ? 2 : 1) : 0; }
   else if (ev.type === "h2h" || ev.type === "boss") { ok = r.beatRival; stars = ok ? (r.margin > 3 ? 3 : r.margin > 1 ? 2 : 1) : 0; }
   return { ok, stars };
+}
+
+// Daily challenge: a fresh event every day, built from the date (same for everyone, no server needed).
+// Reward once per day. Types rotate between a race, a drift attack and a knockout; layout and weather vary.
+export function dailyEvent(date = new Date()) {
+  const key = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+  let h = Math.imul(key, 2654435761) >>> 0; const rnd = () => { h ^= h << 13; h >>>= 0; h ^= h >>> 17; h ^= h << 5; h >>>= 0; return h / 4294967296; };
+  rnd(); rnd();
+  const t = TRACKS[Math.floor(rnd() * TRACKS.length)];
+  const lays = ["", "m", ...(canReverse(t) ? ["r"] : [])], lay = lays[Math.floor(rnd() * lays.length)];
+  const type = ["race", "attack", "elim"][Math.floor(rnd() * 3)];
+  const weather = t.theme === "storm" || rnd() < 0.3 ? "rain" : "dry";
+  const base = { id: "daily-" + key, daily: true, name: "Daily Challenge", track: t.id + (lay ? ":" + lay : ""), weather, reward: { coins: 900, gems: 1 } };
+  const where = `${t.name}${lay === "r" ? " Reverse" : lay === "m" ? " Mirror" : ""}${weather === "rain" ? " in the rain" : ""}`;
+  if (type === "race") return { ...base, type, laps: 2, target: 3, desc: `Podium finish on ${where}.` };
+  if (type === "attack") { const target = 900 + t.difficulty * 500; return { ...base, type, laps: 99, time: 60, target, desc: `60-second drift attack on ${where}: score ${target.toLocaleString("en-GB")}.` }; }
+  return { ...base, type: "elim", every: 15, laps: 3, desc: `Knockout on ${where}: last car out every 15 seconds.` };
 }

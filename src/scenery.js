@@ -151,9 +151,10 @@ export function buildScenery(path, theme, density, seed) {
     // trees out on the far hills are only ever seen small: one simple cone each (a quarter of the triangles)
     const far = terrain ? scatter(path, grid, rnd, Math.round(n * 0.5), edge + 90, 700, make) : [];
     const pines = trees.filter((t) => t.pine), rounds = trees.filter((t) => !t.pine);
-    add(instanced(pine, leaves, pines));
+    const shade = density >= 1; // High quality: near trees cast shadows onto the road
+    add(instanced(pine, leaves, pines, { shadow: shade }));
     if (far.length) { const cone = new THREE.ConeGeometry(2.3, 8.5, 6); cone.translate(0, 5.2, 0); add(instanced(cone, leaves, far.map((t) => ({ ...t, s: t.s * 1.1 })))); }
-    add(instanced(round, leaves, rounds.map((t) => ({ ...t, c: t.c.clone().offsetHSL(0.03, 0.05, 0.06) }))));
+    add(instanced(round, leaves, rounds.map((t) => ({ ...t, c: t.c.clone().offsetHSL(0.03, 0.05, 0.06) })), { shadow: shade }));
     add(instanced(trunk, new THREE.MeshStandardMaterial({ color: 0x4a3626, roughness: 1 }), trees.map((t) => ({ ...t, c: null }))));
   }
 
