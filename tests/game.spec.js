@@ -33,20 +33,13 @@ test.describe("Apex Ring", () => {
     await page.waitForFunction((d0) => window.__apex.player.totalD > d0 + 20, a.totalD, { timeout: 20_000 });
     const b = await game(page, () => window.__apex.player);
     expect(b.vF).toBeGreaterThan(5);
-    // steer right for a moment and compare heading change with the track's own curve
-    const h0 = (await game(page, () => window.__apex.player)).h;
+    // hold right, then left: the nose should point right of the track, then left of it (hErr > 0 = pointing left)
     await page.keyboard.down("ArrowRight");
-    await page.waitForTimeout(400);
+    await page.waitForFunction(() => window.__apex.player.hErr < -0.04, null, { timeout: 10_000 });
     await page.keyboard.up("ArrowRight");
-    const h1 = (await game(page, () => window.__apex.player)).h;
     await page.keyboard.down("ArrowLeft");
-    await page.waitForTimeout(400);
+    await page.waitForFunction(() => window.__apex.player.hErr > 0.04, null, { timeout: 10_000 });
     await page.keyboard.up("ArrowLeft");
-    const h2 = (await game(page, () => window.__apex.player)).h;
-    const d = (x) => Math.atan2(Math.sin(x), Math.cos(x));
-    // right turns decrease heading, left turns increase it
-    expect(d(h1 - h0)).toBeLessThan(d(h2 - h1));
-    expect(Math.abs(d(h1 - h0))).toBeGreaterThan(0.05);
   });
 
   test("drifting leaves skid marks and fills boost; boost spends it", async ({ page }) => {

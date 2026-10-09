@@ -1,6 +1,7 @@
 // Rule-based rival drivers. No learning, no network: each rival follows the racing line with its own personality,
 // brakes from the track's speed profile, makes the odd mistake, overtakes, defends, and uses slipstream and boost.
 import { makeRng } from "./rng.js";
+import { LEVELS } from "./race.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const wrapA = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
@@ -22,7 +23,8 @@ const STYLES = {
 };
 
 export class Driver {
-  constructor(vehicle, profile, skill, seed) {
+  constructor(vehicle, profile, skill, seed, level = LEVELS.normal) {
+    this.level = level;
     this.v = vehicle; this.name = profile.name; this.color = profile.color; this.style = profile.style;
     this.p = STYLES[profile.style]; this.skill = skill; this.rnd = makeRng(seed);
     this.lineBias = (this.rnd() - 0.5) * 1.6;
@@ -36,7 +38,7 @@ export class Driver {
 
     // occasional mistakes: lift early or run wide for a moment
     if (this.mistakeT > 0) this.mistakeT -= dt;
-    else if (this.rnd() < P.mistake * dt * 6) { this.mistake = this.rnd() < 0.5 ? "lift" : "wide"; this.mistakeT = 0.8 + this.rnd() * 1.2; }
+    else if (this.rnd() < P.mistake * this.level.mistakes * dt * 6) { this.mistake = this.rnd() < 0.5 ? "lift" : "wide"; this.mistakeT = 0.8 + this.rnd() * 1.2; }
     if (this.mistakeT <= 0) this.mistake = null;
 
     // look for traffic ahead (overtake) and behind (defend)
@@ -73,17 +75,24 @@ export class Driver {
     const prof = t.speedProfile(v.spec.grip);
     let vt = Infinity;
     for (let k = 0; k < 44; k += 3) vt = Math.min(vt, prof[(v.p.i + k) % t.N]);
-    let pace = P.pace * this.skill * P.brake;
+    const Lv = this.level;
+    let pace = P.pace * this.skill * Lv.pace * (P.brake * Lv.brake);
     if (this.mistake === "lift") pace *= 0.86;
     // subtle rubber-banding so the pack stays together
     if (gapToPlayer > 120) pace *= 0.97; else if (gapToPlayer < -120) pace *= 1.03;
+    // catch-up help: when you're well behind, the rivals ahead of you ease off (only on the easier levels)
+    if (Lv.catchUp && gapToPlayer > 40) pace *= 1 - Lv.catchUp * Math.min(0.12, (gapToPlayer - 40) / 800);
     v.ctl.targetSpeed = vt * Math.min(1.02, pace);
+    // easy rivals also don't carry full speed on the straights
+    if (Lv.pace < 0.9) v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, v.spec.vmax * (Lv.pace + 0.06));
     // don't drive into the back of someone: follow until there's a gap to pass
     if (ahead && ahead.dd < 11 && Math.abs(ahead.dl) < 2.3) v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, ahead.o.vF + (this.style === "aggressive" ? 1.5 : 0));
 
     // boost on long straights
     let straight = Infinity; for (let k = 0; k < 60; k += 4) straight = Math.min(straight, prof[(v.p.i + k) % t.N]);
-    v.ctl.boost = straight > v.spec.vmax * 0.95 && v.boost > 0.3 && this.rnd() < P.boost;
+    // boost: hard rivals pick the straights; easy ones fire it at random-ish moments, often wasting it
+    const wantBoost = this.rnd() < Lv.boost ? straight > v.spec.vmax * 0.95 : this.rnd() < 0.004;
+    if (!v.boosting) v.ctl.boost = wantBoost && v.boost > 0.3 && this.rnd() < P.boost * Lv.boost;
     if (!v.boosting) v.boost = Math.min(1, v.boost + dt * 0.02);
     v.ctl.drift = false; v.ctl.brake = false;
   }

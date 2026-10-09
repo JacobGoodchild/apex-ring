@@ -11,7 +11,8 @@ import { CARS, PAINTS, carById, carSpec } from "./cars.js";
 import { makeCar, setDoors, setRims, setDecal, RIMS, DECALS } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
-import { assistSteer, cornerSpeed } from "./assist.js";
+import { assistSteer, cornerSpeed, smoothSteer } from "./assist.js";
+import { levelOf, slot, rivalSpec, AUTO_BRAKE, AUTO_ASSIST } from "./race.js";
 import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { Vehicle } from "./vehicle.js";
@@ -94,8 +95,6 @@ function buildPlayer(id = save.car) {
   G.player.spec = carSpec(def, cs.upgrades);
 }
 
-// Grid slots: two columns, staggered. The player starts near the back so there's a field to race through.
-function slot(k) { const row = Math.floor(k / 2), col = k % 2; return [-7 - row * 9 - col * 4.5, col ? -3.3 : 3.3]; }
 
 function buildRivals() {
   for (const r of G.rivals) scene.remove(r.model.group);
@@ -120,12 +119,12 @@ function gridUp() {
   const ps = slot(Math.min(G.gridSlot, G.rivals.length)); G.player.reset(ps[0], ps[1]);
   let k = 0;
   const ps2 = G.player.spec;
-  const DIFF = { easy: 0.93, normal: 1, hard: 1.035 }[save.settings.difficulty || "easy"];
-  for (const r of G.rivals) { r.out = false; r.driver.skill = (r.driver.baseSkill ?? r.baseSkill) * DIFF; }
+  const level = levelOf(save.settings.difficulty);
+  for (const r of G.rivals) { r.out = false; r.driver.skill = r.baseSkill; r.driver.level = level; }
   for (const r of G.field) {
     // rivals drive their own cars, but tuned halfway toward yours so races stay close
     const base = carSpec(carById(r.carId), {});
-    r.veh.spec = Object.fromEntries(Object.keys(base).map((key) => [key, base[key] * 0.45 + ps2[key] * 0.55]));
+    r.veh.spec = rivalSpec(base, ps2);
     if (k === Math.min(G.gridSlot, G.rivals.length)) k++;
     const [d, lat] = slot(G.field.length === 1 ? 0 : k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
@@ -469,6 +468,8 @@ function autopilot(v) {
 
 // Driver aids follow the settings; "auto" means on when rivals are on Easy.
 function applyAids() { const m = G.track && world.trackGroup && world.trackGroup.getObjectByName("racingLine"); if (m) m.visible = aidOn("line"); }
+// steering assist strength: Auto follows the difficulty (full on Easy, lighter on Medium, off on Hard)
+function assistLevel() { const v = save.settings.assist || "auto"; return v === "on" ? 0.55 : v === "off" ? 0 : AUTO_ASSIST[save.settings.difficulty || "easy"] || 0; }
 function aidOn(key) { const v = save.settings[key] || "auto"; return v === "on" || (v === "auto" && (save.settings.difficulty || "easy") === "easy"); }
 
 function stepRivals(dt) {
@@ -533,9 +534,11 @@ function step(dt) {
   const v = G.player, racing = G.mode === "race";
   const ctl = readControls();
   const ap = AUTOPILOT && racing ? autopilot(v) : null;
-  v.ctl.steer = ap ? ap.steer : racing ? assistSteer(v, G.path, ctl.steer, aidOn("assist") ? 0.55 : 0) : ctl.steer;
+  const aid = assistLevel();
+  const steerIn = input.tiltOn ? ctl.steer : smoothSteer(G.touch || (G.touch = {}), ctl.steer, v.vF, v.spec.vmax, dt);
+  v.ctl.steer = ap ? ap.steer : racing ? assistSteer(v, G.path, steerIn, aid) : steerIn;
   v.ctl.boost = ctl.boost; v.ctl.drift = ctl.drift; v.ctl.brake = ctl.brake;
-  v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path);
+  v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path, AUTO_BRAKE[save.settings.difficulty] || 1, aid ? 1 : 0);
   if (G.bog > 0) { G.bog -= dt; v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, 4); }
   if (G.mode === "race" || G.mode === "done") {
     v.step(dt, racing);
@@ -713,7 +716,7 @@ addEventListener("error", (e) => errors.push(String(e.message)));
 if (TEST) {
   window.__apex = {
     get mode() { return G.mode; },
-    get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, boosting: v.boosting, drifting: v.drifting, driftAngle: v.driftAngle, lat: v.lat }; },
+    get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, boosting: v.boosting, drifting: v.drifting, driftAngle: v.driftAngle, lat: v.lat, hErr: wrapA(v.h - v.p.h) }; },
     get skidCount() { return skids.n; },
     setBoost(b) { G.player.boost = b; },
     get laps() { return G.lapTimes.slice(); },

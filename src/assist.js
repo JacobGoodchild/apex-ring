@@ -13,11 +13,17 @@ export function lineSteer(v, t, lineScale = 0.85) {
 }
 
 // Target speed for the auto-brake. margin > 1 brakes later (harder), < 1 earlier (safer).
-export function cornerSpeed(v, t, margin = 1.06) {
-  if (v.drifting) return Infinity;
+// guard > 0 also lifts when the car is heading for a barrier it can't turn away from in time.
+export function cornerSpeed(v, t, margin = 1.06, guard = 0) {
   const prof = t.speedProfile(v.spec.grip * 1.1);
   let vt = Infinity; for (let k = 2; k < 30; k += 3) vt = Math.min(vt, prof[(v.p.i + k) % t.N]);
-  return vt * margin;
+  vt *= margin;
+  if (guard) {
+    const trx = -Math.cos(v.p.h), trz = Math.sin(v.p.h), latV = v.vx * trx + v.vz * trz;
+    const room = t.width / 2 + t.runoff - 2 - Math.abs(v.lat);
+    if (Math.sign(latV) === Math.sign(v.lat) && Math.abs(latV) > 1 && room / Math.abs(latV) < 0.8) vt = Math.min(vt, v.vF * (1 - 0.25 * guard));
+  }
+  return vt;
 }
 
 // Blend the player's steering with the assist. strength 0..1 (0 = off).
@@ -26,7 +32,14 @@ export function assistSteer(v, t, input, strength) {
   let out = input;
   // toward the racing line: strongest when the player isn't steering, light touch when they are
   const ls = lineSteer(v, t);
-  out += (ls - input) * strength * (Math.abs(input) < 0.05 ? 0.6 : 0.2);
+  // heading limiter: you can't swing the nose much more than ~15-20 degrees off the track's direction,
+  // which stops a late correction turning into a weave from wall to wall
+  const hErr = wrapA(v.h - v.p.h); // > 0: pointing left of the track
+  const away = input < 0 ? hErr : -hErr; // how far the current input is pushing the nose away
+  if (away > 0.12) input *= Math.max(0, 1 - (away - 0.12) / (0.18 / Math.max(0.3, strength * 1.8)));
+  out = input;
+  const fighting = Math.abs(input) > 0.05 && Math.sign(input) !== Math.sign(ls) && Math.abs(ls) > 0.2;
+  out += (ls - input) * strength * (Math.abs(input) < 0.05 ? 0.6 : fighting ? 0.45 : 0.2);
   // wall guard: predict where the car will be in ~0.7 s and steer away if that's near the barrier
   const trx = -Math.cos(v.p.h), trz = Math.sin(v.p.h);
   const latV = v.vx * trx + v.vz * trz;
@@ -36,4 +49,14 @@ export function assistSteer(v, t, input, strength) {
     out -= Math.sign(v.lat) * push; // positive lateral is the right-hand side, so steer left (negative)
   }
   return clamp(out, -1, 1);
+}
+
+// Touch steering is on/off, so build the lock up progressively (slower at speed) and let it go quickly.
+// state is any object; returns the smoothed steering value.
+export function smoothSteer(state, raw, vF, vmax, dt) {
+  const cur = state.s || 0, f = Math.min(1, Math.max(0, vF / vmax));
+  const toward = Math.abs(raw) > Math.abs(cur) && Math.sign(raw) !== -Math.sign(cur);
+  const rate = toward ? 5 - 3 * f : 10;
+  state.s = cur + (raw - cur) * Math.min(1, dt * rate);
+  return state.s;
 }

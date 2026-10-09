@@ -103,3 +103,13 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
   nudges toward the racing line and steers away from a barrier it predicts you'll hit in ~0.7 s. Settings: Steering
   assist and Racing line each Auto/On/Off, where Auto = on when rivals are Easy (new default difficulty: Easy).
   Choice: old saves keep their career progress; trial targets and some events changed to suit the new tracks.
+- Fix 2 — difficulty: src/race.js holds the levels (pace, braking point, mistakes, boost skill, catch-up), grid slots and
+  rival car tuning, shared by the game and the tests. tests/sim.js is a headless race with a "beginner bot" (on/off
+  steering, 0.2 s late, lazy dead zone, looks away now and then, never boosts). Finding: on/off steering with any
+  reaction delay made the car weave wall to wall, which is likely what made it feel too hard on the phone. Fixes:
+  progressive touch steering (lock builds up over ~0.3 s at speed, releases fast), a heading limiter in the assist
+  (the nose can't swing much past ~15-20 degrees off the track direction), assist resists steering that fights the line,
+  and the auto-brake lifts if you're about to hit a barrier you can't turn away from. Auto assist = full on Easy,
+  a bit lighter on Medium, off on Hard. Easy rivals: 74% pace, early braking, 2.5x mistakes, poor boost, catch-up when
+  you're behind. Medium: 78.5%. Hard: unchanged. tests/difficulty.spec.js: beginner top 3 on every Easy track (4 seeds),
+  mid-pack (avg 3-6) on Medium across all tracks, ~last on Hard.
