@@ -134,7 +134,7 @@ export function makeCar(def, paintHex, rimIdx = 0) {
       if (S.wing === "high") carbonParts.push(box(0.05, wingY - S.deck + 0.05, 0.1, s * 0.45, (wingY + S.deck) / 2 - 0.02, -L + 0.4));
     }
   } else if (S.wing === "duck") paintParts.push(box(S.wid * 1.7, 0.06, 0.22, 0, S.tail + 0.05, -L + 0.12, -0.35));
-  if (S.fin) paintParts.push(box(0.04, 0.3, 1.3, 0, S.deck + 0.12, -L + 0.85));
+  if (S.fin) paintParts.push(box(0.035, 0.16, 1.0, 0, S.deck + 0.06, -L + 0.95, -0.08));
 
   const add = (geos, mat, shadow = true) => { const m = new THREE.Mesh(mergeAll(geos), mat); m.castShadow = shadow; body.add(m); return m; };
   add(paintParts, M.paint);

@@ -10,6 +10,7 @@ import { TRACKS, THEMES, trackById } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec } from "./cars.js";
 import { makeCar, setDoors, setRims, RIMS } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
+import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { Vehicle } from "./vehicle.js";
 import { input, bindPad, readControls, setTilt } from "./input.js";
 import * as sfx from "./audio.js";
@@ -84,13 +85,13 @@ function buildRivals() {
   G.rivals = [];
   const rnd = makeRng(SEED ^ 0x77);
   for (let k = 0; k < G.nRivals; k++) {
-    const prof = RIVALS[k % RIVALS.length], def = CARS[k % CARS.length];
+    const prof = RIVALS[k % RIVALS.length], def = CARS[(k + 1) % CARS.length];
     const veh = new Vehicle(carSpec(def, {}), G.path);
     const model = makeCar(def, prof.color);
     addFlames(model);
     setDoors(model, 0);
     scene.add(model.group);
-    G.rivals.push({ veh, model, driver: new Driver(veh, prof, 0.95 + rnd() * 0.05, (SEED + k * 977) >>> 0), name: prof.name, color: prof.color });
+    G.rivals.push({ carId: def.id, veh, model, driver: new Driver(veh, prof, 0.95 + rnd() * 0.05, (SEED + k * 977) >>> 0), name: prof.name, color: prof.color });
   }
 }
 
@@ -99,12 +100,16 @@ function gridUp() {
   G.player.track = G.path; G.player.boost = 0.25;
   const ps = slot(Math.min(G.gridSlot, G.rivals.length)); G.player.reset(ps[0], ps[1]);
   let k = 0;
+  const ps2 = G.player.spec;
   for (const r of G.rivals) {
+    // rivals drive their own cars, but tuned halfway toward yours so races stay close
+    const base = carSpec(carById(r.carId), {});
+    r.veh.spec = Object.fromEntries(Object.keys(base).map((key) => [key, base[key] * 0.45 + ps2[key] * 0.55]));
     if (k === Math.min(G.gridSlot, G.rivals.length)) k++;
     const [d, lat] = slot(k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
   G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null;
-  skids.clear(); G.driftPts = 0; G.driftShow = 0; G.totalDrift = 0;
+  skids.clear(); G.driftPts = 0; G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
 }
 
 // Everyone in the race, ordered by position.
@@ -154,10 +159,33 @@ function refreshGarage() {
   $("carBlurb").textContent = def.blurb;
   $("stats").innerHTML = statsHTML(def, cs.upgrades);
   const act = $("carAction");
-  if (!owned) { act.textContent = "Locked"; act.disabled = true; }
-  else if (save.car === def.id) { act.textContent = "Selected"; act.disabled = true; }
+  if (!owned) {
+    const gems = def.gems || 0, cost = gems ? gems + " gems" : def.price.toLocaleString("en-GB") + " coins";
+    act.textContent = "Buy · " + cost; act.disabled = gems ? save.gems < gems : save.coins < def.price;
+  } else if (save.car === def.id) { act.textContent = "Selected"; act.disabled = true; }
   else { act.textContent = "Select this car"; act.disabled = false; }
-  buildPaints(); buildRims();
+  $("tabUp").disabled = !owned;
+  buildPaints(); buildRims(); buildUpgrades();
+  refreshLobby();
+}
+function buildUpgrades() {
+  const def = carById(G.garageCar), cs = carSave(def.id), owned = save.owned.includes(def.id), el = $("upgrades");
+  el.innerHTML = "";
+  for (const u of UPGRADES) {
+    const lv = cs.upgrades[u.key] || 0, cost = upgradeCost(lv, def.price);
+    const row = document.createElement("div"); row.className = "uprow";
+    row.innerHTML = `<div class="upn"><b>${u.name}</b><span>${u.desc}</span></div><div class="pips">${Array.from({ length: MAX_LEVEL }, (_, i) => `<i class="${i < lv ? "on" : ""}"></i>`).join("")}</div>`;
+    const b = document.createElement("button"); b.type = "button"; b.className = "chipbtn buy"; b.id = "up-" + u.key;
+    b.textContent = lv >= MAX_LEVEL ? "Max" : cost.toLocaleString("en-GB");
+    b.disabled = !owned || lv >= MAX_LEVEL || save.coins < cost;
+    b.addEventListener("click", () => {
+      if (save.coins < cost || lv >= MAX_LEVEL) return;
+      save.coins -= cost; cs.upgrades[u.key] = lv + 1; writeSave(); sfx.chime();
+      if (G.player && save.car === def.id) G.player.spec = carSpec(def, cs.upgrades);
+      refreshGarage();
+    });
+    row.appendChild(b); el.appendChild(row);
+  }
 }
 function cycleCar(dir) {
   const i = (CARS.findIndex((c) => c.id === G.garageCar) + dir + CARS.length) % CARS.length;
@@ -167,7 +195,12 @@ $("carPrev").addEventListener("click", () => cycleCar(-1));
 $("carNext").addEventListener("click", () => cycleCar(1));
 $("carAction").addEventListener("click", () => {
   const def = carById(G.garageCar);
-  if (save.owned.includes(def.id)) { save.car = def.id; writeSave(); sfx.chime(); refreshGarage(); }
+  if (!save.owned.includes(def.id)) {
+    if (def.gems) { if (save.gems < def.gems) return; save.gems -= def.gems; }
+    else { if (save.coins < def.price) return; save.coins -= def.price; }
+    save.owned.push(def.id); toast(def.name + " is yours!");
+  }
+  save.car = def.id; writeSave(); sfx.chime(); refreshGarage();
 });
 function tabs(ids, panels) {
   ids.forEach((id, i) => $(id).addEventListener("click", () => {
@@ -178,8 +211,14 @@ tabs(["tabPaint", "tabRims", "tabUp"], ["panelPaint", "panelRims", "panelUp"]);
 function buildRims() {
   const el = $("rims"); el.innerHTML = ""; const cs = carSave(G.garageCar);
   RIMS.forEach((r, i) => {
-    const b = document.createElement("button"); b.type = "button"; b.className = "chipbtn"; b.textContent = r.name; b.setAttribute("aria-pressed", String(i === (cs.rims || 0)));
-    b.addEventListener("click", () => { sfx.click(); cs.rims = i; buildPlayer(G.garageCar); G.car.def = G.garageCar; writeSave(); buildRims(); });
+    cs.rimsOwned = cs.rimsOwned || [0];
+    const have = cs.rimsOwned.includes(i);
+    const b = document.createElement("button"); b.type = "button"; b.className = "chipbtn"; b.textContent = have ? r.name : `${r.name} · ${RIM_COST}`; b.setAttribute("aria-pressed", String(i === (cs.rims || 0)));
+    b.disabled = !have && save.coins < RIM_COST;
+    b.addEventListener("click", () => {
+      if (!have) { if (save.coins < RIM_COST) return; save.coins -= RIM_COST; cs.rimsOwned.push(i); }
+      sfx.click(); cs.rims = i; setRims(G.car, i); writeSave(); buildRims(); refreshLobby();
+    });
     el.appendChild(b);
   });
 }
@@ -235,6 +274,9 @@ function finishRace() {
     html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${e.name}</span><span class="tm">${gap}</span></li>`;
   });
   html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
+  const rw = raceRewards({ place, field: order.length, drift: G.totalDrift, cleanLaps: G.cleanLaps, record: G.newRecord, trial: G.trial, mult: G.track.mult || 1 });
+  save.coins += rw.coins; save.gems += rw.gems; G.lastReward = rw;
+  html += `<div class="reward">${rw.lines.map(([n, c]) => `<span>${n}</span><b>+${c}</b>`).join("")}<span class="tot">Total</span><b class="tot coin">+${rw.coins}</b>${rw.gems ? `<span>Gems</span><b class="gem">+${rw.gems}</b>` : ""}</div>`;
   $("results").innerHTML = html;
   writeSave();
   setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; } }, TEST ? 200 : 1400);
@@ -373,10 +415,13 @@ function step(dt) {
     if (v.totalD >= (done + 1) * L) {
       const lap = G.raceTime - G.lapStart; G.lapTimes.push(lap); G.lapStart = G.raceTime;
       const best = save.best[G.track.id];
-      if (best == null || lap < best) { save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
+      if (G.lapWall === 0) G.cleanLaps++;
+      G.lapWall = 0;
+      if (best == null || lap < best) { if (best != null) G.newRecord = true; save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
       if (G.lapTimes.length >= laps()) finishRace();
     }
   }
+  if (v.wallHit > 2) G.lapWall++;
   if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
 }
 
@@ -482,6 +527,8 @@ if (TEST) {
     setBoost(b) { G.player.boost = b; },
     get laps() { return G.lapTimes.slice(); },
     get place() { return G.place; },
+    get reward() { return G.lastReward; },
+    addCoins(n, g = 0) { save.coins += n; save.gems += g; writeSave(); refreshLobby(); },
     get rivals() { return G.rivals.map((r) => ({ totalD: r.veh.totalD, vF: r.veh.vF, lat: r.veh.lat, finished: r.finished })); },
     get trackLength() { return G.path.length; },
     get save() { return JSON.parse(JSON.stringify(save)); },

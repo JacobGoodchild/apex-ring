@@ -96,6 +96,9 @@ test.describe("Apex Ring", () => {
     laps.forEach((t) => expect(t).toBeGreaterThan(5));
     const saved = await game(page, () => window.__apex.save);
     expect(Object.values(saved.best).length).toBeGreaterThan(0);
+    // finishing pays out coins
+    expect(saved.coins).toBeGreaterThan(0);
+    await expect(page.locator(".reward")).toBeVisible();
     expect(problems).toEqual([]);
   });
 
@@ -109,6 +112,29 @@ test.describe("Apex Ring", () => {
     await page.reload();
     await page.waitForFunction(() => window.__apex && window.__apex.ready);
     expect(await game(page, () => window.__apex.track)).toBe(id);
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
+  test("shop: buy upgrades and a new car with coins", async ({ page }) => {
+    await openGame(page);
+    await page.evaluate(() => window.__apex.addCoins(50_000, 20));
+    await page.click("#garageBtn");
+    await page.click("#tabUp");
+    const before = (await game(page, () => window.__apex.save)).coins;
+    await page.click("#up-engine");
+    const after = await game(page, () => window.__apex.save);
+    expect(after.coins).toBeLessThan(before);
+    expect(after.cars.vanta.upgrades.engine).toBe(1);
+    await page.click("#carNext");
+    await expect(page.locator("#carAction")).toHaveText(/Buy/);
+    await page.click("#carAction");
+    await expect(page.locator("#carAction")).toHaveText("Selected");
+    const s2 = await game(page, () => window.__apex.save);
+    expect(s2.owned.length).toBe(2);
+    expect(s2.car).not.toBe("vanta");
+    // the new car races
+    await page.click("#garageBack");
+    await expect(page.locator("#lobbyCar")).toHaveText(/Kestrel/);
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 

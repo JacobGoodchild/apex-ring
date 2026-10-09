@@ -189,3 +189,19 @@ button { font-family: inherit; }
   .carhead .carName, .carName { font-size: 24px; }
   .btn { padding: 10px 14px; font-size: 18px; }
 }
+
+.uprow { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.upn b { font: 700 16px var(--display); display: block; }
+.upn span { font-size: 11px; color: var(--muted); }
+.pips { display: flex; gap: 3px; }
+.pips i { width: 10px; height: 14px; border-radius: 2px; background: rgba(255,255,255,.12); }
+.pips i.on { background: var(--cyan); }
+.chipbtn.buy { min-width: 64px; }
+.chipbtn:disabled { opacity: .45; cursor: default; }
+.reward { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font: 600 15px var(--display); background: rgba(242,166,90,.08); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 10px; }
+.reward b { color: #ffd479; text-align: right; }
+.reward .tot { border-top: 1px solid var(--edge); padding-top: 4px; font-weight: 800; font-size: 18px; }
+.reward b.gem { color: var(--cyan); }
+#garage .card { background: rgba(11, 18, 32, .78); border: 1px solid rgba(242, 166, 90, .18); border-radius: 14px; padding: 12px; box-sizing: border-box; backdrop-filter: blur(4px); }
+#garage .panel { max-height: 30vh; overflow-y: auto; }
+@media (orientation: landscape) and (max-height: 600px) { #garage .panel { max-height: 34vh; } #garage .stats { display: none; } }
