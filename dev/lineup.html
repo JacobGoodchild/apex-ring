@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Car line-up</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js", "three/addons/": "../vendor/three/addons/" } }</script>
+<style>body{margin:0;background:#222}</style></head><body>
+<script type="module">
+// Dev-only: every car side by side, side view and 3/4 view.
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { makeCar } from "../src/carmodel.js";
+import { CARS } from "../src/cars.js";
+const W = 1400, H = 800, r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); document.body.appendChild(r.domElement);
+r.toneMapping = THREE.ACESFilmicToneMapping; r.setScissorTest(true);
+const s = new THREE.Scene(); s.background = new THREE.Color(0x3a4050);
+s.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+s.add(new THREE.HemisphereLight(0xffffff, 0x333333, 1)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(3, 6, 4); s.add(d);
+const cols = [0x0f8b8d, 0xe8590c, 0xf5c400, 0xb3121d, 0x5b2bbf, 0xe9edf2, 0x16181d];
+CARS.forEach((c, i) => { const m = makeCar(c, cols[i]); m.group.position.x = i * 20; s.add(m.group); });
+const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+CARS.forEach((c, i) => {
+  for (const [row, p] of [[0, [14, 1.0, 0.01]], [1, [8, 4.5, 10]]]) {
+    cam.position.set(i * 20 + p[0], p[1], p[2]); cam.lookAt(i * 20, 0.6, 0);
+    const x = i * 200, y = 200 + row * 200; r.setViewport(x, y, 200, 200); r.setScissor(x, y, 200, 200); r.render(s, cam);
+  }
+});
+window.done = true;
+</script></body></html>

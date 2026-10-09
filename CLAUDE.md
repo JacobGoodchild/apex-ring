@@ -140,3 +140,4 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
   pull, heading limiter, wall guard). With no input the car goes dead straight (unit test). The auto-brake can still
   slow you for a corner or a wall, but never steers. Rival pace retuned for the beginner bot: Easy 0.66, Medium 0.71.
 - 2026-10-09: Per-car engine sounds: V10 (Vanta, Razor), V8 (Kestrel), flat-6 (Nimbus), V12 (Solace, Tempest) and an electric whine with no gear changes (Aurora); each has its own pitch, harmonics, brightness and number of gears.
+- 2026-10-09: More distinct car silhouettes: new shape controls (fender bulge, waist pinch between the wheels, section roundness, cabin tumblehome) — Solace V12 is a long-nose front-engine GT, Nimbus R / Razor LM / Tempest X are prototype-style with big fenders and narrow waists, Aurora E is a smooth rounded bubble. Dev line-up view: dev/lineup.html + scripts/dev/lineup.mjs.
