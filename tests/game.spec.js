@@ -125,6 +125,9 @@ test.describe("Apex Ring", () => {
     const after = await game(page, () => window.__apex.save);
     expect(after.coins).toBeLessThan(before);
     expect(after.cars.vanta.upgrades.engine).toBe(1);
+    await page.click("#tabDecal");
+    await page.click("#decal1");
+    expect((await game(page, () => window.__apex.save)).cars.vanta.decal).toBe(1);
     await page.click("#carNext");
     await expect(page.locator("#carAction")).toHaveText(/Buy/);
     await page.click("#carAction");

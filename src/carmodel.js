@@ -98,7 +98,7 @@ function wheelGeos(r, wdt, rim) {
   return { tyre: tyreG, rim: mergeGeometries(parts), disc };
 }
 
-export function makeCar(def, paintHex, rimIdx = 0) {
+export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   const S = Object.assign({ len: 4.7, wid: 1.0, nose: 0.42, hood: 0.72, deck: 0.92, tail: 0.86, cabinZ: -0.05, cabinLen: 2.3, cabinH: 1.2, cabinW: 0.72,
     wing: "high", wheelR: 0.36, intake: true, splitter: true, fin: false }, def.shape || {});
   const M = mats(paintHex);
@@ -184,8 +184,11 @@ export function makeCar(def, paintHex, rimIdx = 0) {
     const cal = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.26), M.caliper); cal.position.set(-s * 0.02, S.wheelR * 0.42, 0.12 * Math.sign(z)); pivot.add(cal);
     wheels.push(spin); if (i < 2) steerers.push(pivot);
   });
-  return { group: car, body, doors, doorType: def.doors || "scissor", wheels, steerers, paint: M.paint, rimMat, tailMat: M.tail, tailMesh,
+  const model = { group: car, body, doors, doorType: def.doors || "scissor", wheels, steerers, paint: M.paint, rimMat, tailMat: M.tail, tailMesh,
+    decalCtx: { w, t, b, L, dz0, dz1, number: (def.id.charCodeAt(0) % 9) + 1 },
     exhaust: [new THREE.Vector3(-0.32, 0.38, -L - 0.02), new THREE.Vector3(0.32, 0.38, -L - 0.02)] };
+  setDecal(model, decalIdx, paintHex);
+  return model;
 }
 
 // Animate the doors: 0 = shut, 1 = fully open. Each style opens a different way.
@@ -205,4 +208,40 @@ export function setDoors(car, open) {
 export function setRims(car, idx) {
   const rim = RIMS[idx % RIMS.length];
   car.rimMat.color.setHex(rim.color);
+}
+
+export const DECALS = [{ name: "None" }, { name: "Twin stripes" }, { name: "Centre stripe" }, { name: "Side flash" }, { name: "Race number" }];
+
+// Decals are thin patches lifted just off the bodywork, in a colour that contrasts with the paint.
+export function setDecal(car, idx, paintHex) {
+  if (car.decals) { car.decals.forEach((m) => { m.removeFromParent(); m.geometry.dispose(); }); }
+  car.decals = [];
+  const c = new THREE.Color(paintHex), lum = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+  const mat = new THREE.MeshPhysicalMaterial({ color: lum > 0.55 ? 0x14161b : 0xf2f4f7, roughness: 0.3, clearcoat: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
+  const { w, t, b, L, dz0, dz1 } = car.decalCtx;
+  const patch = (th0, th1, z0, z1) => { const m = new THREE.Mesh(loft({ z0, z1, nz: 40, nt: 3, w, t, b, n: 3.2, tumble: () => 0.8, th0, th1, scale: 1.012, closeEnds: false }), mat); car.body.add(m); car.decals.push(m); };
+  const top = Math.PI / 2;
+  if (idx === 1) { patch(top - 0.24, top - 0.12, -L + 0.05, L - 0.05); patch(top + 0.12, top + 0.24, -L + 0.05, L - 0.05); }
+  else if (idx === 2) patch(top - 0.09, top + 0.09, -L + 0.05, L - 0.05);
+  else if (idx === 3) { patch(-0.05, 0.18, -L + 0.4, dz0 - 0.05); patch(Math.PI - 0.18, Math.PI + 0.05, -L + 0.4, dz0 - 0.05); patch(-0.05, 0.12, dz1 + 0.05, L - 0.4); patch(Math.PI - 0.12, Math.PI + 0.05, dz1 + 0.05, L - 0.4); }
+  else if (idx === 4) {
+    const tex = numberTex(car.decalCtx.number);
+    for (const d of car.doors) {
+      const s = d.userData.side, zm = (dz0 + dz1) / 2;
+      const m = new THREE.Mesh(new THREE.CircleGeometry(0.2, 24), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4, polygonOffset: true, polygonOffsetFactor: -4 }));
+      m.position.set(s * (w(zm) * 1.02 + 0.005) - d.position.x, (t(zm) + 0.22) / 2 + 0.06 - d.position.y, zm - d.position.z);
+      m.rotation.set(0, s * Math.PI / 2, 0);
+      d.add(m); car.decals.push(m);
+    }
+  }
+}
+
+const numberTexCache = {};
+function numberTex(n) {
+  if (numberTexCache[n]) return numberTexCache[n];
+  const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d");
+  g.fillStyle = "#f4f4f4"; g.beginPath(); g.arc(64, 64, 62, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#111"; g.font = "bold 84px Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(String(n), 64, 70);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return (numberTexCache[n] = t);
 }

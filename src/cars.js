@@ -5,6 +5,10 @@ export const PAINTS = [
   { name: "Volt Yellow", hex: 0xf5c400 },
   { name: "Glacier White", hex: 0xe9edf2 },
   { name: "Carbon Black", hex: 0x16181d },
+  { name: "Rosso Fuoco", hex: 0xb3121d },
+  { name: "Ultra Violet", hex: 0x5b2bbf },
+  { name: "Lime Strike", hex: 0x8fd400 },
+  { name: "Gunmetal", hex: 0x4a5160 },
 ];
 
 // shape: proportions for the procedural body (see carmodel.js). price in coins, or gems for the rarest.

@@ -14,7 +14,7 @@ r.toneMapping = THREE.ACESFilmicToneMapping; r.setScissorTest(true);
 const s = new THREE.Scene(); s.background = new THREE.Color(0x3a4050);
 s.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
 s.add(new THREE.HemisphereLight(0xffffff, 0x333333, 1)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(3, 6, 4); s.add(d);
-const car = makeCar(carById(q.get("car") || "vanta"), 0x0f8b8d); s.add(car.group); setDoors(car, Number(q.get("doors") || 0));
+const car = makeCar(carById(q.get("car") || "vanta"), 0x0f8b8d, 0, Number(q.get("decal") || 0)); s.add(car.group); setDoors(car, Number(q.get("doors") || 0));
 const grid = new THREE.GridHelper(10, 20); s.add(grid);
 const cam = new THREE.PerspectiveCamera(30, 500 / 350, 0.1, 100);
 const views = [[[9, 1.2, 0.01], 0, 350], [[6, 3, 7], 500, 350], [[0.01, 1.2, 9], 0, 0], [[-5, 4, -7], 500, 0]];

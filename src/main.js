@@ -8,7 +8,7 @@ import { buildTrackMeshes } from "./trackmesh.js";
 import { buildScenery } from "./scenery.js";
 import { TRACKS, THEMES, trackById } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec } from "./cars.js";
-import { makeCar, setDoors, setRims, RIMS } from "./carmodel.js";
+import { makeCar, setDoors, setRims, setDecal, RIMS, DECALS } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
@@ -80,7 +80,7 @@ $("trackNext").addEventListener("click", () => pickTrack(1));
 function buildPlayer(id = save.car) {
   const def = carById(id), cs = carSave(def.id);
   if (G.car) G.car.group.removeFromParent();
-  G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex, cs.rims);
+  G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex, cs.rims, cs.decal || 0);
   addFlames(G.car);
   if (G.mode === "menu") showroom.setCar(G.car); else scene.add(G.car.group);
   if (!G.player) { G.player = new Vehicle(carSpec(def, cs.upgrades), G.path); G.player.reset(-8, 0); }
@@ -97,7 +97,7 @@ function buildRivals() {
   for (let k = 0; k < G.nRivals; k++) {
     const prof = RIVALS[k % RIVALS.length], def = CARS[(k + 1) % CARS.length];
     const veh = new Vehicle(carSpec(def, {}), G.path);
-    const model = makeCar(def, prof.color);
+    const model = makeCar(def, prof.color, k % 4, [1, 4, 2, 3, 0, 4, 1][k % 7]);
     model.group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
     model.body.children[0].castShadow = true;
     addFlames(model);
@@ -180,7 +180,7 @@ function refreshGarage() {
   } else if (save.car === def.id) { act.textContent = "Selected"; act.disabled = true; }
   else { act.textContent = "Select this car"; act.disabled = false; }
   $("tabUp").disabled = !owned;
-  buildPaints(); buildRims(); buildUpgrades();
+  buildPaints(); buildRims(); buildDecals(); buildUpgrades();
   refreshLobby();
 }
 function buildUpgrades() {
@@ -222,7 +222,23 @@ function tabs(ids, panels) {
     sfx.click(); ids.forEach((o, j) => { $(o).setAttribute("aria-pressed", String(i === j)); $(panels[j]).hidden = i !== j; });
   }));
 }
-tabs(["tabPaint", "tabRims", "tabUp"], ["panelPaint", "panelRims", "panelUp"]);
+tabs(["tabPaint", "tabRims", "tabDecal", "tabUp"], ["panelPaint", "panelRims", "panelDecal", "panelUp"]);
+const DECAL_COST = 400;
+function buildDecals() {
+  const el = $("decals"); el.innerHTML = ""; const cs = carSave(G.garageCar);
+  cs.decalsOwned = cs.decalsOwned || [0];
+  DECALS.forEach((d, i) => {
+    const have = cs.decalsOwned.includes(i);
+    const b = document.createElement("button"); b.type = "button"; b.className = "chipbtn"; b.id = "decal" + i;
+    b.textContent = have ? d.name : `${d.name} · ${DECAL_COST}`; b.setAttribute("aria-pressed", String(i === (cs.decal || 0)));
+    b.disabled = !have && save.coins < DECAL_COST;
+    b.addEventListener("click", () => {
+      if (!have) { if (save.coins < DECAL_COST) return; save.coins -= DECAL_COST; cs.decalsOwned.push(i); }
+      sfx.click(); cs.decal = i; setDecal(G.car, i, PAINTS[cs.paint % PAINTS.length].hex); writeSave(); buildDecals(); refreshLobby();
+    });
+    el.appendChild(b);
+  });
+}
 function buildRims() {
   const el = $("rims"); el.innerHTML = ""; const cs = carSave(G.garageCar);
   RIMS.forEach((r, i) => {
@@ -246,7 +262,7 @@ function buildPaints() {
     b.style.background = "#" + p.hex.toString(16).padStart(6, "0"); b.setAttribute("aria-label", p.name);
     b.setAttribute("aria-pressed", String(i === cs.paint));
     b.addEventListener("click", () => {
-      sfx.click(); cs.paint = i; G.car.paint.color.setHex(p.hex);
+      sfx.click(); cs.paint = i; G.car.paint.color.setHex(p.hex); setDecal(G.car, cs.decal || 0, p.hex);
       [...el.children].forEach((c, j) => c.setAttribute("aria-pressed", String(j === i)));
       $("paintName").textContent = p.name; writeSave();
     });

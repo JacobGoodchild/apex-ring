@@ -253,3 +253,5 @@ button { font-family: inherit; }
 .podium .me .who { color: var(--amber); }
 @media (prefers-reduced-motion: reduce) { .screen:not([hidden]) .card, #fade.out { animation: none; } #loading .bar i { animation: none; } }
 @media (orientation: landscape) and (max-height: 600px) { .podium { display: none; } }
+
+#garage .tab { padding: 8px 4px; font-size: 13px; }
