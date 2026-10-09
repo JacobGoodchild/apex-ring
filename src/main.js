@@ -10,6 +10,7 @@ import { TRACKS, THEMES, trackById } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec } from "./cars.js";
 import { makeCar, setDoors, setRims, RIMS } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
+import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { Vehicle } from "./vehicle.js";
 import { input, bindPad, readControls, setTilt } from "./input.js";
@@ -55,6 +56,15 @@ function loadTrack(id) {
   $("trackName").textContent = def.name; $("trackBlurb").textContent = def.blurb + " " + def.laps + " laps.";
   $("trackTheme").textContent = theme.label || "Track";
   drawTrack(previewCtx, G.path, 96, { width: 4 });
+  refreshLock();
+}
+function refreshLock() {
+  if (!G.track) return;
+  const open = TEST || trackUnlocked(save, G.track.id);
+  $("startBtn").disabled = !open;
+  $("trackPick").classList.toggle("locked", !open);
+  if (!open) $("startBtn").textContent = "Unlock it in Career";
+  else $("startBtn").textContent = G.trial ? "Start time trial" : "Start race";
 }
 const previewCtx = $("trackPreview").getContext("2d");
 const minimap = new Minimap($("minimap"));
@@ -101,12 +111,13 @@ function gridUp() {
   const ps = slot(Math.min(G.gridSlot, G.rivals.length)); G.player.reset(ps[0], ps[1]);
   let k = 0;
   const ps2 = G.player.spec;
-  for (const r of G.rivals) {
+  for (const r of G.rivals) r.out = false;
+  for (const r of G.field) {
     // rivals drive their own cars, but tuned halfway toward yours so races stay close
     const base = carSpec(carById(r.carId), {});
     r.veh.spec = Object.fromEntries(Object.keys(base).map((key) => [key, base[key] * 0.45 + ps2[key] * 0.55]));
     if (k === Math.min(G.gridSlot, G.rivals.length)) k++;
-    const [d, lat] = slot(k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
+    const [d, lat] = slot(G.field.length === 1 ? 0 : k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
   G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null;
   skids.clear(); G.driftPts = 0; G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
@@ -124,14 +135,14 @@ function standings() {
 }
 const ordinal = (n) => n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th");
 
-const laps = () => G.lapsOverride || G.track.laps;
+const laps = () => G.lapsOverride || (G.event ? G.event.laps : G.track.laps);
 
 // ---------- UI ----------
 function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), ms); }
 const fmt = (t) => { if (t == null || !isFinite(t)) return "–"; const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); };
-function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; } }
+function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; } }
 
-const SCREENS = ["menu", "setup", "garage", "settings"];
+const SCREENS = ["menu", "setup", "garage", "settings", "career"];
 function show(id) {
   sfx.click();
   SCREENS.forEach((s) => ($(s).hidden = s !== id));
@@ -140,6 +151,8 @@ function show(id) {
   if (id === "garage") { G.garageCar = save.car; refreshGarage(); }
   if (id === "menu") { if (G.garageCar && G.garageCar !== save.car) buildPlayer(); refreshLobby(); }
   if (id === "settings") refreshSettings();
+  if (id === "career") buildCareer();
+  if (id === "setup") { G.event = null; if (G.track.id !== (save.track || G.track.id)) loadTrack(save.track); refreshLock(); }
 }
 function refreshLobby() {
   $("lobbyCar").textContent = carById(save.car).name;
@@ -245,8 +258,12 @@ function startRace() {
   if (G.car.def && G.car.def !== save.car) buildPlayer();
   G.mode = "countdown";
   scene.add(G.car.group); setDoors(G.car, 0); G.doors = 0;
-  for (const r of G.rivals) r.model.group.visible = !G.trial;
-  G.field = G.trial ? [] : G.rivals;
+  const ev = G.event, solo = ev ? ev.type === "trial" || ev.type === "drift" : G.trial;
+  G.field = solo ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : G.rivals;
+  for (const r of G.rivals) r.model.group.visible = G.field.includes(r);
+  G.elimDone = 0; G.eliminated = false;
+  $("eventTag").hidden = !ev;
+  if (ev) $("eventTag").textContent = ev.name + " · " + ev.desc;
   gridUp();
   [...SCREENS, "finish", "pause", "topbar"].forEach((id) => ($(id).hidden = true));
   setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
@@ -274,12 +291,34 @@ function finishRace() {
     html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${e.name}</span><span class="tm">${gap}</span></li>`;
   });
   html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
+  if (G.event) html = eventResult(place, fastest) + html;
   const rw = raceRewards({ place, field: order.length, drift: G.totalDrift, cleanLaps: G.cleanLaps, record: G.newRecord, trial: G.trial, mult: G.track.mult || 1 });
   save.coins += rw.coins; save.gems += rw.gems; G.lastReward = rw;
   html += `<div class="reward">${rw.lines.map(([n, c]) => `<span>${n}</span><b>+${c}</b>`).join("")}<span class="tot">Total</span><b class="tot coin">+${rw.coins}</b>${rw.gems ? `<span>Gems</span><b class="gem">+${rw.gems}</b>` : ""}</div>`;
   $("results").innerHTML = html;
   writeSave();
   setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; } }, TEST ? 200 : 1400);
+}
+
+function eventResult(place, fastest) {
+  const ev = G.event, rival = ev.type === "h2h" ? G.field[0] : null;
+  const r = { place, bestLap: fastest, drift: G.totalDrift, eliminated: G.eliminated,
+    beatRival: rival ? rival.finished == null || G.playerFinish < rival.finished : false,
+    margin: rival ? (rival.finished == null ? 5 : rival.finished - G.playerFinish) : 0 };
+  const res = judge(ev, r), prev = save.career[ev.id] || {};
+  let extra = "";
+  if (res.ok) {
+    if (!prev.done) {
+      save.coins += ev.reward.coins || 0; save.gems += ev.reward.gems || 0;
+      extra = `<div class="evreward">Event reward <b>+${ev.reward.coins || 0}</b>${ev.reward.gems ? ` <b class="gem">+${ev.reward.gems} gems</b>` : ""}</div>`;
+      if (ev.unlock && ev.unlock.track) extra += `<div class="evunlock">Unlocked track: <b>${trackById(ev.unlock.track).name}</b></div>`;
+      if (ev.unlock && ev.unlock.car && !save.owned.includes(ev.unlock.car)) { save.owned.push(ev.unlock.car); extra += `<div class="evunlock">New car: <b>${carById(ev.unlock.car).name}</b></div>`; }
+    }
+    save.career[ev.id] = { done: true, stars: Math.max(res.stars, prev.stars || 0) };
+  }
+  G.eventOk = res.ok;
+  const detail = ev.type === "drift" ? `Drift score ${Math.round(G.totalDrift)} / ${ev.target}` : ev.type === "trial" ? `Best lap ${fmt(fastest)} / target ${fmt(ev.target)}` : ev.desc;
+  return `<div class="evhead ${res.ok ? "ok" : "fail"}"><div class="evname">${ev.name}</div><div class="evstate">${res.ok ? "Complete " + "★".repeat(res.stars) + "☆".repeat(3 - res.stars) : G.eliminated ? "Eliminated" : "Not this time"}</div><div class="hint">${detail}</div>${extra}</div>`;
 }
 
 function pause(on) {
@@ -291,9 +330,29 @@ $("startBtn").addEventListener("click", startRace);
 $("raceBtn").addEventListener("click", () => show("setup"));
 $("garageBtn").addEventListener("click", () => show("garage"));
 $("settingsBtn").addEventListener("click", () => show("settings"));
-$("careerBtn").addEventListener("click", () => toast("Career mode is coming soon."));
+$("careerBtn").addEventListener("click", () => show("career"));
+$("careerBack").addEventListener("click", () => show("menu"));
+const TYPE_LABEL = { race: "Race", trial: "Time trial", drift: "Drift", elim: "Elimination", h2h: "Head to head" };
+function buildCareer() {
+  const el = $("events"); el.innerHTML = "";
+  let total = 0;
+  EVENTS.forEach((ev, i) => {
+    const st = save.career[ev.id], open = TEST || eventUnlocked(save, i); total += st ? st.stars : 0;
+    const b = document.createElement("button"); b.type = "button"; b.className = "event" + (st && st.done ? " done" : "") + (open ? "" : " lockd"); b.id = "ev-" + ev.id;
+    b.disabled = !open;
+    b.innerHTML = `<span class="evn">${i + 1}</span><span class="evb"><b>${ev.name}</b><small>${TYPE_LABEL[ev.type]} · ${trackById(ev.track).name} · ${ev.laps} laps</small><small>${ev.desc}</small></span><span class="evs">${open ? (st ? "★".repeat(st.stars) + "☆".repeat(3 - st.stars) : "+" + (ev.reward.coins || 0)) : "🔒"}</span>`;
+    b.addEventListener("click", () => startEvent(ev));
+    el.appendChild(b);
+  });
+  $("careerStars").textContent = total + " / " + EVENTS.length * 3 + " ★";
+}
+function startEvent(ev) {
+  G.event = ev;
+  if (G.track.id !== ev.track) { const keep = save.track; loadTrack(ev.track); save.track = keep; }
+  startRace();
+}
 ["setupBack", "garageBack", "settingsBack"].forEach((id) => $(id).addEventListener("click", () => show("menu")));
-function setMode(trial) { G.trial = trial; $("modeRace").setAttribute("aria-pressed", String(!trial)); $("modeTrial").setAttribute("aria-pressed", String(trial)); $("startBtn").textContent = trial ? "Start time trial" : "Start race"; }
+function setMode(trial) { G.trial = trial; $("modeRace").setAttribute("aria-pressed", String(!trial)); $("modeTrial").setAttribute("aria-pressed", String(trial)); refreshLock(); }
 $("modeRace").addEventListener("click", () => { sfx.click(); setMode(false); });
 $("modeTrial").addEventListener("click", () => { sfx.click(); setMode(true); });
 
@@ -311,7 +370,7 @@ $("resetBtn").addEventListener("click", () => {
   resetSave(); G.garageCar = null; buildPlayer(); toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
-$("menuBtn").addEventListener("click", toMenu);
+$("menuBtn").addEventListener("click", () => { const ev = G.event; toMenu(); if (ev) show("career"); });
 $("pauseBtn").addEventListener("click", () => pause(true));
 $("resumeBtn").addEventListener("click", () => { sfx.click(); pause(false); });
 $("restartBtn").addEventListener("click", startRace);
@@ -420,9 +479,24 @@ function step(dt) {
       if (best == null || lap < best) { if (best != null) G.newRecord = true; save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
       if (G.lapTimes.length >= laps()) finishRace();
     }
+    if (G.event && G.event.type === "elim" && G.mode === "race") eliminate();
   }
   if (v.wallHit > 2) G.lapWall++;
   if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
+}
+
+// Elimination: every time the leader starts a new lap, whoever is last drops out.
+function eliminate() {
+  const L = G.path.length;
+  const lead = Math.max(G.player.totalD, ...G.field.map((r) => r.veh.totalD));
+  const lapsDone = Math.floor(lead / L);
+  if (lapsDone <= G.elimDone || lapsDone >= laps()) return;
+  G.elimDone = lapsDone;
+  const order = standings(), last = order[order.length - 1];
+  if (last.me) { G.eliminated = true; toast("You're out! Last place drops out each lap.", 2500); finishRace(); return; }
+  last.out = true; last.model.group.visible = false; last.veh.reset(-2000, 0);
+  G.field = G.field.filter((r) => r !== last);
+  toast(last.name + " is out!", 1800); sfx.thud(4);
 }
 
 const wp = new THREE.Vector3();
@@ -527,6 +601,8 @@ if (TEST) {
     setBoost(b) { G.player.boost = b; },
     get laps() { return G.lapTimes.slice(); },
     get place() { return G.place; },
+    get eventOk() { return G.eventOk; },
+    get fieldSize() { return G.field.length; },
     get reward() { return G.lastReward; },
     addCoins(n, g = 0) { save.coins += n; save.gems += g; writeSave(); refreshLobby(); },
     get rivals() { return G.rivals.map((r) => ({ totalD: r.veh.totalD, vF: r.veh.vF, lat: r.veh.lat, finished: r.finished })); },

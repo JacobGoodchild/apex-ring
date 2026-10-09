@@ -34,6 +34,7 @@
   <div class="bar"><div class="fill" id="spdBar"></div></div>
   <div class="boostbar" aria-label="Boost meter"><div class="fill" id="boostFill"></div></div>
 </div>
+<div id="eventTag" hidden></div>
 <div id="drift" hidden><span class="k">DRIFT</span> <span id="driftV">+0</span></div>
 <div id="driftPop" hidden></div>
 <div id="offtrack" hidden>OFF TRACK</div>
@@ -78,7 +79,7 @@
       <button class="tab" id="modeRace" type="button" aria-pressed="true">Quick race</button>
       <button class="tab" id="modeTrial" type="button" aria-pressed="false">Time trial</button>
     </div>
-    <div class="trackpick">
+    <div class="trackpick" id="trackPick">
       <button class="arrow" id="trackPrev" type="button" aria-label="Previous track">‹</button>
       <canvas id="trackPreview" width="96" height="96"></canvas>
       <div class="trackinfo"><div class="label" id="trackTheme">Track</div><div class="trackName" id="trackName"></div><div class="hint" id="trackBlurb"></div></div>
@@ -108,6 +109,15 @@
     <div class="panel" id="panelUp" hidden><div id="upgrades"></div></div>
     <button class="btn" id="carAction" type="button">Selected</button>
     <button class="btn ghost" id="garageBack" type="button">Back</button>
+  </div>
+</div>
+
+<!-- career -->
+<div class="overlay screen" id="career" hidden>
+  <div class="card">
+    <div class="row between"><div class="brand small">CAREER</div><div class="stars" id="careerStars"></div></div>
+    <div class="events" id="events"></div>
+    <button class="btn ghost" id="careerBack" type="button">Back</button>
   </div>
 </div>
 

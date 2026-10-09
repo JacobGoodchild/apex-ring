@@ -17,6 +17,12 @@ for (const [name, size] of [["portrait", { width: 412, height: 915 }], ["landsca
     await page.screenshot({ path: `screenshots/upgrades-${name}.png` });
     await page.click("#carPrev");
     await page.click("#garageBack");
+    await page.click("#careerBtn");
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `screenshots/career-${name}.png` });
+    await page.click("#careerBack");
+    await page.click("#garageBtn");
+    await page.click("#garageBack");
     await startRace(page);
     await page.waitForTimeout(2500);
     await page.screenshot({ path: `screenshots/race-${name}.png` });

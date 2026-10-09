@@ -138,6 +138,35 @@ test.describe("Apex Ring", () => {
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 
+  test("career: a time trial event can be completed and is saved", async ({ page }) => {
+    test.setTimeout(120_000);
+    const problems = await openGame(page, "autopilot=1&speed=12");
+    await page.click("#careerBtn");
+    await expect(page.locator("#events .event")).toHaveCount(12);
+    await page.click("#ev-c2");
+    await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 90_000 });
+    await expect(page.locator("#finish")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".evhead")).toBeVisible();
+    expect(await game(page, () => window.__apex.eventOk)).toBe(true);
+    const sv = await game(page, () => window.__apex.save);
+    expect(sv.career.c2.done).toBe(true);
+    await page.click("#menuBtn");
+    await expect(page.locator("#career")).toBeVisible();
+    expect(problems).toEqual([]);
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
+  test("career: elimination drops the last car each lap", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openGame(page, "autopilot=1&speed=12&laps=3");
+    await page.click("#careerBtn");
+    await page.click("#ev-c7");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 20_000 });
+    expect(await game(page, () => window.__apex.fieldSize)).toBe(7);
+    await page.waitForFunction(() => window.__apex.fieldSize <= 6 || window.__apex.mode === "done", null, { timeout: 90_000 });
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
   test("time trial runs without rivals", async ({ page }) => {
     await openGame(page);
     await page.click("#raceBtn");
