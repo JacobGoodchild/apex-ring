@@ -42,33 +42,58 @@ test.describe("Apex Ring", () => {
     await page.keyboard.up("ArrowLeft");
   });
 
-  test("drifting leaves skid marks and fills boost; boost spends it", async ({ page }) => {
-    await openGame(page, "rivals=0");
+  test("steering hard at speed drifts by itself, leaves skid marks and fills boost", async ({ page }) => {
+    await openGame(page, "rivals=0&track=oval");
+    await page.evaluate(() => window.__apex.setSetting("assist", "off"));
     await startRace(page);
-    await page.waitForFunction(() => window.__apex.player.vF > 30, null, { timeout: 30_000 });
+    // wait for the first bend, then steer hard into it
+    await page.waitForFunction(() => window.__apex.player.bend !== 0 && window.__apex.player.vF > 40, null, { timeout: 30_000 });
     const b0 = (await game(page, () => window.__apex.player)).boost;
-    await page.keyboard.down("ArrowLeft");
-    await page.keyboard.down(" ");
+    const key = (await game(page, () => window.__apex.player.bend)) > 0 ? "ArrowRight" : "ArrowLeft";
+    await page.keyboard.down(key);
     await page.waitForFunction(() => window.__apex.player.drifting, null, { timeout: 10_000 });
     await page.waitForFunction(() => window.__apex.skidCount > 5, null, { timeout: 10_000 });
-    await page.keyboard.up(" ");
-    await page.keyboard.up("ArrowLeft");
+    await page.keyboard.up(key);
     expect((await game(page, () => window.__apex.player)).boost).toBeGreaterThan(b0);
-    await page.evaluate(() => window.__apex.setBoost(1));
-    await page.keyboard.down("ArrowUp");
-    await page.waitForFunction(() => window.__apex.player.boosting, null, { timeout: 10_000 });
-    await page.waitForFunction(() => window.__apex.player.boost < 0.9, null, { timeout: 10_000 });
-    await page.keyboard.up("ArrowUp");
   });
 
-  test("holding boost just before GO gives a perfect start", async ({ page }) => {
+  test("Space fires a boost burst that spends the meter", async ({ page }) => {
+    await openGame(page, "rivals=0");
+    await startRace(page);
+    await page.evaluate(() => window.__apex.setBoost(1));
+    await page.keyboard.press(" ");
+    await page.waitForFunction(() => window.__apex.player.boosting, null, { timeout: 10_000 });
+    await page.waitForFunction(() => window.__apex.player.boost < 0.9, null, { timeout: 10_000 });
+  });
+
+  test("touch: halves steer, and tapping both halves together twice boosts", async ({ page }) => {
+    await openGame(page, "rivals=0");
+    await startRace(page);
+    await page.waitForFunction(() => window.__apex.player.vF > 20, null, { timeout: 30_000 });
+    const tap = (sel, id, type) => page.dispatchEvent(sel, type, { pointerId: id, pointerType: "touch", isPrimary: id === 1, bubbles: true });
+    // hold the right half: the nose swings right of the track
+    await tap("#zoneR", 5, "pointerdown");
+    await page.waitForFunction(() => window.__apex.player.hErr < -0.03, null, { timeout: 10_000 });
+    await tap("#zoneR", 5, "pointerup");
+    // no charge: nothing happens; with charge, two quick two-thumb taps fire boost
+    await page.evaluate(() => window.__apex.setBoost(1));
+    for (let k = 0; k < 2; k++) {
+      await tap("#zoneL", 1, "pointerdown"); await tap("#zoneR", 2, "pointerdown");
+      await tap("#zoneL", 1, "pointerup"); await tap("#zoneR", 2, "pointerup");
+    }
+    await page.waitForFunction(() => window.__apex.player.boosting, null, { timeout: 5_000 });
+    // the old buttons are gone
+    await expect(page.locator("#padBoost")).toHaveCount(0);
+    await expect(page.locator("#padDrift")).toHaveCount(0);
+  });
+
+  test("boosting just before GO gives a perfect start", async ({ page }) => {
     await openGame(page, "speed=1&rivals=0");
     await page.click("#raceBtn");
     await page.click("#startBtn");
-    await page.waitForFunction(() => window.__apex.countT > 3.3, null, { timeout: 20_000 });
-    await page.keyboard.down("ArrowUp");
+    await page.waitForFunction(() => window.__apex.countT > 3.6, null, { timeout: 20_000 });
+    await page.keyboard.press(" ");
     await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 10_000 });
-    await page.keyboard.up("ArrowUp");
     await expect(page.locator("#toast")).toHaveText(/Perfect start|Too early/);
   });
 
@@ -182,8 +207,6 @@ test.describe("Apex Ring", () => {
     await page.click('#soundTabs [data-s="0"]');
     await page.click('#qualityTabs [data-q="low"]');
     await page.click('#diffTabs [data-d="hard"]');
-    await page.click('#steerTabs [data-t="halves"]');
-    await expect(page.locator("#pads")).toHaveClass(/halves/);
     expect((await game(page, () => window.__apex.save)).settings.difficulty).toBe("hard");
     const sv = await game(page, () => window.__apex.save);
     expect(sv.settings.sound).toBe(false);

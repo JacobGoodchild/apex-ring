@@ -16,7 +16,7 @@ import { levelOf, slot, rivalSpec, AUTO_BRAKE, AUTO_ASSIST } from "./race.js";
 import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { Vehicle } from "./vehicle.js";
-import { input, bindPad, readControls, setTilt } from "./input.js";
+import { input, bindZones, readControls, setTilt } from "./input.js";
 import * as sfx from "./audio.js";
 import { ChaseCam } from "./camera.js";
 import { Driver, RIVALS, collide } from "./ai.js";
@@ -299,7 +299,7 @@ function startRace() {
   setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
   $("count").hidden = false; G.countT = 0; G.lastBeep = -1; G.launch = null; G.bog = 0;
   const f = $("fade"); f.classList.remove("out"); void f.offsetWidth; f.classList.add("out");
-  G.tips = !save.tipsSeen && !TEST ? [[5, "Hold ◀ ▶ (or ← →) to steer. The car speeds up and brakes for corners by itself."], [13, "Tap DRIFT while steering to slide. Drifting fills your BOOST bar."], [22, "Press BOOST (or ↑) when the blue bar has charge for a burst of speed."]] : [];
+  G.tips = !save.tipsSeen && !TEST ? [[5, "Hold the left or right half of the screen to steer (or ← →). The car speeds up and brakes by itself."], [14, "Steer hard into a fast corner and the car drifts. Drifting fills the blue BOOST bar."]] : [];
 }
 
 function toMenu() {
@@ -405,7 +405,6 @@ function refreshSettings() {
   document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.q === world.qname)));
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
-  document.querySelectorAll("#steerTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === (save.settings.steer || "pads"))));
   document.querySelectorAll("#assistTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.a === (save.settings.assist || "auto"))));
   document.querySelectorAll("#lineTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === (save.settings.line || "auto"))));
   document.querySelectorAll("#diffTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === (save.settings.difficulty || "easy"))));
@@ -413,15 +412,12 @@ function refreshSettings() {
 document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.quality = b.dataset.q; world.applyQuality(b.dataset.q); writeSave(); refreshSettings(); }));
 document.querySelectorAll("#camTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); if (chase.mode !== b.dataset.c) $("camBtn").click(); refreshSettings(); }));
 document.querySelectorAll("#soundTabs .tab").forEach((b) => b.addEventListener("click", () => { if ((b.dataset.s === "1") !== save.settings.sound) $("muteBtn").click(); sfx.click(); refreshSettings(); }));
-document.querySelectorAll("#steerTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.steer = b.dataset.t; writeSave(); applySteer(); refreshSettings(); }));
-function applySteer() { $("pads").classList.toggle("halves", save.settings.steer === "halves"); }
-applySteer();
 document.querySelectorAll("#diffTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.difficulty = b.dataset.d; writeSave(); applyAids(); refreshSettings(); }));
 document.querySelectorAll("#assistTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.assist = b.dataset.a; writeSave(); refreshSettings(); }));
 document.querySelectorAll("#lineTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.line = b.dataset.l; writeSave(); applyAids(); refreshSettings(); }));
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
-  resetSave(); G.garageCar = null; buildPlayer(); applySteer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
+  resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
 $("nextBtn").addEventListener("click", () => { const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
@@ -439,8 +435,7 @@ $("tiltBtn").addEventListener("click", async () => {
   $("tiltBtn").textContent = on ? "Tilt ✓" : "Tilt"; $("tiltBtn").classList.toggle("on", on);
 });
 $("respawnBtn").addEventListener("click", () => { if (G.mode === "race") G.player.respawn(); });
-bindPad($("zoneL"), "left"); bindPad($("zoneR"), "right");
-bindPad($("padL"), "left"); bindPad($("padR"), "right"); bindPad($("padBoost"), "boost"); bindPad($("padDrift"), "drift");
+bindZones($("zoneL"), $("zoneR"));
 $("camBtn").addEventListener("click", () => {
   chase.mode = chase.mode === "chase" ? "bonnet" : "chase"; save.settings.camera = chase.mode; writeSave();
   $("camBtn").textContent = chase.mode === "chase" ? "Cam 1" : "Cam 2"; chase.ready = false;
@@ -510,6 +505,7 @@ const lookAt = new THREE.Vector3(), camPos = new THREE.Vector3();
 
 function step(dt) {
   if (G.paused) return;
+  const ctl = readControls();
 
   if (G.mode === "countdown") {
     G.countT += dt;
@@ -517,10 +513,9 @@ function step(dt) {
     [$("l1"), $("l2"), $("l3")].forEach((l, i) => { l.className = "lamp" + (c >= 4 ? " green" : c >= 1 + i ? " red" : ""); });
     $("countV").textContent = c < 1 ? "" : c < 4 ? String(3 - Math.floor(c - 1)) : "GO";
     const b = Math.floor(c); if (b !== G.lastBeep && b >= 1 && b <= 4) { G.lastBeep = b; sfx.beep(b === 4); }
-    // launch control: hold BOOST in the last moment before green for a perfect start; too early and you bog down
-    const held = readControls().boost;
-    if (held && c > 3.55 && c < 4 && G.launch !== "early") G.launch = "perfect";
-    else if (held && c > 2.6 && c <= 3.55) G.launch = "early";
+    // launch control: boost in the last moment before green for a perfect start; too early and you bog down
+    if (ctl.boost && c > 3.55 && c < 4 && G.launch !== "early") G.launch = "perfect";
+    else if (ctl.boost && c > 2.6 && c <= 3.55) G.launch = "early";
     if (c >= 4) {
       G.mode = "race";
       const v = G.player;
@@ -532,12 +527,11 @@ function step(dt) {
   if (G.mode === "race" && G.countT < 5) { G.countT += dt; if (G.countT >= 5) $("count").hidden = true; }
 
   const v = G.player, racing = G.mode === "race";
-  const ctl = readControls();
   const ap = AUTOPILOT && racing ? autopilot(v) : null;
   const aid = assistLevel();
   const steerIn = input.tiltOn ? ctl.steer : smoothSteer(G.touch || (G.touch = {}), ctl.steer, v.vF, v.spec.vmax, dt);
   v.ctl.steer = ap ? ap.steer : racing ? assistSteer(v, G.path, steerIn, aid) : steerIn;
-  v.ctl.boost = ctl.boost; v.ctl.drift = ctl.drift; v.ctl.brake = ctl.brake;
+  if (racing && ctl.boost) { v.ctl.boost = true; if (v.boost <= 0.12) toast("Boost is empty: drift to fill it.", 1400); }
   v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path, AUTO_BRAKE[save.settings.difficulty] || 1, aid ? 1 : 0);
   if (G.bog > 0) { G.bog -= dt; v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, 4); }
   if (G.mode === "race" || G.mode === "done") {
@@ -552,7 +546,12 @@ function step(dt) {
     // drift points: build while sliding, banked when the slide ends
     if (v.driftTime > 0.25) { G.driftPts += dt * v.vF * Math.abs(v.driftAngle) * 6; G.driftShow = 1.5; }
     else if (G.driftPts > 0 && v.driftTime === 0) { if (G.driftPts > 20) { G.totalDrift += Math.round(G.driftPts); popDrift(Math.round(G.driftPts)); sfx.chime(); } G.driftPts = 0; }
-    if (v.boosting && !G.wasBoosting) sfx.whoosh();
+    if (v.boosting && !G.wasBoosting) { sfx.whoosh(); const f = $("boostFlash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+    // first time the meter has charge, explain how to boost
+    if (v.boost > 0.3 && !save.boostHint && !TEST) {
+      save.boostHint = true; writeSave();
+      toast(matchMedia("(pointer: coarse)").matches ? "Boost ready! Tap BOTH sides of the screen together, twice." : "Boost ready! Press Space.", 4500);
+    }
     G.wasBoosting = v.boosting;
     G.raceTime += dt;
     const L = G.path.length, done = G.lapTimes.length;
@@ -662,7 +661,7 @@ function render(dt) {
       } else $("gapV").hidden = true;
     }
     $("boostFill").style.width = Math.round(v.boost * 100) + "%";
-    $("padBoost").classList.toggle("ready", v.boost > 0.15);
+    $("speedo").classList.toggle("ready", v.boost > 0.12);
     $("drift").hidden = !(G.driftPts > 5);
     if (G.driftPts > 5) $("driftV").textContent = "+" + Math.round(G.driftPts);
     $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
@@ -716,9 +715,10 @@ addEventListener("error", (e) => errors.push(String(e.message)));
 if (TEST) {
   window.__apex = {
     get mode() { return G.mode; },
-    get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, boosting: v.boosting, drifting: v.drifting, driftAngle: v.driftAngle, lat: v.lat, hErr: wrapA(v.h - v.p.h) }; },
+    get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, boosting: v.boosting, drifting: v.drifting, driftAngle: v.driftAngle, lat: v.lat, hErr: wrapA(v.h - v.p.h), bend: Math.abs(G.path.cs[v.p.i]) > 0.004 ? Math.sign(G.path.cs[v.p.i]) : 0 }; },
     get skidCount() { return skids.n; },
     setBoost(b) { G.player.boost = b; },
+    setSetting(k, val) { save.settings[k] = val; writeSave(); applyAids(); },
     get laps() { return G.lapTimes.slice(); },
     get place() { return G.place; },
     get eventOk() { return G.eventOk; },

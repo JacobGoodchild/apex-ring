@@ -49,27 +49,29 @@ export class Vehicle {
     const sIn = active ? clamp(c.steer, -1, 1) : 0;
     this.steer += (sIn - this.steer) * Math.min(1, dt * (Math.abs(sIn) > Math.abs(this.steer) ? 9 : 12));
 
-    // drift: holding drift while steering at speed breaks the rear loose
-    const wantDrift = active && c.drift && Math.abs(this.steer) > 0.25 && vF > 18;
-    if (wantDrift && !this.drifting) { this.drifting = true; this.driftDir = Math.sign(this.steer); this.yawRate += this.driftDir * 0.6; }
-    // the slide holds while you keep steering into it (so a tap of drift is enough on a phone)
-    const holding = c.drift || this.steer * (this.driftDir || 0) > 0.3;
-    if (this.drifting && (!holding || vF < 12)) { if (Math.abs(this.driftAngle) < 0.3 || vF < 12) this.drifting = false; }
+    // automatic drift: steering hard at speed asks for more turn than the tyres give, so the car slides into a
+    // controlled drift that actually turns a little tighter (it makes corners easier, not harder)
+    const bend = t.cs[p.i] || 0; // only in real corners, steering into the bend (not swerves on a straight)
+    const demand = Math.abs(this.steer) > 0.55 && vF > s.vmax * 0.5 && Math.abs(bend) > 0.004 && Math.sign(bend) === Math.sign(this.steer) && Math.abs(this.yawRate) > (s.grip * 0.9) / Math.max(6, vF);
+    if (active && demand && !this.drifting) { this.drifting = true; this.driftDir = Math.sign(this.steer); this.yawRate += this.driftDir * 0.3; }
+    if (this.drifting && (this.steer * this.driftDir < 0.35 || vF < s.vmax * 0.35 || !active)) this.drifting = false;
 
-    // boost
-    this.boosting = active && c.boost && this.boost > 0.01;
-    if (this.boosting) this.boost = Math.max(0, this.boost - dt * 0.3);
+    // boost: a tap fires a burst that lasts up to 2.5 s while the meter has charge
+    if (active && c.boost && this.boost > 0.12 && !(this.boostT > 0)) this.boostT = Math.min(2.5, this.boost / 0.3);
+    c.boost = false;
+    if (this.boostT > 0) this.boostT -= dt;
+    this.boosting = active && this.boostT > 0 && this.boost > 0.01;
+    if (this.boosting) this.boost = Math.max(0, this.boost - dt * 0.3); else this.boostT = 0;
 
     // longitudinal
     const vmax = s.vmax * (this.offTrack ? 0.82 : 1) * (this.boosting ? 1.16 : 1) * (this.draft || 1);
     let a = active ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) : 0;
     if (this.boosting) a += s.boostPower;
     let decel = 0;
-    if (active && (c.brake || (c.drift && Math.abs(this.steer) < 0.25)) && !this.drifting) decel = 30;
     if (vF > c.targetSpeed) decel = Math.max(decel, Math.min(26, (vF - c.targetSpeed) * 4));
     if (vF > vmax) decel = Math.max(decel, (vF - vmax) * 0.8);
     if (!active) decel = Math.max(decel, 10);
-    const drag = 0.0009 * vF * vF + (this.offTrack ? 1.2 : 0) + Math.abs(vL) * 0.35;
+    const drag = 0.0009 * vF * vF + (this.offTrack ? 1.2 : 0) + Math.abs(vL) * (this.drifting ? 0.08 : 0.2);
     const gravity = -9.8 * this.slope * 0.6;
     const prevVF = vF;
     vF += (a - decel - drag + gravity) * dt;
@@ -78,7 +80,7 @@ export class Vehicle {
 
     // lateral grip
     const grip = s.grip * surf;
-    let latCap = grip * (this.drifting ? 0.42 : 1);
+    let latCap = grip * (this.drifting ? 1.02 : 1); // drifting tyres still bite, so the slide doesn't run wide
     if (!this.drifting && vF > s.vmax * 0.85 && Math.abs(this.steer) > 0.7) latCap *= 0.82; // a little slide flat out
     const dvL = Math.min(Math.abs(vL), latCap * dt);
     vL -= Math.sign(vL) * dvL;
@@ -89,10 +91,9 @@ export class Vehicle {
     const limit = (grip * 1.05) / Math.max(6, vF);
     let target = clamp(kin, -limit, limit);
     if (this.drifting) {
-      // hold a slide: steering into the drift keeps rotation going, counter-steer catches it
-      const k = this.driftDir * this.steer; // +1 into the drift, -1 counter-steer
-      target = this.driftDir * limit * (0.95 + 0.75 * clamp(k, -1, 1));
-      if (Math.abs(this.driftAngle) > 0.75) target *= 0.4;
+      // in a drift the car rotates a bit more than grip alone allows; the slide angle is capped so it never spins
+      target = this.driftDir * limit * (1.15 + 0.35 * clamp(Math.abs(this.steer), 0, 1));
+      if (Math.abs(this.driftAngle) > 0.3) target = this.driftDir * limit * 0.85; // hold the angle, never spin
     }
     this.yawRate += (target - this.yawRate) * Math.min(1, dt * s.response);
     this.h = wrapA(this.h - this.yawRate * dt);

@@ -3,8 +3,8 @@
 // pace: share of the ideal corner speed rivals carry; brake: how late they brake (lower = earlier);
 // mistakes: how often they slip up; boost: how well they use boost; catchUp: rivals ease off when you fall behind.
 export const LEVELS = {
-  easy: { pace: 0.74, brake: 0.92, mistakes: 2.5, boost: 0.25, catchUp: 1 },
-  normal: { pace: 0.785, brake: 0.96, mistakes: 1.3, boost: 0.7, catchUp: 0.3 },
+  easy: { pace: 0.69, brake: 0.92, mistakes: 2.5, boost: 0.25, catchUp: 1 },
+  normal: { pace: 0.735, brake: 0.96, mistakes: 1.3, boost: 0.7, catchUp: 0.3 },
   hard: { pace: 1.0, brake: 1.03, mistakes: 0.6, boost: 1, catchUp: 0 },
 };
 export const levelOf = (name) => LEVELS[name] || LEVELS.easy;

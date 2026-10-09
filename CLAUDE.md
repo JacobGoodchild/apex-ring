@@ -113,3 +113,11 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
   a bit lighter on Medium, off on Hard. Easy rivals: 74% pace, early braking, 2.5x mistakes, poor boost, catch-up when
   you're behind. Medium: 78.5%. Hard: unchanged. tests/difficulty.spec.js: beginner top 3 on every Easy track (4 seeds),
   mid-pack (avg 3-6) on Medium across all tracks, ~last on Hard.
+- Fix 3 — controls: BOOST/DRIFT/arrow buttons removed. The whole left/right halves of the screen are the steering
+  areas (faint ◀ ▶ hints). Drifting is automatic: steering hard into a real bend at over half top speed slides the car
+  (quick ~0.3 rad slide, held there, never spins, tyres keep full grip so the line doesn't run wide, little speed lost);
+  still makes smoke/skids and fills boost. Braking is automatic (auto-brake margin by level, earliest on Easy).
+  Boost = two quick "both thumbs" taps (both halves touched together twice within 0.45 s) or Space/↑ on keyboard; it
+  fires a burst of up to 2.5 s while the meter has charge, with a blue edge flash and whoosh; first-time hint when the
+  meter first charges; "Boost is empty" note if tapped with no charge. Perfect start = boost tap in the last moment
+  before GO. Auto-drift helped rivals too, so Easy/Medium pace retuned to 0.69/0.735 (tests still pass).

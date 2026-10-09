@@ -47,14 +47,12 @@
 <div id="tags" hidden></div>
 <div id="drift" hidden><span class="k">DRIFT</span> <span id="driftV">+0</span></div>
 <div id="driftPop" hidden></div>
+<div id="boostFlash" aria-hidden="true"></div>
 <div id="offtrack" hidden>OFF TRACK</div>
 
 <div class="pads" id="pads" hidden>
-  <div class="zone" id="zoneL" aria-hidden="true"></div><div class="zone" id="zoneR" aria-hidden="true"></div>
-  <button class="pad" id="padL" type="button" aria-label="Steer left"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-  <button class="pad" id="padR" type="button" aria-label="Steer right"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
-  <button class="pad small" id="padBoost" type="button" aria-label="Boost">BOOST</button>
-  <button class="pad small" id="padDrift" type="button" aria-label="Drift or brake">DRIFT</button>
+  <div class="zone" id="zoneL" aria-label="Steer left"></div><div class="zone" id="zoneR" aria-label="Steer right"></div>
+  <div class="zhint" aria-hidden="true"><span>◀</span><span>▶</span></div>
 </div>
 
 <div id="count" hidden>
@@ -78,7 +76,7 @@
       <button class="btn ghost" id="garageBtn" type="button">Garage</button>
       <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
     </div>
-    <div class="hint">Drag the car to spin it. Phone: hold the arrow pads to steer, tap DRIFT while steering to slide, hold it to brake. Keyboard: ← → steer, Space drift/brake, ↑ boost, C camera, P pause.</div>
+    <div class="hint">Drag the car to spin it. Phone: hold the left or right half of the screen to steer; tap both halves together twice to boost. The car accelerates, brakes and drifts by itself. Keyboard: ← → steer, Space boost, C camera, P pause.</div>
   </div>
 </div>
 
@@ -144,8 +142,6 @@
     </div>
     <div class="label">Camera</div>
     <div class="tabs" id="camTabs"><button class="tab" data-c="chase" type="button">Chase</button><button class="tab" data-c="bonnet" type="button">Bonnet</button></div>
-    <div class="label">Touch steering</div>
-    <div class="tabs" id="steerTabs"><button class="tab" data-t="pads" type="button">Arrow pads</button><button class="tab" data-t="halves" type="button">Screen halves</button></div>
     <div class="label">Rivals</div>
     <div class="tabs" id="diffTabs"><button class="tab" data-d="easy" type="button">Easy</button><button class="tab" data-d="normal" type="button">Medium</button><button class="tab" data-d="hard" type="button">Hard</button></div>
     <div class="label">Steering assist</div>
@@ -175,7 +171,7 @@
 <div class="overlay center" id="pause" hidden>
   <div class="card">
     <div class="brand small">PAUSED</div>
-    <div class="hint">Steer: ◀ ▶ pads (or touch either half of the screen if set), ← → / A D. Drift: tap DRIFT while steering, Space. Brake: hold DRIFT, ↓. Boost: BOOST, ↑ (hold it just before GO for a perfect start). Camera: C. Back on track: ↺ or R.</div>
+    <div class="hint">Steer: hold the left or right half of the screen, or ← → / A D. Drifting and braking happen by themselves; steer hard into fast corners to drift and fill the boost bar. Boost: tap both halves together twice, or Space (do it just before GO for a perfect start). Camera: C. Back on track: ↺ or R.</div>
     <button class="btn" id="resumeBtn" type="button">Resume</button>
     <button class="btn ghost" id="restartBtn" type="button">Restart</button>
     <button class="btn ghost" id="quitBtn" type="button">Quit to menu</button>

@@ -30,13 +30,12 @@ for (const [name, size] of [["portrait", { width: 412, height: 915 }], ["landsca
     await page.waitForTimeout(1500);
     await page.screenshot({ path: `screenshots/flyover-${name}.png` });
     await page.evaluate(() => window.__apex.setBoost(1));
-    await page.keyboard.down("ArrowUp");
-    await page.waitForTimeout(900);
+    await page.keyboard.press(" ");
+    await page.waitForTimeout(500);
     await page.screenshot({ path: `screenshots/boost-${name}.png` });
-    await page.keyboard.up("ArrowUp");
-    await page.keyboard.down("ArrowLeft"); await page.keyboard.down(" ");
+    await page.keyboard.down("ArrowLeft");
     await page.waitForTimeout(1300);
     await page.screenshot({ path: `screenshots/drift-${name}.png` });
-    await page.keyboard.up("ArrowLeft"); await page.keyboard.up(" ");
+    await page.keyboard.up("ArrowLeft");
   });
 }
