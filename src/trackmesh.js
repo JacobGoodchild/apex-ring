@@ -154,6 +154,55 @@ export function buildTrackMeshes(path, theme) {
     lm.userData.glow = true; group.add(lm);
   }
 
+  // racing-line guide: a soft stripe along the ideal line, turning amber/red where you need to slow down
+  {
+    const prof = path.speedProfile(34), pos = [], col = [], idx = [];
+    const c = new THREE.Color();
+    for (let i = 0; i <= N; i++) {
+      const k = i % N, lat = path.line[k];
+      const drop = Math.max(0, prof[k] - prof[(k + 14) % N]) / 12; // how much speed the next ~28 m asks you to lose
+      c.setRGB(0.55 + 0.45 * Math.min(1, drop), 0.95 - 0.65 * Math.min(1, drop), 1 - 0.85 * Math.min(1, drop));
+      for (const o of [-0.45, 0.45]) { path.pointAt(k * path.ds, lat + o, tmp); pos.push(tmp.x, tmp.y + 0.03, tmp.z); col.push(c.r, c.g, c.b); }
+      if (i < N) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
+    m.name = "racingLine"; group.add(m);
+  }
+
+  // chevron warning boards before sharp corners, on the outside, facing oncoming cars
+  {
+    const tex = canvasTex(128, 64, (g, w, h) => {
+      g.fillStyle = "#11141b"; g.fillRect(0, 0, w, h); g.fillStyle = "#ffcc1f";
+      for (let x = 8; x < w; x += 40) { g.beginPath(); g.moveTo(x, 6); g.lineTo(x + 18, 6); g.lineTo(x + 36, 32); g.lineTo(x + 18, 58); g.lineTo(x, 58); g.lineTo(x + 18, 32); g.closePath(); g.fill(); }
+    });
+    const boards = { 1: [], [-1]: [] };
+    let i = 0;
+    while (i < N) {
+      if (Math.abs(path.cs[i]) < 0.011) { i++; continue; } // gentler than ~90 m radius: no warning
+      let j = i, peak = 0; while (j < i + N && Math.abs(path.cs[j % N]) >= 0.011) { peak = Math.max(peak, Math.abs(path.cs[j % N])); j++; }
+      const dir = Math.sign(path.cs[i]), count = peak > 0.025 ? 3 : peak > 0.016 ? 2 : 1;
+      for (let k = 0; k < count; k++) {
+        const d = i * path.ds - 45 - k * 30;
+        path.pointAt(d, -dir * (W + 2.2), tmp);
+        boards[dir].push({ x: tmp.x, y: tmp.y, z: tmp.z, h: tmp.h });
+      }
+      i = j + 10;
+    }
+    for (const dir of [1, -1]) {
+      if (!boards[dir].length) continue;
+      const geo = new THREE.PlaneGeometry(3.6, 1.8); geo.translate(0, 2.1, 0);
+      if (dir < 0) { const uv = geo.attributes.uv; for (let q = 0; q < uv.count; q++) uv.setX(q, 1 - uv.getX(q)); }
+      const leg = new THREE.BoxGeometry(0.14, 1.3, 0.14); leg.translate(0, 0.65, -0.03);
+      const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }), boards[dir].length);
+      const lm = new THREE.InstancedMesh(leg, new THREE.MeshStandardMaterial({ color: 0x30384a }), boards[dir].length);
+      const o = new THREE.Object3D();
+      boards[dir].forEach((b, k) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.h + Math.PI, 0); o.updateMatrix(); im.setMatrixAt(k, o.matrix); lm.setMatrixAt(k, o.matrix); });
+      im.name = "chevrons"; group.add(im, lm);
+    }
+  }
+
   // painted grid boxes behind the line
   {
     const geos = [];

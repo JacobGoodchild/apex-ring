@@ -1,0 +1,12 @@
+import { chromium } from "@playwright/test";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"] });
+const p = await b.newPage({ viewport: { width: 412, height: 915 } });
+p.on("pageerror", e => console.log("err", e.message)); p.on("console", m => console.log(m.text()));
+await p.goto("http://localhost:4174/index.html?test=1&track=harbour&quality=medium&speed=0.2&rivals=0");
+await p.waitForFunction(() => window.__apex && window.__apex.ready);
+await p.click("#raceBtn"); await p.click("#startBtn");
+await p.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 30000 });
+await p.evaluate(() => window.__apex.warp(window.__apex.sharpD() - 30));
+await p.waitForTimeout(600);
+console.log(JSON.stringify(await p.evaluate(() => window.__apex.debugChevrons())));await p.screenshot({ path: "screenshots/dev-probe.png" });
+await b.close();

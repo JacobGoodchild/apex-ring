@@ -6,11 +6,12 @@ import { World, autoQuality } from "./scene.js";
 import { TrackPath } from "./track.js";
 import { buildTrackMeshes } from "./trackmesh.js";
 import { buildScenery } from "./scenery.js";
-import { TRACKS, THEMES, trackById } from "./tracks.js";
+import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec } from "./cars.js";
 import { makeCar, setDoors, setRims, setDecal, RIMS, DECALS } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
+import { assistSteer, cornerSpeed } from "./assist.js";
 import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { Vehicle } from "./vehicle.js";
@@ -58,7 +59,9 @@ function loadTrack(id) {
   if (G.player) { G.player.track = G.path; gridUp(); }
   save.track = def.id;
   $("trackName").textContent = def.name; $("trackBlurb").textContent = def.blurb + " " + def.laps + " laps.";
-  $("trackTheme").textContent = theme.label || "Track";
+  $("trackTheme").textContent = DIFFICULTY_NAMES[def.difficulty || 1] + " · " + (theme.label || "Track");
+  $("trackTheme").dataset.diff = def.difficulty || 1;
+  applyAids();
   drawTrack(previewCtx, G.path, 96, { width: 4 });
   refreshLock();
 }
@@ -117,7 +120,7 @@ function gridUp() {
   const ps = slot(Math.min(G.gridSlot, G.rivals.length)); G.player.reset(ps[0], ps[1]);
   let k = 0;
   const ps2 = G.player.spec;
-  const DIFF = { easy: 0.93, normal: 1, hard: 1.035 }[save.settings.difficulty || "normal"];
+  const DIFF = { easy: 0.93, normal: 1, hard: 1.035 }[save.settings.difficulty || "easy"];
   for (const r of G.rivals) { r.out = false; r.driver.skill = (r.driver.baseSkill ?? r.baseSkill) * DIFF; }
   for (const r of G.field) {
     // rivals drive their own cars, but tuned halfway toward yours so races stay close
@@ -404,7 +407,9 @@ function refreshSettings() {
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
   document.querySelectorAll("#steerTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === (save.settings.steer || "pads"))));
-  document.querySelectorAll("#diffTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === (save.settings.difficulty || "normal"))));
+  document.querySelectorAll("#assistTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.a === (save.settings.assist || "auto"))));
+  document.querySelectorAll("#lineTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === (save.settings.line || "auto"))));
+  document.querySelectorAll("#diffTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === (save.settings.difficulty || "easy"))));
 }
 document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.quality = b.dataset.q; world.applyQuality(b.dataset.q); writeSave(); refreshSettings(); }));
 document.querySelectorAll("#camTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); if (chase.mode !== b.dataset.c) $("camBtn").click(); refreshSettings(); }));
@@ -412,7 +417,9 @@ document.querySelectorAll("#soundTabs .tab").forEach((b) => b.addEventListener("
 document.querySelectorAll("#steerTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.steer = b.dataset.t; writeSave(); applySteer(); refreshSettings(); }));
 function applySteer() { $("pads").classList.toggle("halves", save.settings.steer === "halves"); }
 applySteer();
-document.querySelectorAll("#diffTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.difficulty = b.dataset.d; writeSave(); refreshSettings(); }));
+document.querySelectorAll("#diffTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.difficulty = b.dataset.d; writeSave(); applyAids(); refreshSettings(); }));
+document.querySelectorAll("#assistTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.assist = b.dataset.a; writeSave(); refreshSettings(); }));
+document.querySelectorAll("#lineTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.line = b.dataset.l; writeSave(); applyAids(); refreshSettings(); }));
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
   resetSave(); G.garageCar = null; buildPlayer(); applySteer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
@@ -460,13 +467,9 @@ function autopilot(v) {
   return { steer: clamp(wrapA(v.h - want) * 2.2, -1, 1), targetSpeed: vt * 0.98 };
 }
 
-// Auto-brake: lift and brake for tight corners a little later than a careful driver would.
-function assistSpeed(v) {
-  if (v.drifting) return Infinity;
-  const t = G.path, prof = t.speedProfile(v.spec.grip * 1.1);
-  let vt = Infinity; for (let k = 2; k < 30; k += 3) vt = Math.min(vt, prof[(v.p.i + k) % t.N]);
-  return vt * 1.06;
-}
+// Driver aids follow the settings; "auto" means on when rivals are on Easy.
+function applyAids() { const m = G.track && world.trackGroup && world.trackGroup.getObjectByName("racingLine"); if (m) m.visible = aidOn("line"); }
+function aidOn(key) { const v = save.settings[key] || "auto"; return v === "on" || (v === "auto" && (save.settings.difficulty || "easy") === "easy"); }
 
 function stepRivals(dt) {
   const cars = [G.player, ...G.field.map((r) => r.veh)], L = G.path.length;
@@ -530,9 +533,9 @@ function step(dt) {
   const v = G.player, racing = G.mode === "race";
   const ctl = readControls();
   const ap = AUTOPILOT && racing ? autopilot(v) : null;
-  v.ctl.steer = ap ? ap.steer : ctl.steer;
+  v.ctl.steer = ap ? ap.steer : racing ? assistSteer(v, G.path, ctl.steer, aidOn("assist") ? 0.55 : 0) : ctl.steer;
   v.ctl.boost = ctl.boost; v.ctl.drift = ctl.drift; v.ctl.brake = ctl.brake;
-  v.ctl.targetSpeed = ap ? ap.targetSpeed : assistSpeed(v);
+  v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path);
   if (G.bog > 0) { G.bog -= dt; v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, 4); }
   if (G.mode === "race" || G.mode === "done") {
     v.step(dt, racing);
@@ -729,6 +732,7 @@ if (TEST) {
     get track() { return G.track.id; },
     // jump the player to a distance along the track (used for screenshots of specific corners)
     warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
+    sharpD() { const i = G.path.cs.findIndex((c) => Math.abs(c) > 0.011); return i < 0 ? 0 : i * G.path.ds - 110; },
     bridgeD() { const i = G.path.bridge.findIndex((b) => b); return i < 0 ? -1 : (i - 30) * G.path.ds; },
     errors,
     ready: true,

@@ -43,7 +43,7 @@ export class Vehicle {
     const p = t.project(this.x, this.z, this.hint, this.p); this.hint = p.i;
     const halfW = t.width / 2;
     this.offTrack = Math.abs(p.lat) > halfW + 0.7;
-    const surf = this.offTrack ? 0.55 : 1;
+    const surf = this.offTrack ? 0.8 : 1; // run-off is grippy enough to recover on
 
     // steering input is smoothed; less lock at speed keeps it stable but responsive
     const sIn = active ? clamp(c.steer, -1, 1) : 0;
@@ -61,7 +61,7 @@ export class Vehicle {
     if (this.boosting) this.boost = Math.max(0, this.boost - dt * 0.3);
 
     // longitudinal
-    const vmax = s.vmax * (this.offTrack ? 0.62 : 1) * (this.boosting ? 1.16 : 1) * (this.draft || 1);
+    const vmax = s.vmax * (this.offTrack ? 0.82 : 1) * (this.boosting ? 1.16 : 1) * (this.draft || 1);
     let a = active ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) : 0;
     if (this.boosting) a += s.boostPower;
     let decel = 0;
@@ -69,7 +69,7 @@ export class Vehicle {
     if (vF > c.targetSpeed) decel = Math.max(decel, Math.min(26, (vF - c.targetSpeed) * 4));
     if (vF > vmax) decel = Math.max(decel, (vF - vmax) * 0.8);
     if (!active) decel = Math.max(decel, 10);
-    const drag = 0.0009 * vF * vF + (this.offTrack ? 3 : 0) + Math.abs(vL) * 0.35;
+    const drag = 0.0009 * vF * vF + (this.offTrack ? 1.2 : 0) + Math.abs(vL) * 0.35;
     const gravity = -9.8 * this.slope * 0.6;
     const prevVF = vF;
     vF += (a - decel - drag + gravity) * dt;
@@ -120,10 +120,14 @@ export class Vehicle {
       this.x -= trx * sg * over; this.z -= trz * sg * over;
       const vn = (this.vx * trx + this.vz * trz) * sg;
       if (vn > 0) {
-        this.vx -= trx * sg * vn * 1.25; this.vz -= trz * sg * vn * 1.25;
-        const scrub = 1 - Math.min(0.35, vn * 0.02);
+        // glance off: lose the part of the velocity going into the wall (plus a small bounce), keep the rest
+        this.vx -= trx * sg * vn * 1.15; this.vz -= trz * sg * vn * 1.15;
+        const scrub = 1 - Math.min(0.1, vn * 0.006);
         this.vx *= scrub; this.vz *= scrub; this.wallHit = vn;
-        this.h = wrapA(this.h + wrapA(q.h - this.h) * Math.min(0.5, 0.1 + vn * 0.02));
+        // swing the nose back along the wall so the car carries on rather than grinding
+        const hf = Math.abs(wrapA(q.h - this.h)) < Math.PI / 2 ? q.h : q.h + Math.PI;
+        this.h = wrapA(this.h + wrapA(hf - this.h) * Math.min(0.75, 0.35 + vn * 0.03));
+        this.yawRate *= 0.3;
         this.drifting = false;
       }
       q.lat = sg * lim;

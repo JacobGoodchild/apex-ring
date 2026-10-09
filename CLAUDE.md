@@ -90,3 +90,16 @@ Built from the single-file oval prototype to a full game in ~30 tested commits, 
   (they share one body generator); terrain that follows the elevated tracks instead of embankments; tunnel interiors;
   per-car engine sounds; a proper settings toggle for tilt-by-default; CI is ~10 min a run, could be split into a fast
   smoke job + full job.
+
+## Playtest fixes (2026-10-09, second session)
+Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each.
+- Fix 1 — tracks: every track redesigned with `rounded()` in src/tracks.js (corner points + radius → exact straights and
+  circular arcs), 1.5–1.9x wider (26 m Easy / 22 m Medium / 20 m Hard, run-off 9/8/7 m). Difficulty rating per track
+  (Easy: Dusk Oval, Apex Ring GP, Greenwood; Medium: Red Canyon, Harbour Lights; Hard: Neon District, Alpine Pass).
+  Hairpins and the chicane only on Hard tracks; Easy tracks have no corner under ~110 m radius. Career reordered Easy → Hard;
+  the three Easy tracks are open from the start. Chevron boards before corners tighter than ~90 m (1–3 boards by
+  sharpness), racing-line stripe on the road (turns amber/red in braking zones), walls now glance the car off
+  (lose only the speed going into the wall, ~10% scrub at most) and run-off is grippy. Steering assist (src/assist.js):
+  nudges toward the racing line and steers away from a barrier it predicts you'll hit in ~0.7 s. Settings: Steering
+  assist and Racing line each Auto/On/Off, where Auto = on when rivals are Easy (new default difficulty: Easy).
+  Choice: old saves keep their career progress; trial targets and some events changed to suit the new tracks.

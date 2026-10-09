@@ -11,6 +11,11 @@ for (const t of TRACKS) {
     await page.waitForFunction(() => window.__apex.player.vF > 20, null, { timeout: 30_000 });
     await page.waitForTimeout(800);
     await page.screenshot({ path: `screenshots/track-${t.id}.png` });
+    if (t.difficulty > 1) {
+      await page.evaluate(() => window.__apex.warp(window.__apex.sharpD() - 30));
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `screenshots/corner-${t.id}.png` });
+    }
     expect(problems).toEqual([]);
   });
 }

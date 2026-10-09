@@ -34,57 +34,81 @@ export const THEMES = {
   },
 };
 
-function circle(r, n) {
-  const pts = [];
-  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; pts.push([Math.cos(a) * r, -Math.sin(a) * r, 0]); }
-  return pts;
+// Tracks are laid out as corner points [x, z, radius, height]: straights between them, joined by circular arcs
+// of that radius. That gives real straights and smooth, predictable bends. The result is sampled into points
+// for the Catmull-Rom centre-line. `tunnel` lists corner indices whose following straight is a tunnel.
+export function rounded(verts, { tunnel = [] } = {}) {
+  const n = verts.length, segs = [];
+  const V = verts.map(([x, z, r, y = 0]) => ({ x, z, r, y }));
+  for (let i = 0; i < n; i++) {
+    const P = V[(i - 1 + n) % n], C = V[i], N = V[(i + 1) % n];
+    let ax = C.x - P.x, az = C.z - P.z, la = Math.hypot(ax, az); ax /= la; az /= la;
+    let bx = N.x - C.x, bz = N.z - C.z, lb = Math.hypot(bx, bz); bx /= lb; bz /= lb;
+    const turn = Math.atan2(ax * bz - az * bx, ax * bx + az * bz); // signed turn angle
+    const t = C.r * Math.tan(Math.abs(turn) / 2);
+    const A = { x: C.x - ax * t, z: C.z - az * t }, B = { x: C.x + bx * t, z: C.z + bz * t };
+    const sgn = Math.sign(turn) || 1, cx = A.x - az * C.r * sgn, cz = A.z + ax * C.r * sgn;
+    segs.push({ A, B, cx, cz, r: C.r, turn, y: C.y, a0: Math.atan2(A.z - cz, A.x - cx) });
+  }
+  for (let i = 0; i < n; i++) {
+    const a = segs[i], b = segs[(i + 1) % n];
+    if (Math.hypot(b.A.x - a.B.x, b.A.z - a.B.z) > 0 && ((b.A.x - a.B.x) * (a.B.x - a.A.x) + (b.A.z - a.B.z) * (a.B.z - a.A.z)) < -1) console.warn("track corners overlap after corner", i);
+  }
+  // walk: start at the middle of the straight that leads into corner 0
+  const pts = [], marks = [];
+  const L = segs[n - 1].B, S0 = segs[0].A;
+  const push = (x, z, y) => pts.push([x, z, y]);
+  const straight = (P, Q, y0, y1, from = 0) => {
+    const len = Math.hypot(Q.x - P.x, Q.z - P.z), k = Math.max(1, Math.round(len / 35));
+    for (let j = from; j < k; j++) { const f = j / k; push(P.x + (Q.x - P.x) * f, P.z + (Q.z - P.z) * f, y0 + (y1 - y0) * f); }
+  };
+  const mid = { x: (L.x + S0.x) / 2, z: (L.z + S0.z) / 2 }, yMid = (segs[n - 1].y + segs[0].y) / 2;
+  straight(mid, S0, yMid, segs[0].y);
+  for (let i = 0; i < n; i++) {
+    const s = segs[i], steps = Math.max(2, Math.ceil(Math.abs(s.turn) * s.r / 14));
+    marks.push(pts.length);
+    for (let j = 0; j < steps; j++) { const a = s.a0 + s.turn * (j / steps); push(s.cx + Math.cos(a) * s.r, s.cz + Math.sin(a) * s.r, s.y); }
+    marks.push(pts.length);
+    const nx = segs[(i + 1) % n];
+    if (i < n - 1) straight(s.B, nx.A, s.y, nx.y); else straight(s.B, mid, s.y, yMid);
+  }
+  // tunnel fractions measured along the point list
+  const cum = [0];
+  for (let i = 1; i <= pts.length; i++) { const a = pts[i - 1], b = pts[i % pts.length]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
+  const total = cum[pts.length];
+  const tunnels = tunnel.map((ci) => [cum[marks[ci * 2 + 1]] / total, cum[marks[(ci * 2 + 2) % marks.length] || pts.length] / total]);
+  return { points: pts, tunnels };
 }
 
+function track(def, verts, opts) { const r = rounded(verts, opts); return { ...def, points: r.points, tunnels: r.tunnels }; }
+
+// difficulty: 1 = Easy (wide, long straights, big sweepers), 2 = Medium, 3 = Hard (hairpins, chicanes)
+export const DIFFICULTY_NAMES = ["", "Easy", "Medium", "Hard"];
+
 export const TRACKS = [
-  { id: "oval", name: "Dusk Oval", theme: "dusk", laps: 3, width: 16, runoff: 4, banking: 0.05, points: circle(120, 16),
-    blurb: "A floodlit oval. Flat out all the way round." },
-  { id: "gp", name: "Apex Ring GP", theme: "dusk", laps: 3, width: 15, runoff: 4, banking: 0.1,
-    blurb: "The home circuit: a long straight, a flyover, a tight hairpin and a quick chicane.",
-    points: [
-      [0, 200, 0], [0, 0, 0], [0, -200, 0], [25, -285, 1], [100, -325, 2], [190, -300, 3], [235, -235, 5], [225, -150, 8],
-      [160, -100, 10], [60, -95, 11], [-60, -105, 11], [-170, -120, 9], [-255, -70, 6], [-260, 40, 3], [-240, 140, 1],
-      [-200, 175, 0], [-160, 145, 0], [-150, 60, 0], [-110, 25, 0], [-70, 60, 0], [-80, 150, 0], [-55, 195, 0], [-75, 250, 0],
-      [-55, 320, 0], [-15, 330, 0], [5, 290, 0],
-    ] },
-  { id: "harbour", name: "Harbour Lights", theme: "coast", laps: 3, width: 14, runoff: 3.5, banking: 0.06, mult: 1.15,
-    blurb: "Night streets along the sea front. Tight 90s, a fast promenade and a seafront chicane.",
-    points: [
-      [0, 0, 0], [0, -220, 0], [10, -300, 0], [80, -310, 0], [160, -300, 0], [175, -230, 0], [170, -160, 2], [230, -120, 4],
-      [320, -110, 4], [345, -40, 3], [320, 40, 1], [250, 50, 0], [200, 90, 0], [220, 170, 0], [180, 240, 0], [100, 250, 0],
-      [70, 200, 0], [40, 230, 0], [10, 180, 0],
-    ] },
-  { id: "alpine", name: "Alpine Pass", theme: "mountain", laps: 2, width: 13, runoff: 3, banking: 0.12, mult: 1.3,
-    blurb: "Climb through switchback hairpins and a tunnel, then plunge back down the valley.",
-    tunnels: [[0.36, 0.45]],
-    points: [
-      [0, 0, 0], [0, -200, 3], [40, -330, 8], [130, -380, 12], [200, -330, 15], [170, -250, 18], [90, -230, 21], [80, -160, 24],
-      [170, -120, 27], [260, -160, 30], [360, -150, 32], [440, -80, 32], [450, 40, 28], [390, 140, 22], [290, 180, 16],
-      [200, 140, 11], [130, 200, 7], [60, 210, 3], [0, 140, 0],
-    ] },
-  { id: "canyon", name: "Red Canyon", theme: "desert", laps: 3, width: 15, runoff: 4, banking: 0.1, mult: 1.2,
-    blurb: "Sweeping desert bends between the mesas, with a flyover and a long dusty straight.",
-    points: [
-      [0, 0, 0], [0, -260, 0], [40, -360, 2], [140, -390, 5], [240, -340, 8], [260, -240, 10], [200, -170, 11], [80, -160, 11],
-      [-60, -170, 9], [-160, -120, 6], [-180, -20, 3], [-120, 60, 0], [-40, 120, 0], [-40, 220, 0], [-110, 300, 0], [-60, 380, 0],
-      [30, 360, 0], [40, 250, 0], [0, 150, 0],
-    ] },
-  { id: "neon", name: "Neon District", theme: "neon", laps: 3, width: 14, runoff: 3, banking: 0.08, mult: 1.25,
-    blurb: "Glowing city blocks, a figure-of-eight overpass and a brutal last-corner hairpin.",
-    points: [
-      [0, 0, 0], [0, -180, 0], [30, -250, 1], [110, -260, 3], [180, -200, 6], [180, -110, 9], [110, -80, 10], [0, -70, 10],
-      [-120, -60, 9], [-200, 30, 7], [-210, 120, 4], [-150, 190, 1], [-60, 190, 0], [-20, 230, 0], [-60, 290, 0], [-10, 310, 0], [20, 230, 0],
-    ] },
-  { id: "forest", name: "Greenwood Circuit", theme: "forest", laps: 3, width: 14, runoff: 4, banking: 0.1, mult: 1.1,
-    blurb: "A flowing woodland lap: rolling hills, fast esses and a tight hairpin by the lake.",
-    points: [
-      [0, 0, 0], [0, -180, 2], [-30, -280, 6], [-110, -320, 9], [-200, -280, 8], [-230, -190, 5], [-180, -110, 3], [-230, -30, 4],
-      [-300, 30, 7], [-290, 130, 9], [-200, 170, 7], [-120, 120, 4], [-80, 190, 2], [-20, 240, 1], [40, 200, 0], [20, 120, 0],
-    ] },
+  track({ id: "oval", name: "Dusk Oval", theme: "dusk", difficulty: 1, laps: 3, width: 26, runoff: 9, banking: 0.06,
+    blurb: "A wide, floodlit oval. Two long straights and two big, easy bends." },
+    [[-150, -300, 140], [150, -300, 140], [150, 300, 140], [-150, 300, 140]]),
+  track({ id: "gp", name: "Apex Ring GP", theme: "dusk", difficulty: 1, laps: 2, width: 26, runoff: 9, banking: 0.08,
+    blurb: "The home circuit: a huge straight, sweeping bends and a flyover." },
+    [[0, -450, 120, 0], [350, -450, 150, 4], [350, -150, 130, 10], [-350, -150, 120, 10], [-350, 350, 130, 3], [-150, 450, 110, 0], [0, 450, 110, 0]]),
+  track({ id: "forest", name: "Greenwood Circuit", theme: "forest", difficulty: 1, laps: 2, width: 26, runoff: 9, banking: 0.1, mult: 1.1,
+    blurb: "A flowing woodland lap over rolling hills. Fast, wide and friendly." },
+    [[0, -400, 160, 4], [300, -500, 180, 8], [550, -250, 140, 6], [450, 50, 200, 3], [550, 350, 150, 5], [250, 500, 160, 2], [0, 400, 130, 0]]),
+  track({ id: "canyon", name: "Red Canyon", theme: "desert", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.1, mult: 1.2,
+    blurb: "Long dusty straights between the mesas, a flyover and a few tighter bends." },
+    [[0, -500, 70, 0], [300, -500, 90, 4], [450, -250, 80, 10], [-300, -250, 70, 10], [-350, 100, 60, 4], [-100, 150, 70, 0], [-200, 450, 80, 0], [0, 500, 90, 0]]),
+  track({ id: "harbour", name: "Harbour Lights", theme: "coast", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.06, mult: 1.15,
+    blurb: "Night streets along the sea front: square city corners and a fast promenade." },
+    [[0, -450, 60, 0], [400, -450, 70, 0], [400, -100, 55, 1], [250, -100, 55, 2], [250, 200, 60, 2], [450, 200, 70, 3], [450, 450, 80, 3], [0, 450, 70, 0]]),
+  track({ id: "neon", name: "Neon District", theme: "neon", difficulty: 3, laps: 2, width: 20, runoff: 7, banking: 0.08, mult: 1.25,
+    blurb: "Glowing blocks, an overpass, a tight hairpin and a quick chicane." },
+    [[0, -400, 45, 0], [350, -400, 50, 3], [350, -150, 55, 10], [-300, -150, 50, 10], [-300, 120, 35, 3], [-200, 120, 35, 1], [-200, 0, 35, 0],
+      [-100, 0, 40, 0], [-100, 250, 45, 0], [-60, 320, 45, 0], [-100, 390, 45, 0], [-100, 520, 50, 0], [0, 520, 50, 0]]),
+  track({ id: "alpine", name: "Alpine Pass", theme: "mountain", difficulty: 3, laps: 2, width: 20, runoff: 7, banking: 0.12, mult: 1.3,
+    blurb: "Switchback hairpins up the mountain, a tunnel at the top, then a long run down." },
+    [[0, -350, 60, 2], [300, -450, 70, 10], [520, -420, 35, 16], [260, -280, 35, 22], [540, -160, 45, 28], [560, 200, 80, 32], [300, 420, 70, 24], [0, 420, 60, 10]],
+    { tunnel: [4] }),
 ];
 
 export const trackById = (id) => TRACKS.find((t) => t.id === id) || TRACKS[0];
