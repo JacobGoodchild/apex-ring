@@ -32,6 +32,12 @@ export const THEMES = {
     hemi: [0xcfe3ff, 0x2a4020, 0.8], fog: 0xa9c4b8, fogNear: 150, fogFar: 1100, ground: 0x3f6a30,
     runoff: "#557a3c", embankment: 0x406a2c, scenery: "forest", label: "Forest circuit · Morning", tree: 0x1d4a26, sign: "GREENWOOD",
   },
+  xtreme: {
+    sky: [0x1b1030, 0x6b3a5a, 0xff9a4a], sunDir: [0.7, 0.18, -0.6], sunColor: 0xffa860, sunIntensity: 1.7,
+    hemi: [0xffc8a0, 0x3a2a30, 0.7], fog: 0x7a4a52, fogNear: 220, fogFar: 1400, ground: 0x5a4436, rock: 0x6e5a4a,
+    runoff: "#7a6450", asphalt: "#3a3640", embankment: 0x6a5244, scenery: "mountain", label: "Quarry cliffs · Sunset",
+    wallA: "#ffcc1f", wallB: "#11141b", tree: 0x3a4a2a, sign: "XTREME",
+  },
 };
 
 // Tracks are laid out as corner points [x, z, radius, height]: straights between them, joined by circular arcs
@@ -86,19 +92,19 @@ function track(def, verts, opts) { const r = rounded(verts, opts); return { ...d
 export const DIFFICULTY_NAMES = ["", "Easy", "Medium", "Hard"];
 
 export const TRACKS = [
-  track({ id: "oval", name: "Dusk Oval", theme: "dusk", difficulty: 1, laps: 3, width: 26, runoff: 9, banking: 0.06,
+  track({ id: "oval", ramps: [{ at: 0.5, lat: -6, half: 5, h: 1.1, len: 14 }],  name: "Dusk Oval", theme: "dusk", difficulty: 1, laps: 3, width: 26, runoff: 9, banking: 0.06,
     blurb: "A wide, floodlit oval. Two long straights and two big, easy bends." },
     [[-150, -300, 140], [150, -300, 140], [150, 300, 140], [-150, 300, 140]]),
-  track({ id: "gp", name: "Apex Ring GP", theme: "dusk", difficulty: 1, laps: 2, width: 26, runoff: 9, banking: 0.08,
+  track({ id: "gp", ramps: [{ at: 0.07, lat: -7, half: 5, h: 1.2, len: 14 }, { at: 0.48, lat: 7, half: 5, h: 1.4, len: 14 }],  name: "Apex Ring GP", theme: "dusk", difficulty: 1, laps: 2, width: 26, runoff: 9, banking: 0.08,
     blurb: "The home circuit: a huge straight, sweeping bends and a flyover." },
     [[0, -450, 120, 0], [350, -450, 150, 4], [350, -150, 130, 10], [-350, -150, 120, 10], [-350, 350, 130, 3], [-150, 450, 110, 0], [0, 450, 110, 0]]),
-  track({ id: "forest", name: "Greenwood Circuit", theme: "forest", difficulty: 1, laps: 2, width: 26, runoff: 9, banking: 0.1, mult: 1.1,
+  track({ id: "forest", ramps: [{ at: 0.09, lat: 7, half: 5, h: 1.2, len: 14 }],  name: "Greenwood Circuit", theme: "forest", difficulty: 1, laps: 2, width: 26, runoff: 9, banking: 0.1, mult: 1.1,
     blurb: "A flowing woodland lap over rolling hills. Fast, wide and friendly." },
     [[0, -400, 160, 4], [300, -500, 180, 8], [550, -250, 140, 6], [450, 50, 200, 3], [550, 350, 150, 5], [250, 500, 160, 2], [0, 400, 130, 0]]),
-  track({ id: "canyon", name: "Red Canyon", theme: "desert", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.1, mult: 1.2,
+  track({ id: "canyon", ramps: [{ at: 0.45, lat: -5, half: 5, h: 1.4, len: 14 }],  name: "Red Canyon", theme: "desert", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.1, mult: 1.2,
     blurb: "Long dusty straights between the mesas, a flyover and a few tighter bends." },
     [[0, -500, 70, 0], [300, -500, 90, 4], [450, -250, 80, 10], [-300, -250, 70, 10], [-350, 100, 60, 4], [-100, 150, 70, 0], [-200, 450, 80, 0], [0, 500, 90, 0]]),
-  track({ id: "harbour", name: "Harbour Lights", theme: "coast", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.06, mult: 1.15,
+  track({ id: "harbour", ramps: [{ at: 0.1, lat: 5, half: 5, h: 1.2, len: 14 }],  name: "Harbour Lights", theme: "coast", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.06, mult: 1.15,
     blurb: "Night streets along the sea front: square city corners and a fast promenade." },
     [[0, -450, 60, 0], [400, -450, 70, 0], [400, -100, 55, 1], [250, -100, 55, 2], [250, 200, 60, 2], [450, 200, 70, 3], [450, 450, 80, 3], [0, 450, 70, 0]]),
   track({ id: "neon", name: "Neon District", theme: "neon", difficulty: 3, laps: 2, width: 20, runoff: 7, banking: 0.08, mult: 1.25,
@@ -109,6 +115,11 @@ export const TRACKS = [
     blurb: "Switchback hairpins up the mountain, a tunnel at the top, then a long run down." },
     [[0, -350, 60, 2], [300, -450, 70, 10], [520, -420, 35, 16], [260, -280, 35, 22], [540, -160, 45, 28], [560, 200, 80, 32], [300, 420, 70, 24], [0, 420, 60, 10]],
     { tunnel: [4] }),
+  track({ id: "xtreme", name: "Xtreme", theme: "xtreme", difficulty: 2, laps: 2, width: 24, runoff: 8, banking: 0.08, mult: 1.3,
+    blurb: "A quarry built for stunts: big ramps, and cliffs where the road drops away and you fly down to the next level.",
+    heights: [[0, 0], [0.15, 0], [0.34, 22], [0.4, 22], [0.4, 10], [0.62, 8], [0.74, 18], [0.76, 18], [0.76, 4], [0.85, 0], [1, 0]],
+    ramps: [{ at: 0.09, h: 2.2, len: 18 }, { at: 0.255, h: 1.8, len: 16 }, { at: 0.93, lat: 6, half: 5, h: 1.4, len: 14 }] },
+    [[0, -500, 90], [420, -500, 100], [420, 20, 90], [180, 140, 80], [420, 300, 90], [420, 600, 90], [0, 600, 90]]),
 ];
 
 export const trackById = (id) => TRACKS.find((t) => t.id === id) || TRACKS[0];

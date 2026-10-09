@@ -597,6 +597,7 @@ function step(dt) {
     if (G.event && G.event.type === "elim" && G.mode === "race") eliminate();
     if (G.tips && G.tips.length && G.raceTime > G.tips[0][0] - 4) { toast(G.tips.shift()[1], 5000); if (!G.tips.length) { save.tipsSeen = true; writeSave(); } }
   }
+  if (v.landed > 4) { chase.shake = Math.min(0.8, v.landed * 0.05); sfx.thud(v.landed); }
   if (v.wallHit > 2) G.lapWall++;
   if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
 }
@@ -628,12 +629,15 @@ function tyreFx(key, m, v, dt) {
   }
 }
 
+// nose follows the climb / fall (pitch), smoothed so landings don't snap
+function pitchOf(v) { const target = -Math.atan2(v.vy || 0, Math.max(10, v.vF)) * 0.8; v.pitchS = (v.pitchS || 0) + (target - (v.pitchS || 0)) * 0.2; return v.pitchS; }
+
 function poseCar(m, v, dt) {
   // cheap level of detail: far-away rivals drop their small parts
   const dx = v.x - camera.position.x, dz = v.z - camera.position.z, far = dx * dx + dz * dz > 110 * 110;
   if (far !== m.far) { m.far = far; m.body.children.forEach((c, i) => { if (i > 2 && c !== m.tailMesh) c.visible = !far; }); m.wheels.forEach((w) => (w.parent.visible = !far)); }
   updateFlames(m, v.boosting, performance.now() / 1000);
-  m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(0, v.h, 0);
+  m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
   m.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06); m.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   m.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36)); m.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
 }
@@ -641,7 +645,7 @@ function poseCar(m, v, dt) {
 function render(dt) {
   const v = G.player, car = G.car;
   car.group.position.set(v.x, v.y, v.z);
-  car.group.rotation.set(0, v.h, 0);
+  car.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
   car.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06);
   car.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   car.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36));
@@ -664,7 +668,7 @@ function render(dt) {
     // doors swing open and shut every few seconds in the lobby; held open in the garage
     const want = G.screen === "garage" ? 1 : (G.menuT % 9) < 5 ? 1 : 0;
     G.doors += (want - G.doors) * Math.min(1, dt * 2.2); setDoors(G.car, G.doors);
-    car.group.position.set(0, 0, 0); car.group.rotation.set(0, 0, 0); car.body.rotation.set(0, 0, 0);
+    car.group.position.set(0, 0, 0); car.group.rotation.set(0, 0, 0, "YXZ"); car.body.rotation.set(0, 0, 0);
     showroom.update(dt, camera);
     chase.snap(v);
   } else chase.update(v, dt, v.boosting ? 1 : 0);
@@ -783,6 +787,8 @@ if (TEST) {
     get track() { return G.track.id; },
     // jump the player to a distance along the track (used for screenshots of specific corners)
     warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
+    rampD() { const r = G.path.ramps[0]; return r ? r.d - r.len - 45 : -1; },
+    get airborne() { return !!G.player.airborne; },
     sharpD() { const i = G.path.cs.findIndex((c) => Math.abs(c) > 0.011); return i < 0 ? 0 : i * G.path.ds - 110; },
     bridgeD() { const i = G.path.bridge.findIndex((b) => b); return i < 0 ? -1 : (i - 30) * G.path.ds; },
     errors,

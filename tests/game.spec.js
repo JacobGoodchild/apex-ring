@@ -199,7 +199,7 @@ test.describe("Apex Ring", () => {
     test.setTimeout(120_000);
     const problems = await openGame(page, "autopilot=1&speed=12");
     await page.click("#careerBtn");
-    await expect(page.locator("#events .event")).toHaveCount(12);
+    await expect(page.locator("#events .event")).toHaveCount(13);
     await page.click("#ev-c2");
     await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 90_000 });
     await expect(page.locator("#finish")).toBeVisible({ timeout: 10_000 });

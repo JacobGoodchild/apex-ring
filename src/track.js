@@ -43,6 +43,22 @@ export class TrackPath {
     }
     this.line = this.smooth(this.line, 10);
     for (const [a, b] of def.tunnels || []) for (let i = Math.floor(a * N); i < Math.floor(b * N); i++) this.tunnel[i % N] = 1;
+    // optional height profile [[fraction, height], ...]: two entries at the same fraction make a cliff drop
+    this.cliff = new Uint8Array(N);
+    if (def.heights) {
+      const H = def.heights;
+      for (let i = 0; i < N; i++) {
+        const f = i / N; let k = 0; while (k < H.length - 1 && H[k + 1][0] <= f) k++;
+        const a = H[k], b = H[Math.min(k + 1, H.length - 1)];
+        this.y[i] = Math.max(0.06, b[0] > a[0] ? a[1] + (b[1] - a[1]) * ((f - a[0]) / (b[0] - a[0])) : a[1]);
+      }
+      for (let i = 0; i < N; i++) {
+        this.slope[i] = (this.y[(i + 1) % N] - this.y[(i - 1 + N) % N]) / (2 * this.ds);
+        if (this.y[i] - this.y[(i + 1) % N] > 2.5) { this.cliff[i] = 1; this.slope[i] = 0; this.slope[(i + 1) % N] = 0; }
+      }
+    }
+    // ramps: wedges on the road; the car leaves the ground at the lip
+    this.ramps = (def.ramps || []).map((r) => ({ d: r.at * this.length, len: r.len || 16, h: r.h || 1.4, lat: r.lat || 0, half: r.half || this.width / 2 }));
     this.findBridges();
     this._profiles = new Map();
     this.out = { i: 0, t: 0, d: 0, lat: 0, y: 0, h: 0 };
@@ -72,6 +88,16 @@ export class TrackPath {
     // widen the bridge flags a little so the embankment doesn't clip the lower road
     const b = this.bridge.slice();
     for (let i = 0; i < N; i++) if (b[i]) for (let k = -8; k <= 8; k++) this.bridge[(i + k + N) % N] = 1;
+  }
+
+  // Extra height of any ramp at distance d and lateral offset lat.
+  rampAt(d, lat) {
+    for (const r of this.ramps) {
+      if (Math.abs(lat - r.lat) > r.half) continue;
+      let x = d - (r.d - r.len); if (x < 0) x += this.length;
+      if (x >= 0 && x <= r.len) return r.h * (x / r.len);
+    }
+    return 0;
   }
 
   wrapD(d) { const L = this.length; return ((d % L) + L) % L; }

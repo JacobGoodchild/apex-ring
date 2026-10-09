@@ -13,7 +13,7 @@ export class Vehicle {
 
   reset(d, lat) {
     const p = this.track.pointAt(d, lat, {});
-    this.x = p.x; this.z = p.z; this.y = p.y; this.h = p.h;
+    this.x = p.x; this.z = p.z; this.y = p.y; this.h = p.h; this.vy = 0; this.airborne = false; this.groundPrev = null; this.landed = 0;
     this.vx = 0; this.vz = 0; this.vF = 0; this.vL = 0;
     this.yawRate = 0; this.steer = 0; this.latAcc = 0; this.lonAcc = 0;
     this.drifting = false; this.driftAngle = 0; this.driftTime = 0; this.driftScore = 0;
@@ -65,10 +65,10 @@ export class Vehicle {
 
     // longitudinal
     const vmax = s.vmax * (this.offTrack ? 0.82 : 1) * (this.boosting ? 1.16 : 1) * (this.draft || 1);
-    let a = active ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) : 0;
+    let a = active && !this.airborne ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) : 0;
     if (this.boosting) a += s.boostPower;
     let decel = 0;
-    if (vF > c.targetSpeed) decel = Math.max(decel, Math.min(26, (vF - c.targetSpeed) * 4));
+    if (vF > c.targetSpeed && !this.airborne) decel = Math.max(decel, Math.min(26, (vF - c.targetSpeed) * 4));
     if (vF > vmax) decel = Math.max(decel, (vF - vmax) * 0.8);
     if (!active) decel = Math.max(decel, 10);
     const drag = 0.0009 * vF * vF + (this.offTrack ? 1.2 : 0) + Math.abs(vL) * (this.drifting ? 0.08 : 0.2);
@@ -79,7 +79,7 @@ export class Vehicle {
     this.lonAcc += ((vF - prevVF) / dt - this.lonAcc) * Math.min(1, dt * 6);
 
     // lateral grip
-    const grip = s.grip * surf;
+    const grip = s.grip * surf * (this.airborne ? 0.08 : 1);
     let latCap = grip * (this.drifting ? 1.02 : 1); // drifting tyres still bite, so the slide doesn't run wide
     if (!this.drifting && vF > s.vmax * 0.85 && Math.abs(this.steer) > 0.7) latCap *= 0.82; // a little slide flat out
     const dvL = Math.min(Math.abs(vL), latCap * dt);
@@ -134,7 +134,19 @@ export class Vehicle {
       q.lat = sg * lim;
     }
     this.lat = q.lat;
-    this.y += (q.y - this.y) * Math.min(1, dt * 20);
+    // vertical: gravity, sitting exactly on the road, flying off ramp lips, crests and cliffs
+    const ground = q.y + t.rampAt(q.d, q.lat);
+    if (this.groundPrev == null) this.groundPrev = ground;
+    this.vy -= 15.7 * dt; // arcade gravity (1.6 g) so jumps stay short and punchy
+    this.y += this.vy * dt;
+    this.landed = 0;
+    if (this.y <= ground) {
+      if (this.airborne && this.vy < -3) { this.landed = -this.vy; this.vx *= 0.98; this.vz *= 0.98; }
+      this.y = ground;
+      this.vy = Math.min(14, Math.max(-14, (ground - this.groundPrev) / dt));
+      this.airborne = false;
+    } else if (this.y > ground + 0.08) this.airborne = true;
+    this.groundPrev = ground;
     this.slope = q.slope; this.bank = q.bank;
 
     // progress along the track (handles the wrap at the line)

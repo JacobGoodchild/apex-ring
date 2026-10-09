@@ -59,7 +59,8 @@ export function buildTrackMeshes(path, theme) {
   const W = path.width / 2, R = path.runoff, N = path.N;
 
   // road
-  const road = new THREE.Mesh(strip(path, -W, W, { vScale: 12 }), new THREE.MeshStandardMaterial({ map: roadTexture(theme), roughness: 0.88, metalness: 0.0 }));
+  const solid = (i) => !path.cliff[i]; // no road surface across a cliff drop
+  const road = new THREE.Mesh(strip(path, -W, W, { vScale: 12, mask: solid }), new THREE.MeshStandardMaterial({ map: roadTexture(theme), roughness: 0.88, metalness: 0.0 }));
   road.receiveShadow = true; road.name = "road"; group.add(road);
 
   // run-off on both sides
@@ -68,11 +69,11 @@ export function buildTrackMeshes(path, theme) {
     for (let k = 0; k < 500; k++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? "0,0,0" : "255,255,255"},${Math.random() * 0.12})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
   }, { repeat: [1, 1] });
   const runMat = new THREE.MeshStandardMaterial({ map: runTex, roughness: 1 });
-  const run = new THREE.Mesh(merge([strip(path, -W - R, -W, { yA: -0.02, vScale: 6 }), strip(path, W, W + R, { yB: -0.02, vScale: 6 })]), runMat);
+  const run = new THREE.Mesh(merge([strip(path, -W - R, -W, { yA: -0.02, vScale: 6, mask: solid }), strip(path, W, W + R, { yB: -0.02, vScale: 6, mask: solid })]), runMat);
   run.receiveShadow = true; group.add(run);
 
   // kerbs on the inside and outside of real bends
-  const kerbMask = (i) => Math.abs(path.cs[i]) > 0.006;
+  const kerbMask = (i) => Math.abs(path.cs[i]) > 0.006 && !path.cliff[i];
   const kerbGeo = merge([strip(path, -W - 1.1, -W + 0.05, { yA: 0.02, yB: 0.06, vScale: 4, mask: kerbMask }), strip(path, W - 0.05, W + 1.1, { yA: 0.06, yB: 0.02, vScale: 4, mask: kerbMask })]);
   const kerbTex = canvasTex(8, 64, (g, w, h) => { g.fillStyle = "#d8322a"; g.fillRect(0, 0, w, h); g.fillStyle = "#f2f2f2"; g.fillRect(0, 0, w, h / 2); });
   const kerb = new THREE.Mesh(kerbGeo, new THREE.MeshStandardMaterial({ map: kerbTex, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 }));
@@ -88,13 +89,13 @@ export function buildTrackMeshes(path, theme) {
   const wallH = 1.1, wl = -W - R, wr = W + R;
   const wallEdge = (lat) => (i, side) => { path.pointAt(i * path.ds, lat, tmp); return { lat, y: tmp.y + (side ? wallH : 0) }; };
   const walls = new THREE.Mesh(merge([
-    strip(path, wl, wl, { vScale: 4, edgeFn: wallEdge(wl) }),
-    strip(path, wr, wr, { vScale: 4, edgeFn: wallEdge(wr) }),
+    strip(path, wl, wl, { vScale: 4, edgeFn: wallEdge(wl), mask: solid }),
+    strip(path, wr, wr, { vScale: 4, edgeFn: wallEdge(wr), mask: solid }),
   ]), new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.6, side: THREE.DoubleSide, emissive: theme.wallGlow || 0x000000, emissiveIntensity: theme.wallGlow ? 0.6 : 0 }));
   walls.receiveShadow = true; group.add(walls);
 
   // embankments under raised road (skipped on bridges so the lower road stays open)
-  const embMask = (i) => !path.bridge[i] && !path.bridge[(i + 1) % N] && (path.y[i] > 0.4 || path.y[(i + 1) % N] > 0.4);
+  const embMask = (i) => !path.cliff[i] && !path.bridge[i] && !path.bridge[(i + 1) % N] && (path.y[i] > 0.4 || path.y[(i + 1) % N] > 0.4);
   const embEdge = (lat, dir) => (i, side) => {
     if (!side) { path.pointAt(i * path.ds, lat, tmp); return { lat, y: tmp.y }; }
     const y = path.y[i]; return { lat: lat + dir * (y * 1.4 + 1), y: -0.05 };
@@ -200,6 +201,43 @@ export function buildTrackMeshes(path, theme) {
       const o = new THREE.Object3D();
       boards[dir].forEach((b, k) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.h + Math.PI, 0); o.updateMatrix(); im.setMatrixAt(k, o.matrix); lm.setMatrixAt(k, o.matrix); });
       im.name = "chevrons"; group.add(im, lm);
+    }
+  }
+
+  // cliff faces: a rock wall where the road drops away, with hazard stripes along the lip
+  if (path.cliff.some((c) => c)) {
+    const rock = new THREE.MeshStandardMaterial({ color: theme.rock || 0x6b5a4c, roughness: 1, flatShading: true, side: THREE.DoubleSide });
+    const lipTex = canvasTex(64, 8, (g, w, h) => { for (let x = 0; x < w; x += 16) { g.fillStyle = "#ffcc1f"; g.fillRect(x, 0, 8, h); g.fillStyle = "#11141b"; g.fillRect(x + 8, 0, 8, h); } }, { repeat: [8, 1] });
+    for (let i = 0; i < N; i++) {
+      if (!path.cliff[i]) continue;
+      const j = (i + 1) % N, top = path.y[i], bot = path.y[j];
+      const face = new THREE.PlaneGeometry((W + R) * 2, top - bot + 0.5, 6, 3);
+      const pa = face.attributes.position; for (let k = 0; k < pa.count; k++) pa.setZ(k, (Math.random() - 0.5) * 0.6);
+      face.computeVertexNormals();
+      path.pointAt(j * path.ds - 0.5, 0, tmp);
+      const m = new THREE.Mesh(face, rock); m.position.set(tmp.x, (top + bot) / 2, tmp.z); m.rotation.y = tmp.h; group.add(m);
+      const lip = new THREE.Mesh(new THREE.BoxGeometry((W + R) * 2, 0.25, 0.6), new THREE.MeshStandardMaterial({ map: lipTex }));
+      path.pointAt(i * path.ds, 0, tmp); lip.position.set(tmp.x, top + 0.02, tmp.z); lip.rotation.y = tmp.h; group.add(lip);
+    }
+  }
+
+  // ramps: striped wedges; the top follows the road and lifts to the ramp height at the lip
+  if (path.ramps.length) {
+    const rampTex = canvasTex(64, 64, (g, w, h) => { g.fillStyle = "#e8ecf0"; g.fillRect(0, 0, w, h); g.fillStyle = "#d7263d"; for (let y = 0; y < h; y += 16) g.fillRect(0, y, w, 8); });
+    const mat = new THREE.MeshStandardMaterial({ map: rampTex, roughness: 0.6, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
+    for (const r of path.ramps) {
+      const pos = [], uv = [], idx = [], steps = Math.max(4, Math.round(r.len / 2));
+      for (let k = 0; k <= steps; k++) {
+        const d = r.d - r.len + (r.len * k) / steps, hgt = (r.h * k) / steps;
+        for (const lat of [r.lat - r.half, r.lat + r.half]) { path.pointAt(d, lat, tmp); pos.push(tmp.x, tmp.y + hgt + 0.02, tmp.z); uv.push(lat > r.lat ? 1 : 0, k / steps * r.len / 8); }
+        if (k < steps) { const a = k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      }
+      // back face down to the road at the lip
+      const b0 = pos.length / 3;
+      for (const lat of [r.lat - r.half, r.lat + r.half]) for (const hh of [r.h, 0]) { path.pointAt(r.d, lat, tmp); pos.push(tmp.x, tmp.y + hh + 0.02, tmp.z); uv.push(0, 0); }
+      idx.push(b0, b0 + 1, b0 + 2, b0 + 1, b0 + 3, b0 + 2);
+      const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.receiveShadow = true; group.add(m);
     }
   }
 

@@ -10,7 +10,8 @@ export const EVENTS = [
   { id: "c5", name: "One on One", type: "h2h", track: "forest", laps: 2, rival: "Mara Voss", reward: { coins: 600, gems: 1 }, desc: "Beat Mara Voss head to head." },
   { id: "c6", name: "Canyon Run", type: "race", track: "canyon", laps: 2, target: 1, reward: { coins: 1200 }, unlock: { track: "harbour" }, desc: "Win the race." },
   { id: "c7", name: "Last Car Out", type: "elim", track: "canyon", laps: 4, reward: { coins: 1000 }, unlock: { car: "kestrel" }, desc: "Last place drops out every lap. Survive. Wins you a Kestrel GT." },
-  { id: "c8", name: "Harbour Lights", type: "race", track: "harbour", laps: 2, target: 1, reward: { coins: 1500, gems: 1 }, unlock: { track: "neon" }, desc: "Win the race." },
+  { id: "c8", name: "Harbour Lights", type: "race", track: "harbour", laps: 2, target: 1, reward: { coins: 1500, gems: 1 }, unlock: { track: "neon", track2: "xtreme" }, desc: "Win the race." },
+  { id: "c13", name: "Xtreme Jump", type: "race", track: "xtreme", laps: 2, target: 3, reward: { coins: 2000, gems: 1 }, desc: "Fly off the cliffs and finish in the top three." },
   { id: "c9", name: "Neon Nights", type: "race", track: "neon", laps: 2, target: 3, reward: { coins: 1500 }, unlock: { track: "alpine" }, desc: "Finish in the top three." },
   { id: "c10", name: "Summit Trial", type: "trial", track: "alpine", laps: 2, target: 55, reward: { coins: 1500, gems: 1 }, desc: "Set a lap under 55 seconds." },
   { id: "c11", name: "Mountain Duel", type: "h2h", track: "alpine", laps: 2, rival: "Dev Okoro", reward: { coins: 2000 }, unlock: { car: "nimbus" }, desc: "Beat Dev Okoro. Wins you a Nimbus R." },
@@ -22,7 +23,7 @@ export const BASE_TRACKS = ["oval", "gp", "forest"]; // the Easy tracks are open
 export function eventUnlocked(save, i) { return i === 0 || !!(save.career[EVENTS[i - 1].id] && save.career[EVENTS[i - 1].id].done); }
 
 export function trackUnlocked(save, id) {
-  return BASE_TRACKS.includes(id) || EVENTS.some((e) => e.unlock && e.unlock.track === id && save.career[e.id] && save.career[e.id].done);
+  return BASE_TRACKS.includes(id) || EVENTS.some((e) => e.unlock && (e.unlock.track === id || e.unlock.track2 === id) && save.career[e.id] && save.career[e.id].done);
 }
 
 // result: { place, bestLap, drift, eliminated, beatRival }

@@ -11,6 +11,12 @@ for (const t of TRACKS) {
     await page.waitForFunction(() => window.__apex.player.vF > 20, null, { timeout: 30_000 });
     await page.waitForTimeout(800);
     await page.screenshot({ path: `screenshots/track-${t.id}.png` });
+    if (t.id === "xtreme") {
+      // the first ramp is full width: the car must leave the ground
+      await page.evaluate(() => window.__apex.warp(window.__apex.rampD()));
+      await page.waitForFunction(() => window.__apex.airborne, null, { timeout: 15_000 });
+      await page.screenshot({ path: `screenshots/jump-${t.id}.png` });
+    }
     if (t.difficulty > 1) {
       await page.evaluate(() => window.__apex.warp(window.__apex.sharpD() - 30));
       await page.waitForTimeout(300);
