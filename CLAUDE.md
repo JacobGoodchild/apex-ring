@@ -128,3 +128,10 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
   (full lock at 28°/sensitivity); 3° dead zone. Permission is requested where the browser needs it (iOS), and re-asked
   on the first tap after reopening the app. No sensor / refused / no readings in 1.2 s → clear message, back to Touch.
   Double two-thumb tap still boosts in Tilt mode. Settings/race/career cards now have a solid panel behind them.
+- Fix 5 — updates: the service worker no longer takes over silently. A new version installs in the background and
+  waits; if it arrives while you're in the app, a "Update ready — tap to reload" banner appears; if a waiting update
+  is found within ~8 s of opening the app it's applied straight away (one quick reload before you play), so updates
+  land on the next launch. The app re-checks for updates when it comes back to the foreground and every 30 minutes.
+  Version: package.json is 1.4.0; scripts/version.mjs stamps src/version.js with the version plus commit date and
+  short hash during the deploy job (the copy in git says "dev"); Settings shows it. CI test timeout raised to 35 min
+  (the suite is ~11 min now). tests/pwa.spec.js covers the banner, the next-launch update and the version line.

@@ -11,6 +11,7 @@ import { CARS, PAINTS, carById, carSpec } from "./cars.js";
 import { makeCar, setDoors, setRims, setDecal, RIMS, DECALS } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
+import { VERSION, BUILD } from "./version.js";
 import { assistSteer, cornerSpeed, smoothSteer } from "./assist.js";
 import { levelOf, slot, rivalSpec, AUTO_BRAKE, AUTO_ASSIST } from "./race.js";
 import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
@@ -402,6 +403,7 @@ $("modeTrial").addEventListener("click", () => { sfx.click(); setMode(true); });
 
 // ---------- settings ----------
 function refreshSettings() {
+  $("versionV").textContent = `Apex Ring v${VERSION} · ${BUILD.replace("·", " · ")}`;
   document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.q === world.qname)));
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
@@ -728,9 +730,29 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // ---------- offline / install ----------
-if ("serviceWorker" in navigator && location.protocol !== "file:" && !TEST) {
-  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => { /* offline play just won't be available */ }));
+// New versions download in the background. If one is waiting when the app opens, it's applied straight away
+// (a quick reload before you start playing); if one arrives while you're playing, a banner offers to reload.
+function setupUpdates(sw) {
+  let reloading = false;
+  sw.addEventListener("controllerchange", () => { if (!reloading && G.wantReload) { reloading = true; location.reload(); } });
+  const apply = (reg) => { G.wantReload = true; if (reg.waiting) reg.waiting.postMessage("skipWaiting"); else location.reload(); };
+  const offer = (reg) => {
+    if (G.mode === "menu" && performance.now() < LAUNCH_WINDOW) { apply(reg); return; } // just launched: update now
+    const b = $("updateBanner"); b.hidden = false; b.onclick = () => apply(reg);
+  };
+  sw.register(SW_URL).then((reg) => {
+    if (reg.waiting && sw.controller) offer(reg);
+    reg.addEventListener("updatefound", () => {
+      const w = reg.installing;
+      if (w) w.addEventListener("statechange", () => { if (w.state === "installed" && sw.controller) offer(reg); });
+    });
+    const check = () => reg.update().catch(() => { /* offline */ });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+    setInterval(check, 30 * 60 * 1000);
+  }).catch(() => { /* offline play just won't be available */ });
 }
+const SW_URL = QS.get("sw") || "sw.js", LAUNCH_WINDOW = QS.has("launchwin") ? Number(QS.get("launchwin")) : TEST ? 0 : 8000;
+if ("serviceWorker" in navigator && location.protocol !== "file:" && (!TEST || QS.has("sw"))) addEventListener("load", () => setupUpdates(navigator.serviceWorker));
 
 // ---------- test hook ----------
 addEventListener("error", (e) => errors.push(String(e.message)));
@@ -742,6 +764,7 @@ if (TEST) {
     setBoost(b) { G.player.boost = b; },
     tilt(beta, gamma) { window.dispatchEvent(new DeviceOrientationEvent("deviceorientation", { beta, gamma, alpha: 0 })); },
     get tiltOn() { return input.tiltOn; },
+    get version() { return VERSION; },
     setSetting(k, val) { save.settings[k] = val; writeSave(); applyAids(); },
     get laps() { return G.lapTimes.slice(); },
     get place() { return G.place; },

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync, unlinkSync } from "node:fs";
 
 // The installable-app pieces: manifest, icons, and a service worker that caches every shipped file.
 test("manifest and icons are valid", async ({ page, request }) => {
@@ -28,4 +28,44 @@ test("game works offline after the first visit", async ({ page, context }) => {
   await page.reload();
   await expect(page.locator("#raceBtn")).toBeVisible({ timeout: 20_000 });
   await context.setOffline(false);
+});
+
+// Updates: serve a service worker whose content changes on every fetch, like a new deploy would.
+// The test writes sw-test.js next to sw.js and changes it between "deploys" (it's git-ignored and removed after).
+let deployN = 0;
+function deploy() { writeFileSync("sw-test.js", readFileSync("sw.js", "utf8") + `\n// deploy ${++deployN}\n`); }
+test.afterAll(() => { try { unlinkSync("sw-test.js"); } catch { /* already gone */ } });
+
+test("a new version shows an 'Update ready' banner and tapping it reloads", async ({ page }) => {
+  deploy();
+  await page.goto("/index.html?test=1&sw=sw-test.js");
+  await page.waitForFunction(() => navigator.serviceWorker.controller != null, null, { timeout: 20_000 });
+  deploy();
+  await page.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => r.update()));
+  await expect(page.locator("#updateBanner")).toBeVisible({ timeout: 20_000 });
+  const reloaded = page.waitForEvent("load", { timeout: 20_000 });
+  await page.click("#updateBanner");
+  await reloaded;
+  await page.waitForFunction(() => window.__apex && window.__apex.ready);
+  await expect(page.locator("#updateBanner")).toBeHidden();
+});
+
+test("a waiting update is applied automatically on the next launch", async ({ page }) => {
+  deploy();
+  await page.goto("/index.html?test=1&sw=sw-test.js");
+  await page.waitForFunction(() => navigator.serviceWorker.controller != null, null, { timeout: 20_000 });
+  deploy();
+  await page.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => r.update()));
+  await page.waitForFunction(() => navigator.serviceWorker.getRegistration().then((r) => !!r.waiting), null, { timeout: 20_000 });
+  // "next launch": open the app again with the normal launch window
+  await page.goto("/index.html?test=1&sw=sw-test.js&launchwin=60000");
+  await page.waitForFunction(() => navigator.serviceWorker.getRegistration().then((r) => !r.waiting), null, { timeout: 20_000 });
+  await page.waitForFunction(() => window.__apex && window.__apex.ready);
+});
+
+test("settings show the version number", async ({ page }) => {
+  await page.goto("/index.html?test=1");
+  await page.waitForFunction(() => window.__apex && window.__apex.ready);
+  await page.click("#settingsBtn");
+  await expect(page.locator("#versionV")).toHaveText(/^Apex Ring v\d+\.\d+\.\d+ · /);
 });
