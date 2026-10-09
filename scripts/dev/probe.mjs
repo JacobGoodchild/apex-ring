@@ -1,0 +1,12 @@
+import { chromium } from "@playwright/test";
+const url = process.argv[2] || "http://localhost:4173/index.html?test=1";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"] });
+const p = await b.newPage({ viewport: { width: 412, height: 915 } });
+p.on("console", m => console.log("console:", m.type(), m.text()));
+p.on("pageerror", e => console.log("pageerror:", e.message));
+await p.goto(url);
+await p.waitForTimeout(3000);
+console.log(await p.evaluate(() => window.__apex ? JSON.stringify({mode: window.__apex.mode, player: window.__apex.player}) : "no hook"));
+const t0 = Date.now(); await p.evaluate(() => new Promise(r => { let n=0; const f=()=>{ if(++n<30) requestAnimationFrame(f); else r(); }; requestAnimationFrame(f); })); console.log("30 frames ms", Date.now()-t0);
+if (process.argv[3]) await p.screenshot({ path: process.argv[3] });
+await b.close();
