@@ -58,20 +58,22 @@ export function startAudio() {
 export function setMuted(m) { muted = m; if (master) master.gain.setTargetAtTime(m ? 0 : 0.8, ctx.currentTime, 0.05); }
 export const isMuted = () => muted;
 
+// The gearbox, shared by the engine sound and the rev counter: gear index (0-based) and rpm 0..1 from speed.
+// Gear thresholds spread a little wider at the top, like a real gearbox; electric cars have one long gear.
+export function gearbox(v, vmax) {
+  const E = engine, n = E.gears, f = Math.max(0, Math.min(1.2, v / vmax));
+  if (E.electric) return { gear: 0, rpm: 0.12 + 0.88 * Math.min(1.2, f), electric: true };
+  const edge = (k) => Math.pow(k / n, 0.85) * 1.02;
+  let g = 0; while (g < n - 1 && f > edge(g + 1)) g++;
+  const inGear = (f - edge(g)) / (edge(g + 1) - edge(g));
+  return { gear: g, rpm: 0.28 + 0.72 * Math.min(1, inGear) };
+}
+
 // v: forward speed, vmax: top speed, on: engine audible, slip: 0..1 tyre slip, boost: bool
 export function updateAudio(v, vmax, on, slip, boost) {
   if (!ctx || !eng) return;
   const t = ctx.currentTime, f = Math.max(0, Math.min(1.2, v / vmax));
-  const E = engine, n = E.gears;
-  // gear thresholds spread a little wider at the top, like a real gearbox
-  let g = 0, inGear;
-  if (E.electric) inGear = f;
-  else {
-    const edge = (k) => Math.pow(k / n, 0.85) * 1.02;
-    while (g < n - 1 && f > edge(g + 1)) g++;
-    inGear = (f - edge(g)) / (edge(g + 1) - edge(g));
-  }
-  const rpm = E.electric ? 0.12 + 0.88 * Math.min(1.2, f) : 0.28 + 0.72 * Math.min(1, inGear);
+  const E = engine, { gear: g, rpm } = gearbox(v, vmax);
   if (on && g > lastGear && v > 3) shiftBlip(); lastGear = g;
   const base = (48 + rpm * 150 + g * 6) * E.pitch;
   eng.o1.frequency.setTargetAtTime(base, t, 0.03); eng.o2.frequency.setTargetAtTime(base * E.ratio, t, 0.03); eng.o3.frequency.setTargetAtTime(base / 2, t, 0.03);

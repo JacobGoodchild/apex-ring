@@ -122,6 +122,7 @@ export class TrackPath {
     let g = 1;
     for (const h of this.hazards) {
       if (h.all) { g = Math.min(g, 0.86); continue; }
+      if (h.type === "rock") continue; // rocks are obstacles (handled in main.js), not a surface
       let x = d - h.d; if (x > this.length / 2) x -= this.length; if (x < -this.length / 2) x += this.length;
       if (Math.abs(x) < h.len / 2 && Math.abs(lat - h.lat) < h.w / 2) g = Math.min(g, h.type === "oil" ? 0.35 : 0.72);
     }

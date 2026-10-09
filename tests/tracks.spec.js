@@ -64,3 +64,12 @@ test("weather and time: any track can be raced at night and in the rain, which m
   await page.click("#pauseBtn"); await page.click("#quitBtn").catch(() => {});
   expect(problems).toEqual([]);
 });
+
+test("rockfall: boulders drop onto the road ahead on mountain tracks", async ({ page }) => {
+  test.setTimeout(120_000);
+  const problems = await openGame(page, "track=alpine&autopilot=1&speed=8&rivals=2");
+  await startRace(page);
+  await page.waitForFunction(() => window.__apex.rocks > 0, null, { timeout: 60_000 });
+  await expect(page.locator("#toast")).toContainText("ROCKFALL");
+  expect(problems).toEqual([]);
+});

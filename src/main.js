@@ -256,7 +256,8 @@ function gridUp() {
     const [d, lat] = slot(G.field.length === 1 ? 0 : k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
   G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null;
-  skids.clear(); G.driftPts = 0; G.airPops = 0; G.mult = 1; G.lastBank = -9; G.draftM = 0; G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
+  skids.clear(); G.driftPts = 0; G.airPops = 0; G.mult = 1; G.lastBank = -9; G.draftM = 0; G.topSpeed = 0; G.bestDrift = 0;
+  if (G.rocks && G.path) G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock"); G.rocks = []; G.nextRock = 18; G.rockRnd = makeRng((SEED ^ 0x5eed) >>> 0); G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
 }
 
 // Everyone in the race, ordered by position.
@@ -285,7 +286,7 @@ function setRaceUI(on) {
   const pro = save.settings.drive === "pro" && matchMedia("(pointer: coarse)").matches;
   $("proPads").hidden = !(on && pro); if (on && pro) $("pads").hidden = true; $("proSteer").hidden = input.tiltOn; $("tags").hidden = !on; if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; } }
 
-const SCREENS = ["menu", "setup", "garage", "settings", "career"];
+const SCREENS = ["menu", "setup", "garage", "settings", "career", "help"];
 function show(id) {
   sfx.click();
   SCREENS.forEach((s) => ($(s).hidden = s !== id));
@@ -458,6 +459,7 @@ function startRace() {
   G.field = solo ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
   for (const r of G.rivals) r.model.group.visible = G.field.includes(r);
   G.elimDone = 0; G.eliminated = false; G.attackShown = -1;
+  if (ev && ev.type === "boss") setTimeout(() => toast("BOSS BATTLE · " + ev.desc.split(".")[0], 3200), 300);
   if (!G.ghost) { G.ghost = new Ghost(makeCar(CARS[0], 0xffffff)); scene.add(G.ghost.model.group); }
   save.ghosts = save.ghosts || {};
   G.ghost.load(trialMode() ? save.ghosts[G.track.id] : null); G.ghost.startLap();
@@ -598,6 +600,8 @@ $("startBtn").addEventListener("click", () => {
 });
 $("raceBtn").addEventListener("click", () => show("setup"));
 $("garageBtn").addEventListener("click", () => show("garage"));
+$("helpBtn").addEventListener("click", () => show("help"));
+$("helpBack").addEventListener("click", () => show("menu"));
 $("settingsBtn").addEventListener("click", () => show("settings"));
 $("careerBtn").addEventListener("click", () => show("career"));
 $("careerBack").addEventListener("click", () => show("menu"));
@@ -635,6 +639,9 @@ function buildCareer() {
   const got = save.trophies || {}, tsec = document.createElement("div"); tsec.className = "chapter trophies";
   tsec.innerHTML = `<div class="chh">Trophies · ${TROPHIES.filter((t) => got[t.id]).length} / ${TROPHIES.length}</div><ul class="tlist">${TROPHIES.map((t) => `<li class="${got[t.id] ? "got" : ""}"><b>${got[t.id] ? "🏆" : "·"} ${t.name}</b><span>${t.desc}</span></li>`).join("")}</ul>`;
   el.appendChild(tsec);
+  const st = save.stats || { races: 0, wins: 0, podiums: 0, km: 0, top: 0, drift: 0 }, ssec = document.createElement("div"); ssec.className = "chapter stats";
+  ssec.innerHTML = `<div class="chh">Your stats</div><div class="statgrid">${[["Races", st.races], ["Wins", st.wins], ["Podiums", st.podiums], ["Distance", st.km.toFixed(1) + " km"], ["Top speed", Math.round(st.top) + " km/h"], ["Best drift", Math.round(st.drift).toLocaleString("en-GB")]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("")}</div>`;
+  el.appendChild(ssec);
   selectEvent(G.selEvent && (G.selEvent.daily || TEST || eventUnlocked(save, EVENTS.indexOf(G.selEvent))) ? G.selEvent : next || EVENTS[0], true);
 }
 function selectEvent(ev, quiet) {
@@ -708,7 +715,7 @@ function refreshSettings() {
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
   $("musicVol").value = save.settings.music ?? 0.6;
-  applyDrive(); applyBand();
+  applyDrive(); applyBand(); applyFx();
   const tiltMode = input.tiltOn;
   document.querySelectorAll("#ctrlTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.m === "tilt") === tiltMode)));
   $("tiltOpts").hidden = !tiltMode; $("tiltSens").value = tiltCfg.sens;
@@ -772,6 +779,10 @@ function applyDrive() {
   $("driveHint").textContent = pro ? "Pro: you drive. ↑/W accelerate, ↓/S brake, Space handbrake (drift), Shift boost. On touch: pedals on screen. No auto-brake." : "Casual: the car speeds up, brakes and drifts by itself; you steer and boost.";
 }
 document.querySelectorAll("#driveTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.drive = b.dataset.d; writeSave(); applyDrive(); }));
+// comfort: camera shake and speed lines can be turned off (off by default if the phone asks for reduced motion)
+function fxOn() { const f = save.settings.fx || (matchMedia("(prefers-reduced-motion: reduce)").matches ? "off" : "on"); return f === "on"; }
+function applyFx() { document.querySelectorAll("#fxTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.f === "on") === fxOn()))); }
+document.querySelectorAll("#fxTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.fx = b.dataset.f; writeSave(); applyFx(); }));
 function applyBand() { document.querySelectorAll("#bandTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.b === (save.settings.catchup || "normal")))); }
 document.querySelectorAll("#bandTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.catchup = b.dataset.b; writeSave(); applyBand(); }));
 applyBand();
@@ -910,7 +921,7 @@ function step(dt) {
       G.driftPts += dt * v.vF * Math.abs(v.driftAngle) * 6; G.driftShow = 1.5;
       if (v.wallHit > 2) { G.driftPts = 0; G.mult = 1; G.lastBank = -9; popDrift("", "DRIFT LOST"); }
     } else if (G.driftPts > 0 && v.driftTime === 0) {
-      if (G.driftPts > 20) { const pts = Math.round(G.driftPts * (G.mult || 1)); G.totalDrift += pts; if (pts >= 1000) trophy("drift1k"); if (G.mult >= 5) trophy("combo5"); popDrift(pts + (G.mult > 1 ? "  x" + G.mult : ""), "DRIFT +"); sfx.chime(); G.lastBank = G.raceTime; }
+      if (G.driftPts > 20) { const pts = Math.round(G.driftPts * (G.mult || 1)); G.totalDrift += pts; G.bestDrift = Math.max(G.bestDrift || 0, pts); if (pts >= 1000) trophy("drift1k"); if (G.mult >= 5) trophy("combo5"); popDrift(pts + (G.mult > 1 ? "  x" + G.mult : ""), "DRIFT +"); sfx.chime(); G.lastBank = G.raceTime; }
       G.driftPts = 0;
     }
     if (v.boosting && !G.wasBoosting) { sfx.whoosh(); const f = $("boostFlash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
@@ -938,6 +949,7 @@ function step(dt) {
       if (G.lapTimes.length >= laps()) finishRace(); else sfx.lapChime();
     }
     if (G.event && G.event.type === "elim" && G.mode === "race") { if (G.event.every) { if (G.raceTime >= (G.elimDone + 1) * G.event.every) { G.elimDone++; dropLast(G.event.every + " seconds"); } } else eliminate(); }
+    stepRocks(dt);
     if (G.event && G.event.type === "attack" && G.mode === "race") {
       const left = Math.max(0, G.event.time - G.raceTime);
       const t = Math.ceil(left), shown = t * 1e6 + Math.round(G.totalDrift);
@@ -1038,9 +1050,11 @@ function render(dt) {
     G.field.forEach((r, i) => tyreFx("r" + i, r.model, r.veh, dt));
   }
   smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight);
+  drawRocks();
   if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
   if (G.rain) G.rain.update(Math.min(dt, 0.05), camera.position, G.mode === "menu" ? 0 : v.vx, G.mode === "menu" ? 0 : v.vz);
-  speedLines.update(dt, v.vF, G.mode === "race" ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
+  speedLines.update(dt, v.vF, G.mode === "race" && fxOn() ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
+  if (!fxOn()) chase.shake = 0;
 
   car.group.position.y += Math.sin(G.bob = (G.bob || 0) + dt * v.vF * 0.9) * 0.006 * Math.min(1, v.vF / 30);
   const portrait = camera.aspect < 1;
@@ -1088,6 +1102,10 @@ function render(dt) {
     if (G.driftPts > 5) { $("driftV").textContent = "+" + Math.round(G.driftPts); $("driftX").textContent = G.mult > 1 ? "x" + G.mult : ""; }
     $("draft").classList.toggle("on", (G.draftM || 0) > 0.02); $("draftFill").style.width = Math.round((G.draftM || 0) * 100) + "%";
     $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
+    if (G.mode === "race") G.topSpeed = Math.max(G.topSpeed || 0, v.vF * 3.6);
+    const gb = sfx.gearbox(Math.max(0, v.vF), v.spec.vmax);
+    $("tachArc").style.strokeDasharray = `${Math.round(gb.rpm * 100)} 100`; $("tachArc").style.stroke = gb.rpm > 0.86 ? "#ff4d4d" : "";
+    $("gearV").textContent = gb.electric ? "E" : v.vF < 1 ? "N" : String(gb.gear + 1);
     $("spdBar").style.width = Math.min(100, (v.vF / v.spec.vmax) * 100) + "%";
     const wrong = G.mode === "race" && v.speed > 5 && Math.cos(Math.atan2(v.vx, v.vz) - v.p.h) < -0.3;
     $("offtrack").hidden = !((v.offTrack || wrong) && G.mode === "race");
@@ -1112,9 +1130,64 @@ function render(dt) {
 const firstTouch = () => { sfx.startAudio(); removeEventListener("pointerdown", firstTouch); removeEventListener("keydown", firstTouch); };
 addEventListener("pointerdown", firstTouch); addEventListener("keydown", firstTouch);
 
+// ---------- rockfall (active hazard on mountain and canyon tracks) ----------
+// Every so often a few boulders tumble onto the road a couple of hundred metres ahead of you (with a warning).
+// They sit there for a while; hitting one costs a lot of speed. Scheduled from the race clock and a seeded
+// random stream, so it doesn't break the fixed-step determinism.
+const rockGeo = new THREE.DodecahedronGeometry(1, 0), rockMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 1, flatShading: true });
+const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, 12); rockMesh.count = 0; rockMesh.frustumCulled = false; rockMesh.castShadow = true; scene.add(rockMesh);
+const rockO = new THREE.Object3D();
+function stepRocks(dt) {
+  const theme = THEMES[G.track.theme];
+  if (!theme.rockfall || G.mode !== "race" || (G.event && G.event.type === "trial") || G.trial) { G.rocks = []; return; }
+  G.rocks = G.rocks || [];
+  if (!G.rockRnd) G.rockRnd = makeRng((SEED ^ 0x5eed) >>> 0);
+  if (G.raceTime >= (G.nextRock ?? 18)) {
+    G.nextRock = G.raceTime + 22 + G.rockRnd() * 14;
+    const P = G.path, d = P.wrapD(G.player.p.d + 170 + G.rockRnd() * 60), i = Math.floor(d / P.ds) % P.N;
+    if (!P.bridge[i] && !P.tunnel[i] && !P.cliff[i]) {
+      const half = P.width / 2 - 2;
+      for (let k = 0; k < 3; k++) {
+        const lat = (G.rockRnd() * 2 - 1) * half, r = { type: "rock", d: P.wrapD(d + k * 6), lat, len: 3, w: 3, s: 0.8 + G.rockRnd() * 0.5, fall: 1.2 + k * 0.25, life: 14 };
+        G.rocks.push(r); P.hazards.push(r);
+      }
+      toast("ROCKFALL AHEAD!", 1800); sfx.thud(6);
+    }
+  }
+  for (const r of G.rocks) { r.fall = Math.max(0, r.fall - dt); r.life -= dt; }
+  // hits: any car overlapping a landed rock loses a big chunk of speed and knocks it away
+  for (const veh of [G.player, ...G.field.map((f) => f.veh)]) for (const r of G.rocks) {
+    if (r.fall > 0 || r.life <= 0) continue;
+    let dd = veh.p.d - r.d; if (dd > G.path.length / 2) dd -= G.path.length; if (dd < -G.path.length / 2) dd += G.path.length;
+    if (Math.abs(dd) < 1.8 + r.s && Math.abs(veh.lat - r.lat) < 1.2 + r.s) {
+      veh.vx *= 0.55; veh.vz *= 0.55; r.life = 0;
+      if (veh === G.player) { chase.shake = 0.8; sfx.thud(8); }
+    }
+  }
+  const gone = G.rocks.filter((r) => r.life <= 0);
+  if (gone.length) { G.rocks = G.rocks.filter((r) => r.life > 0); G.path.hazards = G.path.hazards.filter((h) => !gone.includes(h)); }
+}
+function drawRocks() {
+  const list = G.rocks || [], tmp = {};
+  rockMesh.count = Math.min(12, list.length);
+  for (let k = 0; k < rockMesh.count; k++) {
+    const r = list[k]; G.path.pointAt(r.d, r.lat, tmp);
+    rockO.position.set(tmp.x, tmp.y + r.s * 0.7 + r.fall * 12, tmp.z); rockO.rotation.set(r.fall * 3 + k, k * 1.7, r.fall * 2); rockO.scale.setScalar(r.s); rockO.updateMatrix();
+    rockMesh.setMatrixAt(k, rockO.matrix);
+  }
+  rockMesh.instanceMatrix.needsUpdate = true;
+}
+
 // trophies: award once, pay out, and say so
 function trophy(id) { const t = award(save, id); if (t) { writeSave(); setTimeout(() => toast(`Trophy: ${t.name} · +${TROPHY_COINS}`, 2600), 300); sfx.chime(); } }
+// lifetime stats shown on the career map
+function logStats(place) {
+  const st = (save.stats = save.stats || { races: 0, wins: 0, podiums: 0, km: 0, top: 0, drift: 0 });
+  st.races++; if (place === 1 && !G.eliminated) st.wins++; if (place <= 3 && !G.eliminated) st.podiums++;
+  st.km += Math.max(0, G.player.totalD) / 1000; st.top = Math.max(st.top, G.topSpeed || 0); st.drift = Math.max(st.drift, G.bestDrift || 0);
+}
 function raceTrophies(place) {
+  logStats(place);
   if (G.event && G.event.type === "trial") return;
   if (place === 1 && !G.eliminated) { trophy("win"); if (G.weather === "rain") trophy("rainwin"); }
   if (place <= 3 && !G.eliminated) { save.podiums = (save.podiums || 0) + 1; if (save.podiums >= 10) trophy("podium10"); }
@@ -1245,6 +1318,7 @@ if (TEST) {
     get splitRace() { return !!G.splitRace; },
     get weather() { return G.weather; },
     get night() { return !!G.night; },
+    get rocks() { return (G.rocks || []).length; },
     get eventId() { return G.event ? G.event.id : null; },
     get grip() { return G.path.surfaceAt(G.player.p.d, 0); },
     get tick() { return G.tick; },

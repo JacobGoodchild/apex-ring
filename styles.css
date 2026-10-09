@@ -352,3 +352,21 @@ body.photo #hud, body.photo #speedo, body.photo #topbtns, body.photo #minimap, b
 .cuptable { width: 100%; border-collapse: collapse; font: 600 13px var(--display); margin: 4px 0; }
 .cuptable td { padding: 2px 4px; } .cuptable td:last-child { text-align: right; color: #ffd479; } .cuptable tr.me td { color: var(--amber); }
 .cuphead { font: 800 16px var(--display); margin-top: 6px; }
+
+/* rev counter arc + gear over the speed readout */
+#speedo .tach { position: absolute; left: 50%; top: -30px; width: 170px; transform: translateX(-50%); overflow: visible; }
+#speedo .tach path { fill: none; stroke-width: 5; stroke-linecap: round; }
+#speedo .tach .tk { stroke: rgba(255,255,255,.12); }
+#speedo .tach .red { stroke: rgba(255,59,59,.55); stroke-dasharray: 14 100; stroke-dashoffset: -86; }
+#speedo .tach .rpm { stroke: var(--amber); stroke-dasharray: 0 100; transition: stroke-dasharray .05s linear; }
+#speedo .gear { position: absolute; left: calc(50% - 98px); top: 4px; width: 28px; height: 28px; border-radius: 7px; background: rgba(9,14,25,.7); border: 1px solid rgba(238,242,247,.2); font: 800 17px var(--display); line-height: 26px; }
+#speedo { position: fixed; }
+
+.btn.small { padding: 8px 12px; font-size: 13px; }
+.helpbody { max-height: 60vh; overflow-y: auto; font-size: 13px; line-height: 1.45; color: var(--text); }
+.helpbody h3 { font: 800 14px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--amber); margin: 10px 0 4px; }
+.helpbody p { margin: 0 0 6px; }
+#help .card { background: rgba(9, 14, 25, .92); border: 1px solid rgba(242, 166, 90, .2); border-radius: 14px; padding: 14px; box-sizing: border-box; }
+.statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.statgrid div { background: rgba(255,255,255,.04); border-radius: 8px; padding: 6px; text-align: center; display: flex; flex-direction: column; }
+.statgrid b { font: 800 16px var(--display); color: var(--text); } .statgrid span { font: 600 10px var(--display); color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }

@@ -214,13 +214,13 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
       // profile's 500 km/h ceiling, so the stripe only shows where you actually need to brake
       const drop = Math.max(0, Math.min(84, prof[k]) - Math.min(84, prof[(k + 14) % N])) / 12;
       c.setRGB(1, 0.62 - 0.45 * Math.min(1, drop), 0.12);
-      for (const o of [-0.45, 0.45]) { path.pointAt(k * path.ds, lat + o, tmp); pos.push(tmp.x, tmp.y + 0.03, tmp.z); col.push(c.r, c.g, c.b); }
+      for (const o of [-0.32, 0.32]) { path.pointAt(k * path.ds, lat + o, tmp); pos.push(tmp.x, tmp.y + 0.03, tmp.z); col.push(c.r, c.g, c.b); }
       if (i < N && drop > 0.25) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } // only in braking zones
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
     // faint on the straights, clear amber/red where you need to brake
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.16, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
     m.name = "racingLine"; group.add(m);
   }
 

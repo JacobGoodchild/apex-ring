@@ -231,5 +231,10 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   headlight; combines with Rain as "Night rain"; career and cup races use their own time of day), Cup mode in race
   setup (Sunset Cup / Rough Roads Cup / Apex Masters: 3-4 races, points 10-8-6-5-4-3-2-1, prize in full for a win and
   half for a podium, best finish saved, "Silverware" trophy for a cup win).
+- Part 6: rev counter arc + gear number over the speed (audio.js gearbox() shared with the engine sound), How to play
+  screen from the menu, lifetime stats on the career map (races, wins, podiums, km, top speed, best drift), Settings >
+  Camera shake and speed lines On/Off (Off by default with prefers-reduced-motion), Rockfall on mountain and canyon
+  tracks (boulders drop ~200 m ahead with a warning every 22-36 s, seeded so physics stays deterministic; a hit costs
+  45% of your speed; AI steers round them), boss intro message, slimmer/fainter braking-zone stripe.
 - Tests run on a frozen copy (scratchpad snaptest.sh, PW_PORT=4175) so edits during a 15-min run don't leak in.
   Don't run other heavy Playwright tests at the same time: CPU contention made a countdown time out once.

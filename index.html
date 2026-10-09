@@ -40,6 +40,8 @@
 
 <canvas id="minimap" hidden aria-hidden="true"></canvas>
 <div id="speedo" hidden>
+  <svg class="tach" viewBox="0 0 160 84" aria-hidden="true"><path class="tk" d="M14 80 A66 66 0 0 1 146 80" pathLength="100"/><path class="red" d="M14 80 A66 66 0 0 1 146 80" pathLength="100"/><path class="rpm" id="tachArc" d="M14 80 A66 66 0 0 1 146 80" pathLength="100"/></svg>
+  <div class="gear" id="gearV">1</div>
   <div class="num" id="spdV">0</div>
   <div class="unit">KM/H</div>
   <div class="bar"><div class="fill" id="spdBar"></div></div>
@@ -88,6 +90,29 @@
       <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
     </div>
     <div class="hint">Drag the car to spin it. Phone: hold the left or right half of the screen to steer; tap both halves together twice to boost. The car accelerates, brakes and drifts by itself. Keyboard: ← → steer, Space boost, C camera, P pause.</div>
+    <button class="btn ghost small" id="helpBtn" type="button">How to play</button>
+  </div>
+</div>
+
+<!-- how to play -->
+<div class="overlay screen" id="help" hidden>
+  <div class="card">
+    <div class="brand small">HOW TO PLAY</div>
+    <div class="helpbody">
+      <h3>Driving (Casual)</h3>
+      <p>The car speeds up, brakes for corners and drifts on its own. You steer: hold the <b>left or right half</b> of the screen, tilt the phone (Settings), use <b>← →</b> / <b>A D</b>, or a gamepad stick.</p>
+      <p><b>Drift:</b> steer hard into a fast bend. Drifting fills the blue boost bar; link drifts quickly for a <b>x2–x5 combo</b>. Hitting a wall mid-drift loses it.</p>
+      <p><b>Boost:</b> tap both sides of the screen together twice, Space / ↑, or A on a gamepad. Boost just before GO for a perfect start.</p>
+      <p><b>Slipstream:</b> sit right behind a rival to fill the white draft bar; when it's full you get a free slingshot.</p>
+      <h3>Driving (Pro)</h3>
+      <p>Settings → Driving → Pro: ↑/W accelerate, ↓/S brake, Space handbrake (drift), Shift boost. On a phone, pedals appear on screen; on a gamepad the triggers are the pedals.</p>
+      <h3>Modes</h3>
+      <p><b>Quick race</b> (pick the track, layout, day/night, dry/rain, 1 or 2 players), <b>Time trial</b> (race your ghost, share it as a code, watch replays), <b>Cups</b> (points over 3–4 races), <b>Career</b> (20 events, bosses, a daily challenge and trophies).</p>
+      <h3>Two players</h3>
+      <p>Race setup → 2 players: player 1 uses A/D + W, player 2 uses ← → + ↑, or plug in two gamepads.</p>
+      <p class="hint">Keys: C camera · P pause (photo mode is in the pause menu) · R back on track · M mute.</p>
+    </div>
+    <button class="btn ghost" id="helpBack" type="button">Back</button>
   </div>
 </div>
 
@@ -174,6 +199,8 @@
     </div>
     <div class="label">Camera</div>
     <div class="tabs" id="camTabs"><button class="tab" data-c="chase" type="button">Chase</button><button class="tab" data-c="bonnet" type="button">Bonnet</button></div>
+    <div class="label">Camera shake and speed lines</div>
+    <div class="tabs" id="fxTabs"><button class="tab" data-f="on" type="button">On</button><button class="tab" data-f="off" type="button">Off</button></div>
     <div class="label">Driving</div>
     <div class="tabs" id="driveTabs"><button class="tab" data-d="casual" type="button">Casual</button><button class="tab" data-d="pro" type="button">Pro</button></div>
     <div class="hint" id="driveHint">Casual: the car speeds up, brakes and drifts by itself; you steer and boost.</div>

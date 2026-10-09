@@ -74,7 +74,7 @@ export class Driver {
     if (this.mistake === "wide") lat -= Math.sign(t.cs[i] || 1) * 3.5;
     // steer around oil slicks seen up ahead
     for (const h of t.hazards) {
-      if (h.type !== "oil") continue;
+      if (h.type !== "oil" && h.type !== "rock") continue;
       let ahead2 = h.d - v.p.d; if (ahead2 < 0) ahead2 += t.length;
       if (ahead2 < 70 && Math.abs(lat - h.lat) < h.w / 2 + 1.6) lat = h.lat + Math.sign(lat - h.lat || 1) * (h.w / 2 + 1.8);
     }

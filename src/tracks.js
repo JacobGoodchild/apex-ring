@@ -14,12 +14,12 @@ export const THEMES = {
   mountain: {
     sky: [0x2c6fc2, 0x7fb2e8, 0xdfeaf5], sunDir: [0.6, 0.55, 0.4], sunColor: 0xfff3e0, sunIntensity: 2.0,
     hemi: [0xbfd8ff, 0x50604a, 0.8], fog: 0xb9cde3, fogNear: 220, fogFar: 1500, ground: 0x56704a,
-    runoff: "#7d7a70", embankment: 0x6b6a5c, scenery: "mountain", label: "Mountain pass · Day", clouds: 0.5, groundTex: "grass", runTex: "gravel", embTex: "rock", tree: 0x24452f, sign: "ALPINE PASS",
+    runoff: "#7d7a70", embankment: 0x6b6a5c, scenery: "mountain", label: "Mountain pass · Day", rockfall: true, clouds: 0.5, groundTex: "grass", runTex: "gravel", embTex: "rock", tree: 0x24452f, sign: "ALPINE PASS",
   },
   desert: {
     sky: [0x3d6fb0, 0xd99a62, 0xffcf8a], sunDir: [-0.4, 0.3, 0.8], sunColor: 0xffc58a, sunIntensity: 2.0,
     hemi: [0xffd2a8, 0x8a4a2a, 0.7], fog: 0xe0a878, fogNear: 200, fogFar: 1300, ground: 0xc07a48,
-    runoff: "#c98f5d", asphalt: "#4a4440", embankment: 0xa8643a, scenery: "desert", label: "Desert canyon · Sunset", clouds: 0.18, cloudColor: 0xffd8b0, groundTex: "sand", groundTint: 0xffc49a, runTex: "sand", runTint: 0xffd0a8, embTex: "sand", asphaltTint: 0.85, sign: "RED CANYON",
+    runoff: "#c98f5d", asphalt: "#4a4440", embankment: 0xa8643a, scenery: "desert", label: "Desert canyon · Sunset", rockfall: true, clouds: 0.18, cloudColor: 0xffd8b0, groundTex: "sand", groundTint: 0xffc49a, runTex: "sand", runTint: 0xffd0a8, embTex: "sand", asphaltTint: 0.85, sign: "RED CANYON",
   },
   neon: {
     sky: [0x05010f, 0x1c0838, 0x5a1a6e], sunDir: [0, 0.2, -1], sunColor: 0xff4fd8, sunIntensity: 0.4, stars: 0.5,

@@ -7,7 +7,7 @@ test.describe("Apex Ring", () => {
     await expect(page.locator("#menu")).toBeVisible();
     await expect(page.locator("#raceBtn")).toBeVisible();
     // every lobby screen opens and closes
-    for (const [btn, screen, back] of [["#raceBtn", "#setup", "#setupBack"], ["#garageBtn", "#garage", "#garageBack"], ["#settingsBtn", "#settings", "#settingsBack"]]) {
+    for (const [btn, screen, back] of [["#raceBtn", "#setup", "#setupBack"], ["#garageBtn", "#garage", "#garageBack"], ["#settingsBtn", "#settings", "#settingsBack"], ["#helpBtn", "#help", "#helpBack"]]) {
       await page.click(btn); await expect(page.locator(screen)).toBeVisible();
       await page.click(back); await expect(page.locator("#menu")).toBeVisible();
     }
@@ -260,7 +260,7 @@ test.describe("Apex Ring", () => {
     test.setTimeout(200_000);
     const problems = await openGame(page, "autopilot=1&speed=12");
     await page.click("#careerBtn");
-    await expect(page.locator(".chapter:not(.daily):not(.trophies)")).toHaveCount(4);
+    await expect(page.locator(".chapter:not(.daily):not(.trophies):not(.stats)")).toHaveCount(4);
     await expect(page.locator(".chapter.trophies li")).toHaveCount(15);
     await page.click("#ev-a1");
     await expect(page.locator("#evDDesc")).toContainText("60 s");

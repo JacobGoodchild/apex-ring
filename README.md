@@ -32,6 +32,7 @@ player 2: ← → + ↑) or with two gamepads.
   Knockouts, head-to-heads and Boss battles that win you the boss's car.
 - **Weather and time:** race any track Dry or in the Rain, by Day or at Night.
 - **Cups:** three short championships with points after every race and a prize for the winner.
+- **Hazards:** oil slicks, puddles, and rockfalls on the mountain and canyon tracks.
 - **Replays:** watch your best time-trial lap back from the chase camera.
 - **Daily Challenge** (a new event every day), **Trophies** to collect, and **Photo mode** in the pause menu.
 - **9 tracks**, each also raceable Reversed or Mirrored: Dusk Oval, Apex Ring GP, Greenwood, Red Canyon,
