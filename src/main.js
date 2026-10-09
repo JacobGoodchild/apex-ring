@@ -90,6 +90,7 @@ function buildPlayer(id = save.car) {
   const def = carById(id), cs = carSave(def.id);
   if (G.car) G.car.group.removeFromParent();
   G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex, cs.rims, cs.decal || 0);
+  sfx.setEngine(def.engine);
   addFlames(G.car); addBeams(G.car); G.car.beams.visible = !!G.night;
   if (G.mode === "menu") showroom.setCar(G.car); else scene.add(G.car.group);
   if (!G.player) { G.player = new Vehicle(carSpec(def, cs.upgrades), G.path); G.player.reset(-8, 0); }

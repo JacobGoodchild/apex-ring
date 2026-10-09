@@ -1,6 +1,18 @@
 // All sound is synthesised with Web Audio: engine with gears, tyre squeal, boost whoosh, beeps and clicks.
 let ctx = null, master = null, eng = null, squeal = null, wind = null, muted = false, lastGear = 0, shiftT = 0;
 
+// Each car has its own engine character: pitch, harmonic mix, filter brightness and gearbox.
+// electric: one long whine with no gear changes.
+const ENGINES = {
+  v10: { pitch: 1.0, ratio: 1.5, sub: 0.5, bright: 1.0, gears: 7 },
+  v8: { pitch: 0.8, ratio: 1.25, sub: 0.8, bright: 0.8, gears: 6 },
+  flat6: { pitch: 1.15, ratio: 2.0, sub: 0.35, bright: 1.2, gears: 7 },
+  v12: { pitch: 1.3, ratio: 1.5, sub: 0.25, bright: 1.35, gears: 8 },
+  electric: { pitch: 2.6, ratio: 2.0, sub: 0.05, bright: 1.6, gears: 1, electric: true },
+};
+let engine = ENGINES.v10;
+export function setEngine(kind) { engine = ENGINES[kind] || ENGINES.v10; lastGear = 0; }
+
 function noiseBuffer(c) {
   const b = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), d = b.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -18,7 +30,7 @@ export function startAudio() {
     const o1 = ctx.createOscillator(); o1.type = "sawtooth"; const o2 = ctx.createOscillator(); o2.type = "sawtooth"; o2.detune.value = 9;
     const o3 = ctx.createOscillator(); o3.type = "square"; const g3 = ctx.createGain(); g3.gain.value = 0.5;
     o1.connect(lp); o2.connect(lp); o3.connect(g3); g3.connect(lp); o1.start(); o2.start(); o3.start();
-    eng = { g: eg, lp, o1, o2, o3 };
+    eng = { g: eg, lp, o1, o2, o3, g3 };
     const nb = noiseBuffer(ctx);
     // tyre squeal: band-passed noise
     const sq = ctx.createBufferSource(); sq.buffer = nb; sq.loop = true; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1700; bp.Q.value = 6;
@@ -36,14 +48,21 @@ export const isMuted = () => muted;
 export function updateAudio(v, vmax, on, slip, boost) {
   if (!ctx || !eng) return;
   const t = ctx.currentTime, f = Math.max(0, Math.min(1.2, v / vmax));
-  const gears = [0, 0.16, 0.3, 0.45, 0.6, 0.76, 0.92, 1.3];
-  let g = 0; while (g < 6 && f > gears[g + 1]) g++;
-  const inGear = (f - gears[g]) / (gears[g + 1] - gears[g]);
-  const rpm = 0.28 + 0.72 * Math.min(1, inGear);
+  const E = engine, n = E.gears;
+  // gear thresholds spread a little wider at the top, like a real gearbox
+  let g = 0, inGear;
+  if (E.electric) inGear = f;
+  else {
+    const edge = (k) => Math.pow(k / n, 0.85) * 1.02;
+    while (g < n - 1 && f > edge(g + 1)) g++;
+    inGear = (f - edge(g)) / (edge(g + 1) - edge(g));
+  }
+  const rpm = E.electric ? 0.12 + 0.88 * Math.min(1.2, f) : 0.28 + 0.72 * Math.min(1, inGear);
   if (on && g > lastGear && v > 3) shiftBlip(); lastGear = g;
-  const base = 48 + rpm * 150 + g * 6;
-  eng.o1.frequency.setTargetAtTime(base, t, 0.03); eng.o2.frequency.setTargetAtTime(base * 1.5, t, 0.03); eng.o3.frequency.setTargetAtTime(base / 2, t, 0.03);
-  eng.lp.frequency.setTargetAtTime(400 + rpm * 2200 + (boost ? 900 : 0), t, 0.04);
+  const base = (48 + rpm * 150 + g * 6) * E.pitch;
+  eng.o1.frequency.setTargetAtTime(base, t, 0.03); eng.o2.frequency.setTargetAtTime(base * E.ratio, t, 0.03); eng.o3.frequency.setTargetAtTime(base / 2, t, 0.03);
+  eng.g3.gain.setTargetAtTime(E.sub, t, 0.1);
+  eng.lp.frequency.setTargetAtTime((400 + rpm * 2200 + (boost ? 900 : 0)) * E.bright, t, 0.04);
   eng.g.gain.setTargetAtTime(on ? 0.075 + rpm * 0.03 : 0, t, 0.08);
   squeal.g.gain.setTargetAtTime(on ? Math.min(0.12, slip * 0.14) : 0, t, 0.05);
   squeal.bp.frequency.setTargetAtTime(1400 + slip * 700, t, 0.1);

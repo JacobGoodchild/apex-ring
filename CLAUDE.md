@@ -139,3 +139,4 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
   toward the racing line when you weren't steering; now it only shapes steering you're already doing (light line
   pull, heading limiter, wall guard). With no input the car goes dead straight (unit test). The auto-brake can still
   slow you for a corner or a wall, but never steers. Rival pace retuned for the beginner bot: Easy 0.66, Medium 0.71.
+- 2026-10-09: Per-car engine sounds: V10 (Vanta, Razor), V8 (Kestrel), flat-6 (Nimbus), V12 (Solace, Tempest) and an electric whine with no gear changes (Aurora); each has its own pitch, harmonics, brightness and number of gears.
