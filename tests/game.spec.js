@@ -192,6 +192,22 @@ test.describe("Apex Ring", () => {
     await expect(page.locator("#posV")).toHaveText("1st/1");
   });
 
+  test("time trial records a ghost of the best lap and replays it", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openGame(page, "autopilot=1&speed=8&laps=3&track=oval");
+    await page.click("#raceBtn");
+    await page.click("#modeTrial");
+    await page.click("#startBtn");
+    await page.waitForFunction(() => window.__apex.laps.length >= 1, null, { timeout: 60_000 });
+    const sv = await game(page, () => window.__apex.save);
+    expect(sv.ghosts.oval.s.length).toBeGreaterThan(40);
+    await page.waitForFunction(() => window.__apex.ghostVisible, null, { timeout: 20_000 });
+    await page.setViewportSize({ width: 915, height: 412 });
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: "screenshots/ghost-landscape.png" });
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
   test("progress is saved and loaded across reloads", async ({ page }) => {
     await openGame(page);
     await page.click("#garageBtn");

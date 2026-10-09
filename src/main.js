@@ -10,6 +10,7 @@ import { TRACKS, THEMES, trackById } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec } from "./cars.js";
 import { makeCar, setDoors, setRims, setDecal, RIMS, DECALS } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
+import { Ghost } from "./ghost.js";
 import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { Vehicle } from "./vehicle.js";
@@ -137,6 +138,7 @@ function standings() {
 }
 const ordinal = (n) => n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th");
 
+const trialMode = () => (G.event ? G.event.type === "trial" : !!G.trial);
 const laps = () => G.lapsOverride || (G.event ? G.event.laps : G.track.laps);
 
 // ---------- UI ----------
@@ -280,6 +282,9 @@ function startRace() {
   G.field = solo ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : G.rivals;
   for (const r of G.rivals) r.model.group.visible = G.field.includes(r);
   G.elimDone = 0; G.eliminated = false;
+  if (!G.ghost) { G.ghost = new Ghost(makeCar(CARS[0], 0xffffff)); scene.add(G.ghost.model.group); }
+  save.ghosts = save.ghosts || {};
+  G.ghost.load(trialMode() ? save.ghosts[G.track.id] : null); G.ghost.startLap();
   $("eventTag").hidden = !ev;
   if (ev) $("eventTag").textContent = ev.name + " · " + ev.desc;
   gridUp();
@@ -496,8 +501,14 @@ function step(dt) {
     G.wasBoosting = v.boosting;
     G.raceTime += dt;
     const L = G.path.length, done = G.lapTimes.length;
+    if (trialMode() && v.totalD >= done * L) G.ghost.record(G.raceTime - G.lapStart, v);
     if (v.totalD >= (done + 1) * L) {
       const lap = G.raceTime - G.lapStart; G.lapTimes.push(lap); G.lapStart = G.raceTime;
+      if (trialMode()) {
+        const rec = G.ghost.lapDone(lap), old = save.ghosts[G.track.id];
+        // the very first lap starts behind the line, so only keep it if there's nothing better
+        if (!old || lap < old.t) { save.ghosts[G.track.id] = rec; G.ghost.load(rec); }
+      }
       const best = save.best[G.track.id];
       if (G.lapWall === 0) G.cleanLaps++;
       G.lapWall = 0;
@@ -557,6 +568,7 @@ function render(dt) {
   car.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
   for (const r of G.field) poseCar(r.model, r.veh, dt);
   updateFlames(car, v.boosting, performance.now() / 1000);
+  if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.mode === "race" || G.mode === "done") {
     tyreFx("p", car, v, dt);
     G.field.forEach((r, i) => tyreFx("r" + i, r.model, r.veh, dt));
@@ -641,6 +653,7 @@ if (TEST) {
     get place() { return G.place; },
     get eventOk() { return G.eventOk; },
     get fieldSize() { return G.field.length; },
+    get ghostVisible() { return !!(G.ghost && G.ghost.model.group.visible); },
     get drawCalls() { return world.renderer.info.render.calls; },
     get triangles() { return world.renderer.info.render.triangles; },
     get reward() { return G.lastReward; },

@@ -10,6 +10,7 @@ function defaults() {
     owned: ["vanta"],
     cars: {}, // per car: { paint, rims, upgrades: {engine,tyres,handling,boost,weight} }
     best: {}, // best lap per track id
+    ghosts: {}, // best time-trial lap recording per track id
     career: {}, // event id -> { place, stars }
     settings: { quality: "", sound: true, tilt: false, camera: "chase" },
   };
