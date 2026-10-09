@@ -69,3 +69,4 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 - 2026-10-09: Race extras: rival difficulty (easy/normal/hard) in settings, live gap to the car ahead (or lead over the car behind), respawn button for touch, soft fake headlight beams on night tracks.
 - 2026-10-09: Car refinement: fixed inside-out loft winding (paint lighting and the glass canopy now render correctly), curved LED headlight strips (three styles), full-width curved tail-light bar, recessed side scoops, twin exhaust pipes.
 - 2026-10-09: Track dressing and onboarding: billboards with made-up sponsors on the straights (one atlas texture, instanced), painted grid boxes, thinner tail-light bar, three timed tips on the very first race (steer, drift fills boost, use boost).
+- 2026-10-09: Performance + awareness: adaptive resolution (drops render resolution in steps when frames take >21 ms, raises it back under 15 ms, floor 55%), name tags over up to three rivals just ahead.

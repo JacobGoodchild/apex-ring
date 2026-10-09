@@ -83,7 +83,9 @@ export class World {
   applyQuality(name) {
     this.qname = name;
     const q = QUALITY[name];
-    this.renderer.setPixelRatio(TEST && !FORCE_QUALITY ? 0.5 : Math.min(window.devicePixelRatio || 1, q.pr));
+    this.maxPR = TEST && !FORCE_QUALITY ? 0.5 : Math.min(window.devicePixelRatio || 1, q.pr);
+    this.prScale = 1;
+    this.renderer.setPixelRatio(this.maxPR);
     this.renderer.shadowMap.enabled = q.shadows;
     this.sun.castShadow = q.shadows;
     if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
@@ -98,6 +100,23 @@ export class World {
     }
     this.useBloom = q.bloom;
     this.resize();
+  }
+
+  // Adaptive resolution: watch the frame time and lower or raise the render resolution to hold ~55-60 fps.
+  adapt(frameMs) {
+    if (TEST) return;
+    this.ft = this.ft == null ? frameMs : this.ft * 0.95 + frameMs * 0.05;
+    this.adaptT = (this.adaptT || 0) + frameMs;
+    if (this.adaptT < 2000) return;
+    this.adaptT = 0;
+    let k = this.prScale;
+    if (this.ft > 21 && k > 0.55) k = Math.max(0.55, k - 0.1);
+    else if (this.ft < 15 && k < 1) k = Math.min(1, k + 0.05);
+    if (k !== this.prScale) {
+      this.prScale = k;
+      this.renderer.setPixelRatio(this.maxPR * k);
+      this.resize();
+    }
   }
 
   setTheme(t) {

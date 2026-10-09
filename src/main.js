@@ -148,7 +148,7 @@ const laps = () => G.lapsOverride || (G.event ? G.event.laps : G.track.laps);
 // ---------- UI ----------
 function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), ms); }
 const fmt = (t) => { if (t == null || !isFinite(t)) return "–"; const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); };
-function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; } }
+function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); $("tags").hidden = !on; if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; } }
 
 const SCREENS = ["menu", "setup", "garage", "settings", "career"];
 function show(id) {
@@ -466,6 +466,23 @@ function stepRivals(dt) {
   }
 }
 
+// Name tags over the nearest rivals ahead, projected from 3D.
+const tagPos = new THREE.Vector3();
+function drawTags() {
+  const tags = $("tags"); if (!G.tagEls) G.tagEls = [];
+  const v = G.player, near = G.field.filter((r) => { const dd = r.veh.totalD - v.totalD; return dd > 4 && dd < 70; }).slice(0, 3);
+  while (G.tagEls.length < near.length) { const e = document.createElement("div"); e.className = "tag"; tags.appendChild(e); G.tagEls.push(e); }
+  G.tagEls.forEach((e, i) => {
+    const r = near[i];
+    if (!r || G.mode !== "race") { e.hidden = true; return; }
+    tagPos.set(r.veh.x, r.veh.y + 1.8, r.veh.z).project(camera);
+    if (tagPos.z > 1) { e.hidden = true; return; }
+    e.hidden = false;
+    e.style.transform = `translate(${(tagPos.x * 0.5 + 0.5) * innerWidth}px, ${(-tagPos.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`;
+    if (e._n !== r.name) { e._n = r.name; e.textContent = r.name.split(" ")[0]; e.style.borderColor = "#" + r.color.toString(16).padStart(6, "0"); }
+  });
+}
+
 function popDrift(n) {
   const el = $("driftPop"); el.textContent = "DRIFT +" + n; el.hidden = false; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
   clearTimeout(popDrift._t); popDrift._t = setTimeout(() => (el.hidden = true), 1200);
@@ -623,6 +640,7 @@ function render(dt) {
     const wrong = G.mode === "race" && v.speed > 5 && Math.cos(Math.atan2(v.vx, v.vz) - v.p.h) < -0.3;
     $("offtrack").hidden = !((v.offTrack || wrong) && G.mode === "race");
     $("offtrack").textContent = wrong ? "WRONG WAY" : "OFF TRACK";
+    drawTags();
     minimap.draw([...G.field.map((r) => ({ x: r.veh.x, z: r.veh.z, color: "#" + r.color.toString(16).padStart(6, "0") })), { x: v.x, z: v.z, color: "#f2a65a", me: true }]);
   }
   sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
@@ -646,7 +664,9 @@ world.resize();
 let last = performance.now(), acc = 0;
 const STEP = 1 / 60;
 function frame(now) {
-  const real = Math.min(TEST ? 0.25 : 0.1, (now - last) / 1000); last = now;
+  const raw = now - last;
+  const real = Math.min(TEST ? 0.25 : 0.1, raw / 1000); last = now;
+  if (G.mode === "race" && !document.hidden && raw < 200) world.adapt(raw);
   acc += real * TIME_SCALE;
   let n = 0;
   while (acc >= STEP && n++ < 240) { step(STEP); acc -= STEP; }
