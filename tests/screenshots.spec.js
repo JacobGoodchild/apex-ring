@@ -4,6 +4,7 @@ import { openGame, startRace } from "./helpers.js";
 // Saves menu and race screenshots at phone portrait and landscape sizes into screenshots/.
 for (const [name, size] of [["portrait", { width: 412, height: 915 }], ["landscape", { width: 915, height: 412 }]]) {
   test(`screenshots ${name}`, async ({ page }) => {
+    test.setTimeout(240_000); // many screens; CI runners are slower than local
     await page.setViewportSize(size);
     await openGame(page, "quality=medium&speed=1");
     await page.waitForTimeout(1200);
