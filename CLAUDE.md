@@ -74,3 +74,19 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 - 2026-10-09: CI: runs on main now queue instead of cancelling each other (a full run takes ~10 min), so every push gets tested and the latest green one deploys. Tried 2 Playwright workers: too slow under software WebGL, kept 1.
 - 2026-10-09: Career flow: 'Next: <event>' button after a completed event, Try again / Replay labels, champion message after the final. Tried letting bold rivals drift into hairpins: slower and more wall hits in the headless race sim, so reverted it.
 - 2026-10-09: Launch control: hold BOOST in the last moment before GO for a perfect start (+22 m/s); too early gives a short wheelspin bog.
+- 2026-10-09: Garage tells you which career event wins a car for free.
+
+### Session summary (2026-10-09, 09:35–13:00 UTC)
+Built from the single-file oval prototype to a full game in ~30 tested commits, each pushed to `main` and deployed by CI:
+- **Tech:** ES modules, vendored Three.js r186, no CDN or external requests at runtime, Playwright suite (27 tests: menus,
+  racing, steering, laps/finish, saves, shop, career, ghost, settings, every track, PWA/offline) plus phone screenshots,
+  GitHub Actions test-then-deploy, installable offline PWA.
+- **Driving:** arcade grip/slip model, auto-brake assist, drift (tap-to-hold on phone), boost with flames/speed lines/FOV kick,
+  perfect starts, slipstream, chase + bonnet cams tuned for portrait and landscape, adaptive resolution.
+- **Content:** 7 tracks (oval + 6 spline circuits with a flyover, tunnel, big elevation, 6 themes), 7 original procedural cars
+  with 4 door styles, paints/rims/decals, 7 rule-based rivals with personalities, career of 12 events, coins/gems/upgrades/shop.
+- **Not done / next:** real playtesting on a Pixel 7 to tune handling and AI pace (I could only test headless with
+  software WebGL, so feel is tuned by numbers, not by hand); rivals drifting (tried, reverted); more distinct car silhouettes
+  (they share one body generator); terrain that follows the elevated tracks instead of embankments; tunnel interiors;
+  per-car engine sounds; a proper settings toggle for tilt-by-default; CI is ~10 min a run, could be split into a fast
+  smoke job + full job.

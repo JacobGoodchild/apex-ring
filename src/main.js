@@ -177,7 +177,8 @@ function refreshGarage() {
   const def = carById(G.garageCar), cs = carSave(def.id), owned = save.owned.includes(def.id);
   if (!G.car || G.car.def !== def.id) { buildPlayer(def.id); G.car.def = def.id; }
   $("carName").textContent = def.name;
-  $("carBlurb").textContent = def.blurb;
+  const prize = EVENTS.find((e) => e.unlock && e.unlock.car === def.id);
+  $("carBlurb").textContent = def.blurb + (prize && !owned ? ` Or win it free in Career: ${prize.name}.` : "");
   $("stats").innerHTML = statsHTML(def, cs.upgrades);
   const act = $("carAction");
   if (!owned) {

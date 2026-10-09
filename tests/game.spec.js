@@ -140,6 +140,7 @@ test.describe("Apex Ring", () => {
     await page.click("#decal1");
     expect((await game(page, () => window.__apex.save)).cars.vanta.decal).toBe(1);
     await page.click("#carNext");
+    await expect(page.locator("#carBlurb")).toContainText("Last Car Out");
     await expect(page.locator("#carAction")).toHaveText(/Buy/);
     await page.click("#carAction");
     await expect(page.locator("#carAction")).toHaveText("Selected");
