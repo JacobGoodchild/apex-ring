@@ -99,7 +99,7 @@ function wheelGeos(r, wdt, rim) {
 }
 
 export function makeCar(def, paintHex, rimIdx = 0) {
-  const S = Object.assign({ len: 4.7, wid: 1.0, nose: 0.42, hood: 0.72, deck: 0.92, tail: 0.86, cabinZ: 0.0, cabinLen: 2.2, cabinH: 1.14, cabinW: 0.66,
+  const S = Object.assign({ len: 4.7, wid: 1.0, nose: 0.42, hood: 0.72, deck: 0.92, tail: 0.86, cabinZ: -0.05, cabinLen: 2.3, cabinH: 1.2, cabinW: 0.72,
     wing: "high", wheelR: 0.36, intake: true, splitter: true, fin: false }, def.shape || {});
   const M = mats(paintHex);
   const L = S.len / 2, zf = 1.42 * (S.len / 4.7), zr = -1.38 * (S.len / 4.7);
@@ -119,11 +119,12 @@ export function makeCar(def, paintHex, rimIdx = 0) {
   // roof spine in body colour
   paintParts.push(loft({ z0: c0 + 0.35, z1: c1 - 0.5, nz: 16, nt: 10, w: () => 0.16, t: (z) => ct(z) + 0.025, b: (z) => ct(z) - 0.04, n: 2, th0: 0, th1: Math.PI }));
   // mirrors
-  for (const s of [-1, 1]) paintParts.push(box(0.2, 0.08, 0.14, s * (S.cabinW + 0.18), t(c1 - 0.4) + 0.12, c1 - 0.45));
+  const mz = c1 - 0.55;
+  for (const s of [-1, 1]) { paintParts.push(box(0.16, 0.09, 0.2, s * (w(mz) - 0.02), t(mz) + 0.13, mz)); paintParts.push(box(0.03, 0.12, 0.05, s * (w(mz) - 0.1), t(mz) + 0.05, mz)); }
   const carbonParts = [];
   if (S.splitter) carbonParts.push(box(S.wid * 2.02, 0.04, 0.4, 0, 0.17, L - 0.15));
   carbonParts.push(box(S.wid * 1.8, 0.24, 0.35, 0, 0.3, -L + 0.12, 0.45));
-  if (S.intake) for (const s of [-1, 1]) carbonParts.push(box(0.06, 0.26, 0.7, s * (w(-0.7) + 0.0), t(-0.7) - 0.28, -0.75));
+  if (S.intake) for (const s of [-1, 1]) carbonParts.push(box(0.05, 0.22, 0.7, s * (w(-0.75) - 0.02), (t(-0.75) + 0.2) / 2 + 0.08, -0.75));
   // wing
   const wingY = S.wing === "high" ? S.deck + 0.42 : S.deck + 0.12;
   if (S.wing === "high" || S.wing === "low") {
@@ -141,13 +142,15 @@ export function makeCar(def, paintHex, rimIdx = 0) {
   add(carbonParts, M.carbon);
   // lights
   const heads = [], tails = [];
-  for (const s of [-1, 1]) heads.push(box(0.42, 0.05, 0.16, s * S.wid * 0.6, t(L - 0.3) - 0.04, L - 0.28, -0.3, s * 0.35));
-  tails.push(box(S.wid * 1.75, 0.05, 0.05, 0, S.tail - 0.06, -L + 0.02));
-  for (const s of [-1, 1]) tails.push(box(0.05, 0.16, 0.05, s * S.wid * 0.86, S.tail - 0.12, -L + 0.03));
+  const hz = L - 0.42;
+  for (const s of [-1, 1]) heads.push(box(0.36, 0.035, 0.3, s * S.wid * 0.56, t(hz) - 0.01, hz, -0.32, s * 0.3));
+  const tz = -L + 0.1, ty = t(tz) - 0.1;
+  tails.push(box(S.wid * 1.6, 0.045, 0.06, 0, ty, tz - 0.02));
+  for (const s of [-1, 1]) tails.push(box(0.05, 0.14, 0.06, s * S.wid * 0.8, ty - 0.06, tz - 0.01));
   add(heads, M.head, false);
   const tailMesh = add(tails, M.tail, false);
   // grille / arch shadows
-  add([box(S.wid * 1.2, 0.12, 0.05, 0, S.nose - 0.22, L - 0.04), box(S.wid * 1.5, 0.14, 0.05, 0, 0.42, -L + 0.08)], M.dark, false);
+  add([box(S.wid * 1.1, 0.1, 0.12, 0, (t(L - 0.08) + 0.2) / 2, L - 0.08), box(S.wid * 1.4, 0.14, 0.08, 0, 0.42, -L + 0.06)], M.dark, false);
 
   // doors: a patch of the body side, hinged according to the style
   const doors = [];
@@ -165,7 +168,7 @@ export function makeCar(def, paintHex, rimIdx = 0) {
     hinge.add(mesh, wm); hinge.userData.side = s; body.add(hinge); doors.push(hinge);
   }
   // interior hint (seats) visible with doors open
-  add([box(0.42, 0.5, 0.12, 0.33, t(0) - 0.05, -0.45, -0.3), box(0.42, 0.5, 0.12, -0.33, t(0) - 0.05, -0.45, -0.3)], new THREE.MeshStandardMaterial({ color: 0x2a0f0f, roughness: 0.8 }), false);
+  add([box(0.42, 0.5, 0.12, 0.33, t(0) - 0.32, -0.45, -0.3), box(0.42, 0.5, 0.12, -0.33, t(0) - 0.32, -0.45, -0.3)], new THREE.MeshStandardMaterial({ color: 0x2a0f0f, roughness: 0.8 }), false);
 
   // wheels
   const rim = RIMS[rimIdx % RIMS.length];
@@ -191,10 +194,10 @@ export function setDoors(car, open) {
   for (const d of car.doors) {
     const s = d.userData.side;
     d.rotation.set(0, 0, 0);
-    if (car.doorType === "scissor") d.rotation.x = -o * 1.25;
-    else if (car.doorType === "butterfly") { d.rotation.x = -o * 1.0; d.rotation.z = s * o * 0.55; }
+    if (car.doorType === "scissor") d.rotation.x = o * 1.25;
+    else if (car.doorType === "butterfly") { d.rotation.x = o * 1.0; d.rotation.z = s * o * 0.55; }
     else if (car.doorType === "gullwing") d.rotation.z = s * o * 1.25;
-    else if (car.doorType === "dihedral") { d.rotation.x = -o * 0.6; d.rotation.y = s * o * 0.5; d.rotation.z = s * o * 0.35; }
+    else if (car.doorType === "dihedral") { d.rotation.x = o * 0.6; d.rotation.y = s * o * 0.5; d.rotation.z = s * o * 0.35; }
     else d.rotation.y = s * o * 1.1;
   }
 }

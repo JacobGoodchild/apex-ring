@@ -3,7 +3,7 @@ export const THEMES = {
   dusk: {
     sky: [0x0d1b2a, 0x35507a, 0xf2a65a], sunDir: [-0.8, 0.12, -0.55], sunColor: 0xffc49a, sunIntensity: 1.6,
     hemi: [0x9fb4e0, 0x1a2a1e, 0.6], fog: 0x41506b, fogNear: 160, fogFar: 1100, ground: 0x2a4a33,
-    runoff: "#4b6b3f", embankment: 0x3d5a35, scenery: "parkland",
+    runoff: "#4b6b3f", embankment: 0x3d5a35, scenery: "parkland", label: "Parkland · Dusk",
   },
 };
 

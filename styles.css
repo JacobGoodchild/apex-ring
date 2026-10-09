@@ -151,3 +151,41 @@ button { font-family: inherit; }
 #driftPop.pop { animation: pop 1.2s ease-out forwards; }
 @keyframes pop { 0% { transform: translateX(-50%) scale(.7); opacity: 0; } 15% { transform: translateX(-50%) scale(1.15); opacity: 1; } 70% { opacity: 1; } 100% { transform: translateX(-50%) translateY(-30px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #driftPop.pop { animation: none; } }
+
+.topbar { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center;
+  padding: calc(var(--safe-t) + 12px) calc(var(--safe-r) + 16px) 0 calc(var(--safe-l) + 16px); pointer-events: none; z-index: 5; }
+.brand.mini { font-size: 30px; }
+.wallet { display: flex; gap: 8px; font: 700 18px var(--display); }
+.wallet span { background: var(--panel); border: 1px solid var(--edge); border-radius: 20px; padding: 4px 12px 4px 8px; display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.wallet .coin::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe08a, #e0a526); box-shadow: 0 0 0 2px #8a6412 inset; }
+.wallet .gem::before { content: ""; width: 13px; height: 13px; background: linear-gradient(135deg, #b9f3ff, #4cc9f0 60%, #2a7fd6); transform: rotate(45deg); border-radius: 2px; }
+.carhead .carName, .carName { font: 800 30px var(--display); line-height: 1; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.grid3 .btn { padding: 10px 6px; font-size: 16px; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tab { flex: 1; font: 700 15px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: rgba(255,255,255,.04);
+  border: 1px solid rgba(238,242,247,.15); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.tab[aria-pressed="true"] { color: var(--ink); background: var(--amber); border-color: var(--amber); }
+.carpick { display: flex; align-items: center; gap: 10px; }
+.carinfo { flex: 1; min-width: 0; text-align: center; }
+.carinfo .hint { font-size: 12px; margin-top: 3px; }
+.stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; font: 600 12px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.stats .sbar { height: 7px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; position: relative; }
+.stats .sbar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--amber), #ffd29a); border-radius: 4px; }
+.stats .sbar b { position: absolute; inset: 0 auto 0 0; background: var(--cyan); border-radius: 4px; opacity: .9; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chipbtn { font: 700 14px var(--display); letter-spacing: .05em; color: var(--text); background: rgba(255,255,255,.05); border: 1px solid rgba(238,242,247,.18);
+  border-radius: 18px; padding: 7px 12px; cursor: pointer; }
+.chipbtn[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+.btn.danger { color: var(--hot); border-color: rgba(255,77,61,.5); }
+.btn:disabled { opacity: .45; cursor: default; }
+.screen .card { max-height: calc(100vh - 90px); overflow-y: auto; }
+@media (orientation: landscape) and (max-height: 600px) {
+  .screen { justify-content: flex-start; align-items: flex-end; padding-left: calc(var(--safe-l) + 16px);
+    background: linear-gradient(to right, rgba(11,18,32,.92) 0%, rgba(11,18,32,.6) 40%, rgba(11,18,32,0) 62%); }
+  .screen .card { max-width: 380px; gap: 8px; max-height: calc(100vh - 70px); }
+  .screen .hint { display: none; }
+  .brand.small { font-size: 32px; }
+  .carhead .carName, .carName { font-size: 24px; }
+  .btn { padding: 10px 14px; font-size: 18px; }
+}

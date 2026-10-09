@@ -52,26 +52,79 @@
   </div>
 </div>
 
-<!-- main menu -->
-<div class="overlay" id="menu">
+<!-- lobby -->
+<div class="topbar" id="topbar">
+  <div class="brand mini">APEX<span>RING</span></div>
+  <div class="wallet"><span class="coin" id="coinsV">0</span><span class="gem" id="gemsV">0</span></div>
+</div>
+<div class="overlay screen" id="menu">
   <div class="card">
-    <div class="brand">APEX<span>RING</span></div>
-    <div class="sub">The car accelerates by itself and lifts for tight corners. You steer, drift and boost.</div>
+    <div class="carhead"><div class="label">Your car</div><div class="carName" id="lobbyCar">Vanta S1</div></div>
+    <button class="btn" id="raceBtn" type="button">Race</button>
+    <div class="grid3">
+      <button class="btn ghost" id="careerBtn" type="button">Career</button>
+      <button class="btn ghost" id="garageBtn" type="button">Garage</button>
+      <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
+    </div>
+    <div class="hint">Drag the car to spin it. Phone: hold the arrow pads to steer, tap DRIFT while steering to slide, hold it to brake. Keyboard: ← → steer, Space drift/brake, ↑ boost, C camera, P pause.</div>
+  </div>
+</div>
+
+<!-- race setup -->
+<div class="overlay screen" id="setup" hidden>
+  <div class="card">
+    <div class="brand small">RACE</div>
+    <div class="tabs" role="tablist">
+      <button class="tab" id="modeRace" type="button" aria-pressed="true">Quick race</button>
+      <button class="tab" id="modeTrial" type="button" aria-pressed="false">Time trial</button>
+    </div>
     <div class="trackpick">
       <button class="arrow" id="trackPrev" type="button" aria-label="Previous track">‹</button>
       <canvas id="trackPreview" width="96" height="96"></canvas>
-      <div class="trackinfo"><div class="label">Track</div><div class="trackName" id="trackName"></div><div class="hint" id="trackBlurb"></div></div>
+      <div class="trackinfo"><div class="label" id="trackTheme">Track</div><div class="trackName" id="trackName"></div><div class="hint" id="trackBlurb"></div></div>
       <button class="arrow" id="trackNext" type="button" aria-label="Next track">›</button>
     </div>
-    <div>
-      <div class="label">Paint</div>
-      <div class="row">
-        <div class="paints" id="paints"></div>
-        <div class="paintName" id="paintName"></div>
-      </div>
-    </div>
     <button class="btn" id="startBtn" type="button">Start race</button>
-    <div class="hint">Phone: hold the arrow pads to steer. Tap DRIFT while steering to slide, or hold it to brake. Keyboard: ← → steer, Space drift/brake, ↑ boost, C camera.</div>
+    <button class="btn ghost" id="setupBack" type="button">Back</button>
+  </div>
+</div>
+
+<!-- garage -->
+<div class="overlay screen" id="garage" hidden>
+  <div class="card">
+    <div class="carpick">
+      <button class="arrow" id="carPrev" type="button" aria-label="Previous car">‹</button>
+      <div class="carinfo"><div class="carName" id="carName"></div><div class="hint" id="carBlurb"></div></div>
+      <button class="arrow" id="carNext" type="button" aria-label="Next car">›</button>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" id="tabPaint" type="button" aria-pressed="true">Paint</button>
+      <button class="tab" id="tabRims" type="button" aria-pressed="false">Rims</button>
+      <button class="tab" id="tabUp" type="button" aria-pressed="false">Upgrades</button>
+    </div>
+    <div class="panel" id="panelPaint"><div class="row"><div class="paints" id="paints"></div><div class="paintName" id="paintName"></div></div></div>
+    <div class="panel" id="panelRims" hidden><div class="chips" id="rims"></div></div>
+    <div class="panel" id="panelUp" hidden><div id="upgrades"></div></div>
+    <button class="btn" id="carAction" type="button">Selected</button>
+    <button class="btn ghost" id="garageBack" type="button">Back</button>
+  </div>
+</div>
+
+<!-- settings -->
+<div class="overlay screen" id="settings" hidden>
+  <div class="card">
+    <div class="brand small">SETTINGS</div>
+    <div class="label">Graphics quality</div>
+    <div class="tabs" id="qualityTabs">
+      <button class="tab" data-q="low" type="button">Low</button><button class="tab" data-q="medium" type="button">Medium</button><button class="tab" data-q="high" type="button">High</button>
+    </div>
+    <div class="label">Camera</div>
+    <div class="tabs" id="camTabs"><button class="tab" data-c="chase" type="button">Chase</button><button class="tab" data-c="bonnet" type="button">Bonnet</button></div>
+    <div class="label">Sound</div>
+    <div class="tabs" id="soundTabs"><button class="tab" data-s="1" type="button">On</button><button class="tab" data-s="0" type="button">Off</button></div>
+    <button class="btn ghost danger" id="resetBtn" type="button">Reset all progress</button>
+    <button class="btn ghost" id="settingsBack" type="button">Back</button>
   </div>
 </div>
 

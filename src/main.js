@@ -1,14 +1,15 @@
 // Apex Ring entry point: builds the world, runs the fixed-step game loop and drives the menus.
 import * as THREE from "three";
 import { TEST, TIME_SCALE, AUTOPILOT, SEED } from "./env.js";
-import { loadSave, writeSave, save, carSave } from "./save.js";
+import { loadSave, writeSave, resetSave, save, carSave } from "./save.js";
 import { World, autoQuality } from "./scene.js";
 import { TrackPath } from "./track.js";
 import { buildTrackMeshes } from "./trackmesh.js";
 import { buildScenery } from "./scenery.js";
 import { TRACKS, THEMES, trackById } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec } from "./cars.js";
-import { makeCar, setDoors } from "./carmodel.js";
+import { makeCar, setDoors, setRims, RIMS } from "./carmodel.js";
+import { Showroom } from "./showroom.js";
 import { Vehicle } from "./vehicle.js";
 import { input, bindPad, readControls, setTilt } from "./input.js";
 import * as sfx from "./audio.js";
@@ -28,13 +29,15 @@ const world = new World($("stage"), save.settings.quality || autoQuality());
 const { scene, camera } = world;
 const chase = new ChaseCam(camera);
 scene.add(camera);
+const showroom = new Showroom(world);
+showroom.bindDrag($("menu")); showroom.bindDrag($("garage"));
 const skids = new Skids(scene), smoke = new Smoke(scene), speedLines = new SpeedLines(camera);
 chase.mode = save.settings.camera === "bonnet" ? "bonnet" : "chase";
 
 const QS = new URLSearchParams(location.search);
 const G = {
   mode: "menu", track: null, path: null, player: null, car: null, lapsOverride: TEST && QS.get("laps") ? Number(QS.get("laps")) : 0,
-  countT: 0, raceTime: 0, lapStart: 0, lapTimes: [], menuT: 0, doors: 1, paused: false, rivals: [], finishOrder: [],
+  countT: 0, raceTime: 0, lapStart: 0, lapTimes: [], menuT: 0, doors: 1, paused: false, rivals: [], field: [], finishOrder: [],
   nRivals: QS.get("rivals") != null ? Number(QS.get("rivals")) : 7, gridSlot: 5,
 };
 
@@ -49,6 +52,7 @@ function loadTrack(id) {
   if (G.player) { G.player.track = G.path; gridUp(); }
   save.track = def.id;
   $("trackName").textContent = def.name; $("trackBlurb").textContent = def.blurb + " " + def.laps + " laps.";
+  $("trackTheme").textContent = theme.label || "Track";
   drawTrack(previewCtx, G.path, 96, { width: 4 });
 }
 const previewCtx = $("trackPreview").getContext("2d");
@@ -62,15 +66,14 @@ $("trackPrev").addEventListener("click", () => pickTrack(-1));
 $("trackNext").addEventListener("click", () => pickTrack(1));
 
 // ---------- player car ----------
-function buildPlayer() {
-  const def = carById(save.car), cs = carSave(def.id);
-  if (G.car) scene.remove(G.car.group);
-  G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex);
+function buildPlayer(id = save.car) {
+  const def = carById(id), cs = carSave(def.id);
+  if (G.car) G.car.group.removeFromParent();
+  G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex, cs.rims);
   addFlames(G.car);
-  G.car.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  scene.add(G.car.group);
-  G.player = new Vehicle(carSpec(def, cs.upgrades), G.path);
-  G.player.reset(-8, 0);
+  if (G.mode === "menu") showroom.setCar(G.car); else scene.add(G.car.group);
+  if (!G.player) { G.player = new Vehicle(carSpec(def, cs.upgrades), G.path); G.player.reset(-8, 0); }
+  G.player.spec = carSpec(def, cs.upgrades);
 }
 
 // Grid slots: two columns, staggered. The player starts near the back so there's a field to race through.
@@ -107,7 +110,7 @@ function gridUp() {
 // Everyone in the race, ordered by position.
 function standings() {
   const L = G.path.length, n = laps();
-  const all = [{ veh: G.player, name: "You", me: true, finished: G.playerFinish, color: 0xf2a65a }, ...G.rivals];
+  const all = [{ veh: G.player, name: "You", me: true, finished: G.playerFinish, color: 0xf2a65a }, ...G.field];
   return all.sort((a, b) => {
     if (a.finished != null && b.finished != null) return a.finished - b.finished;
     if (a.finished != null) return -1; if (b.finished != null) return 1;
@@ -123,9 +126,67 @@ function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hi
 const fmt = (t) => { if (t == null || !isFinite(t)) return "–"; const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); };
 function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; } }
 
+const SCREENS = ["menu", "setup", "garage", "settings"];
+function show(id) {
+  sfx.click();
+  SCREENS.forEach((s) => ($(s).hidden = s !== id));
+  $("topbar").hidden = !SCREENS.includes(id);
+  G.screen = id;
+  if (id === "garage") { G.garageCar = save.car; refreshGarage(); }
+  if (id === "menu") { if (G.garageCar && G.garageCar !== save.car) buildPlayer(); refreshLobby(); }
+  if (id === "settings") refreshSettings();
+}
+function refreshLobby() {
+  $("lobbyCar").textContent = carById(save.car).name;
+  $("coinsV").textContent = save.coins.toLocaleString("en-GB"); $("gemsV").textContent = save.gems;
+}
+
+// ---------- garage ----------
+const STAT_KEYS = [["Top speed", (s) => s.vmax / 95], ["Acceleration", (s) => s.accel / 20], ["Handling", (s) => (s.grip / 42) * 0.6 + (s.response / 11) * 0.4], ["Boost", (s) => (s.boostPower / 16) * 0.6 + s.boostFill * 0.3]];
+function statsHTML(def, up) {
+  const base = carSpec(def, {}), cur = carSpec(def, up || {});
+  return STAT_KEYS.map(([n, f]) => `<span>${n}</span><span class="sbar"><b style="width:${Math.min(100, f(cur) * 100)}%"></b><i style="width:${Math.min(100, f(base) * 100)}%"></i></span>`).join("");
+}
+function refreshGarage() {
+  const def = carById(G.garageCar), cs = carSave(def.id), owned = save.owned.includes(def.id);
+  if (!G.car || G.car.def !== def.id) { buildPlayer(def.id); G.car.def = def.id; }
+  $("carName").textContent = def.name;
+  $("carBlurb").textContent = def.blurb;
+  $("stats").innerHTML = statsHTML(def, cs.upgrades);
+  const act = $("carAction");
+  if (!owned) { act.textContent = "Locked"; act.disabled = true; }
+  else if (save.car === def.id) { act.textContent = "Selected"; act.disabled = true; }
+  else { act.textContent = "Select this car"; act.disabled = false; }
+  buildPaints(); buildRims();
+}
+function cycleCar(dir) {
+  const i = (CARS.findIndex((c) => c.id === G.garageCar) + dir + CARS.length) % CARS.length;
+  G.garageCar = CARS[i].id; sfx.click(); refreshGarage();
+}
+$("carPrev").addEventListener("click", () => cycleCar(-1));
+$("carNext").addEventListener("click", () => cycleCar(1));
+$("carAction").addEventListener("click", () => {
+  const def = carById(G.garageCar);
+  if (save.owned.includes(def.id)) { save.car = def.id; writeSave(); sfx.chime(); refreshGarage(); }
+});
+function tabs(ids, panels) {
+  ids.forEach((id, i) => $(id).addEventListener("click", () => {
+    sfx.click(); ids.forEach((o, j) => { $(o).setAttribute("aria-pressed", String(i === j)); $(panels[j]).hidden = i !== j; });
+  }));
+}
+tabs(["tabPaint", "tabRims", "tabUp"], ["panelPaint", "panelRims", "panelUp"]);
+function buildRims() {
+  const el = $("rims"); el.innerHTML = ""; const cs = carSave(G.garageCar);
+  RIMS.forEach((r, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chipbtn"; b.textContent = r.name; b.setAttribute("aria-pressed", String(i === (cs.rims || 0)));
+    b.addEventListener("click", () => { sfx.click(); cs.rims = i; buildPlayer(G.garageCar); G.car.def = G.garageCar; writeSave(); buildRims(); });
+    el.appendChild(b);
+  });
+}
+
 function buildPaints() {
   const el = $("paints"); el.innerHTML = "";
-  const cs = carSave(save.car);
+  const cs = carSave(G.garageCar || save.car);
   PAINTS.forEach((p, i) => {
     const b = document.createElement("button"); b.type = "button"; b.className = "paint"; b.id = "paint" + i;
     b.style.background = "#" + p.hex.toString(16).padStart(6, "0"); b.setAttribute("aria-label", p.name);
@@ -142,17 +203,22 @@ function buildPaints() {
 
 function startRace() {
   sfx.startAudio(); sfx.click();
+  if (G.car.def && G.car.def !== save.car) buildPlayer();
+  G.mode = "countdown";
+  scene.add(G.car.group); setDoors(G.car, 0); G.doors = 0;
+  for (const r of G.rivals) r.model.group.visible = !G.trial;
+  G.field = G.trial ? [] : G.rivals;
   gridUp();
-  ["menu", "finish", "pause"].forEach((id) => ($(id).hidden = true));
+  [...SCREENS, "finish", "pause", "topbar"].forEach((id) => ($(id).hidden = true));
   setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
-  $("count").hidden = false; G.mode = "countdown"; G.countT = 0; G.lastBeep = -1;
+  $("count").hidden = false; G.countT = 0; G.lastBeep = -1;
 }
 
 function toMenu() {
-  sfx.click();
   G.mode = "menu"; G.paused = false;
   ["finish", "pause", "count"].forEach((id) => ($(id).hidden = true));
-  setRaceUI(false); $("menu").hidden = false;
+  setRaceUI(false); showroom.setCar(G.car);
+  show("menu");
   gridUp();
 }
 
@@ -180,6 +246,28 @@ function pause(on) {
 }
 
 $("startBtn").addEventListener("click", startRace);
+$("raceBtn").addEventListener("click", () => show("setup"));
+$("garageBtn").addEventListener("click", () => show("garage"));
+$("settingsBtn").addEventListener("click", () => show("settings"));
+$("careerBtn").addEventListener("click", () => toast("Career mode is coming soon."));
+["setupBack", "garageBack", "settingsBack"].forEach((id) => $(id).addEventListener("click", () => show("menu")));
+function setMode(trial) { G.trial = trial; $("modeRace").setAttribute("aria-pressed", String(!trial)); $("modeTrial").setAttribute("aria-pressed", String(trial)); $("startBtn").textContent = trial ? "Start time trial" : "Start race"; }
+$("modeRace").addEventListener("click", () => { sfx.click(); setMode(false); });
+$("modeTrial").addEventListener("click", () => { sfx.click(); setMode(true); });
+
+// ---------- settings ----------
+function refreshSettings() {
+  document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.q === world.qname)));
+  document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
+  document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
+}
+document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.quality = b.dataset.q; world.applyQuality(b.dataset.q); writeSave(); refreshSettings(); }));
+document.querySelectorAll("#camTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); if (chase.mode !== b.dataset.c) $("camBtn").click(); refreshSettings(); }));
+document.querySelectorAll("#soundTabs .tab").forEach((b) => b.addEventListener("click", () => { if ((b.dataset.s === "1") !== save.settings.sound) $("muteBtn").click(); sfx.click(); refreshSettings(); }));
+$("resetBtn").addEventListener("click", () => {
+  if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
+  resetSave(); G.garageCar = null; buildPlayer(); toast("Progress reset."); show("menu");
+});
 $("againBtn").addEventListener("click", startRace);
 $("menuBtn").addEventListener("click", toMenu);
 $("pauseBtn").addEventListener("click", () => pause(true));
@@ -229,8 +317,8 @@ function assistSpeed(v) {
 }
 
 function stepRivals(dt) {
-  const cars = [G.player, ...G.rivals.map((r) => r.veh)], L = G.path.length;
-  for (const r of G.rivals) {
+  const cars = [G.player, ...G.field.map((r) => r.veh)], L = G.path.length;
+  for (const r of G.field) {
     const done = r.finished != null;
     r.driver.think(dt, cars, r.veh.totalD - G.player.totalD);
     if (done) r.veh.ctl.targetSpeed = Math.min(r.veh.ctl.targetSpeed, 30);
@@ -249,8 +337,6 @@ const lookAt = new THREE.Vector3(), camPos = new THREE.Vector3();
 
 function step(dt) {
   if (G.paused) return;
-  G.doors += ((G.mode === "menu" ? 1 : 0) - G.doors) * Math.min(1, dt * 3.2);
-  setDoors(G.car, G.doors);
 
   if (G.mode === "countdown") {
     G.countT += dt;
@@ -271,9 +357,9 @@ function step(dt) {
   if (G.mode === "race" || G.mode === "done") {
     v.step(dt, racing);
     stepRivals(dt);
-    collide([v, ...G.rivals.map((r) => r.veh)], (a, b, k) => { if (k > 3 && (a === v || b === v)) { chase.shake = Math.min(0.6, k * 0.04); sfx.thud(k); } });
+    collide([v, ...G.field.map((r) => r.veh)], (a, b, k) => { if (k > 3 && (a === v || b === v)) { chase.shake = Math.min(0.6, k * 0.04); sfx.thud(k); } });
     v.draft = 1;
-    for (const r of G.rivals) { const dd = r.veh.totalD - v.totalD; if (dd > 6 && dd < 35 && Math.abs(r.veh.lat - v.lat) < 2.4) v.draft = 1.045; }
+    for (const r of G.field) { const dd = r.veh.totalD - v.totalD; if (dd > 6 && dd < 35 && Math.abs(r.veh.lat - v.lat) < 2.4) v.draft = 1.045; }
   }
 
   if (racing) {
@@ -322,11 +408,11 @@ function render(dt) {
   car.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   car.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36));
   car.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
-  for (const r of G.rivals) poseCar(r.model, r.veh, dt);
+  for (const r of G.field) poseCar(r.model, r.veh, dt);
   updateFlames(car, v.boosting, performance.now() / 1000);
   if (G.mode === "race" || G.mode === "done") {
     tyreFx("p", car, v, dt);
-    G.rivals.forEach((r, i) => tyreFx("r" + i, r.model, r.veh, dt));
+    G.field.forEach((r, i) => tyreFx("r" + i, r.model, r.veh, dt));
   }
   smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight);
   speedLines.update(dt, v.vF, G.mode === "race" ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
@@ -335,13 +421,11 @@ function render(dt) {
   const portrait = camera.aspect < 1;
   if (G.mode === "menu") {
     G.menuT += dt;
-    const a = G.menuT * 0.22 + 2.2, rad = portrait ? 10.5 : 7.5;
-    camPos.set(v.x + Math.sin(a) * rad, v.y + (portrait ? 3.2 : 2.2), v.z + Math.cos(a) * rad);
-    camera.position.lerp(camPos, 1 - Math.exp(-dt * 3));
-    lookAt.set(v.x, v.y + (portrait ? -1.6 : 0.3), v.z);
-    camera.fov += ((portrait ? 62 : 50) - camera.fov) * Math.min(1, dt * 3);
-    camera.updateProjectionMatrix();
-    camera.lookAt(lookAt);
+    // doors swing open and shut every few seconds in the lobby; held open in the garage
+    const want = G.screen === "garage" ? 1 : (G.menuT % 9) < 5 ? 1 : 0;
+    G.doors += (want - G.doors) * Math.min(1, dt * 2.2); setDoors(G.car, G.doors);
+    car.group.position.set(0, 0, 0); car.group.rotation.set(0, 0, 0); car.body.rotation.set(0, 0, 0);
+    showroom.update(dt, camera);
     chase.snap(v);
   } else chase.update(v, dt, v.boosting ? 1 : 0);
   car.body.visible = chase.mode !== "bonnet" || G.mode === "menu";
@@ -358,7 +442,7 @@ function render(dt) {
     $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
     $("spdBar").style.width = Math.min(100, (v.vF / v.spec.vmax) * 100) + "%";
     $("offtrack").hidden = !(v.offTrack && G.mode === "race");
-    minimap.draw([...G.rivals.map((r) => ({ x: r.veh.x, z: r.veh.z, color: "#" + r.color.toString(16).padStart(6, "0") })), { x: v.x, z: v.z, color: "#f2a65a", me: true }]);
+    minimap.draw([...G.field.map((r) => ({ x: r.veh.x, z: r.veh.z, color: "#" + r.color.toString(16).padStart(6, "0") })), { x: v.x, z: v.z, color: "#f2a65a", me: true }]);
   }
   sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
 }
@@ -367,8 +451,10 @@ function render(dt) {
 loadTrack(QS.get("track") || save.track || "gp");
 buildPlayer();
 buildRivals();
+G.field = G.rivals;
 gridUp();
-buildPaints();
+showroom.setCar(G.car);
+show("menu");
 camera.position.set(G.player.x + 8, 3, G.player.z + 7);
 addEventListener("resize", () => world.resize());
 world.resize();
@@ -381,7 +467,7 @@ function frame(now) {
   let n = 0;
   while (acc >= STEP && n++ < 240) { step(STEP); acc -= STEP; }
   render(real);
-  world.render();
+  world.render(G.mode === "menu" ? showroom.scene : null);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

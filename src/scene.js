@@ -136,7 +136,9 @@ export class World {
     if (this.composer) { this.composer.setPixelRatio(this.renderer.getPixelRatio()); this.composer.setSize(w, h); }
   }
 
-  render() {
-    if (this.useBloom && this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
+  render(sceneOverride) {
+    const sc = sceneOverride || this.scene;
+    if (sceneOverride) this.camera.updateMatrixWorld();
+    if (this.useBloom && this.composer) { this.composer.passes[0].scene = sc; this.composer.render(); } else this.renderer.render(sc, this.camera);
   }
 }

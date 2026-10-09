@@ -14,6 +14,7 @@ export async function openGame(page, query = "") {
 export const game = (page, expr) => page.evaluate(expr);
 
 export async function startRace(page) {
+  await page.click("#raceBtn");
   await page.click("#startBtn");
   await expect(page.locator("#count")).toBeVisible();
   await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 20_000 });

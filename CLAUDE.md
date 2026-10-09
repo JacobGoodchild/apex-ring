@@ -38,7 +38,7 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 4. [x] Rivals: 5–7 rule-based AI drivers with personalities, mistakes, braking points, overtaking, slipstream, subtle rubber-banding. Position counter and results screen.
 5. [x] Boost + drift: boost meter and button, exhaust flames, speed lines, FOV kick; drifting fills boost, tyre smoke, skid marks.
 6. [x] Better car model: smooth lofted bodywork, wheel arches, detailed wheels, glossy paint with reflections, glowing lights.
-7. Garage / lobby: 3D showroom, rotating car, doors opening, paint colours.
+7. [x] Garage / lobby: 3D showroom, rotating car, doors opening, paint colours.
 8. Coins + gems, upgrades (engine, tyres, handling, boost, weight) with stat bars, shop, cosmetics (paints, rims).
 9. More cars: at least 6 with different stats and door styles.
 10. More tracks: coastal city at night, mountain pass, desert canyon, neon city, forest circuit. Track previews.
@@ -57,3 +57,4 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 - 2026-10-09: Rivals. 7 rule-based drivers (src/ai.js) with aggressive/careful/inconsistent personalities: racing line + bias, braking points from the speed profile, random lifts and wide moments, overtaking to the side with room, defending, following, slipstream (player too), boost on straights, subtle rubber-banding. Track-space car collisions. Position chip, results standings. Headless AI race in scripts/dev/race.mjs. Next: boost + drift effects.
 - 2026-10-09: Boost + drift. Boost meter under the speedo, glowing boost pad when ready, exhaust flames, speed lines, FOV kick, whoosh; drifting fills boost, drift points pop-up, tyre smoke (pooled sprites) and skid marks (ring-buffer mesh), lock-up marks under hard braking. Next: better car model.
 - 2026-10-09: Better car model. Procedural lofted bodywork (rounded cross-sections along the length) with wheel arches, canopy, roof spine, mirrors, splitter, diffuser, wing styles, light strips; wheels with rounded tyre walls, spoked rims, discs, calipers. Parts merged per material (~20 draw calls a car). Door styles: scissor, butterfly, gullwing, dihedral. No downloadable licensed models used (kept it all procedural, no network). Next: garage/lobby.
+- 2026-10-09: Garage / lobby. Separate showroom scene (turntable, studio lights, glossy floor), drag to spin, doors cycle open in the lobby and stay open in the garage. Lobby screens: Race (quick race / time trial + track picker), Garage (car picker, stat bars, paint, rims), Settings (quality, camera, sound, reset progress). Fixed door hinge directions, mirrors, lights. Dev car viewer: dev/carview.html + scripts/dev/carshot.mjs. Next: coins, upgrades, shop.

@@ -5,13 +5,19 @@ test.describe("Apex Ring", () => {
   test("loads with no console errors and shows the menu", async ({ page }) => {
     const problems = await openGame(page);
     await expect(page.locator("#menu")).toBeVisible();
-    await expect(page.locator("#startBtn")).toBeVisible();
+    await expect(page.locator("#raceBtn")).toBeVisible();
+    // every lobby screen opens and closes
+    for (const [btn, screen, back] of [["#raceBtn", "#setup", "#setupBack"], ["#garageBtn", "#garage", "#garageBack"], ["#settingsBtn", "#settings", "#settingsBack"]]) {
+      await page.click(btn); await expect(page.locator(screen)).toBeVisible();
+      await page.click(back); await expect(page.locator("#menu")).toBeVisible();
+    }
     await page.waitForTimeout(800);
     expect(problems).toEqual([]);
   });
 
   test("start button runs the countdown then the race", async ({ page }) => {
     const problems = await openGame(page);
+    await page.click("#raceBtn");
     await page.click("#startBtn");
     await expect(page.locator("#count")).toBeVisible();
     expect(await game(page, () => window.__apex.mode)).toBe("countdown");
@@ -95,6 +101,7 @@ test.describe("Apex Ring", () => {
 
   test("track picker switches tracks and remembers the choice", async ({ page }) => {
     await openGame(page);
+    await page.click("#raceBtn");
     const first = await page.textContent("#trackName");
     await page.click("#trackNext");
     await expect(page.locator("#trackName")).not.toHaveText(first);
@@ -105,12 +112,23 @@ test.describe("Apex Ring", () => {
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 
+  test("time trial runs without rivals", async ({ page }) => {
+    await openGame(page);
+    await page.click("#raceBtn");
+    await page.click("#modeTrial");
+    await page.click("#startBtn");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 20_000 });
+    await expect(page.locator("#posV")).toHaveText("1st/1");
+  });
+
   test("progress is saved and loaded across reloads", async ({ page }) => {
     await openGame(page);
+    await page.click("#garageBtn");
     await page.click("#paint2");
     await expect(page.locator("#paintName")).toHaveText("Volt Yellow");
     await page.reload();
     await page.waitForFunction(() => window.__apex && window.__apex.ready);
+    await page.click("#garageBtn");
     await expect(page.locator("#paintName")).toHaveText("Volt Yellow");
     await expect(page.locator("#paint2")).toHaveAttribute("aria-pressed", "true");
     // a broken save must not crash the game
