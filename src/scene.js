@@ -158,6 +158,13 @@ export class World {
   render(sceneOverride) {
     const sc = sceneOverride || this.scene;
     if (sceneOverride) this.camera.updateMatrixWorld();
-    if (this.useBloom && this.composer) { this.composer.passes[0].scene = sc; this.composer.render(); } else this.renderer.render(sc, this.camera);
+    // bloom only on the race tracks: in the bright studio showroom it washed the car out completely
+    if (this.useBloom && this.composer && !sceneOverride) { this.composer.passes[0].scene = sc; this.composer.render(); }
+    else {
+      const ex = this.renderer.toneMappingExposure;
+      if (sceneOverride) this.renderer.toneMappingExposure = 0.95;
+      this.renderer.render(sc, this.camera);
+      this.renderer.toneMappingExposure = ex;
+    }
   }
 }

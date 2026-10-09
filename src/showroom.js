@@ -5,7 +5,7 @@ import { canvasTex } from "./textures.js";
 export class Showroom {
   constructor(world) {
     const s = (this.scene = new THREE.Scene());
-    s.environment = world.envMap; s.environmentIntensity = 0.9;
+    s.environment = world.envMap; s.environmentIntensity = 0.7;
     s.background = new THREE.Color(0x0a0f1a);
     s.fog = new THREE.Fog(0x0a0f1a, 18, 46);
 
@@ -27,7 +27,7 @@ export class Showroom {
     this.carHolder = new THREE.Group(); this.carHolder.position.y = 0.12; this.table.add(this.carHolder);
 
     // light bars overhead and a curved backdrop
-    const bar = new THREE.MeshBasicMaterial({ color: 0xf4f7ff });
+    const bar = new THREE.MeshBasicMaterial({ color: 0xb8c0d0 });
     for (let k = -2; k <= 2; k++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 7), bar); m.position.set(k * 1.6, 7.5, 0); s.add(m); }
     const back = new THREE.Mesh(new THREE.CylinderGeometry(22, 22, 14, 48, 1, true), new THREE.MeshStandardMaterial({ color: 0x111827, side: THREE.BackSide, roughness: 0.9 }));
     back.position.y = 7; s.add(back);
@@ -35,10 +35,10 @@ export class Showroom {
     for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; const m = new THREE.Mesh(new THREE.BoxGeometry(0.08, 6, 0.08), stripeMat); m.position.set(Math.cos(a) * 21.8, 4, Math.sin(a) * 21.8); s.add(m); }
 
     s.add(new THREE.HemisphereLight(0xbfd2ff, 0x202430, 0.7));
-    const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(4, 9, 6); key.castShadow = true;
+    const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(4, 9, 6); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024); const c = key.shadow.camera; c.left = c.bottom = -5; c.right = c.top = 5; c.near = 1; c.far = 30; key.shadow.bias = -0.0005;
     s.add(key);
-    const rim = new THREE.DirectionalLight(0xf2a65a, 1.4); rim.position.set(-6, 3, -6); s.add(rim);
+    const rim = new THREE.DirectionalLight(0xf2a65a, 0.9); rim.position.set(-6, 3, -6); s.add(rim);
     const fill = new THREE.DirectionalLight(0x4cc9f0, 0.6); fill.position.set(-6, 2, 6); s.add(fill);
 
     this.angle = 0.6; this.spin = 0.25; this.drag = null; this.zoom = 1;
