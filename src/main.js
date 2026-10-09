@@ -1,0 +1,262 @@
+// Apex Ring entry point: builds the world, runs the fixed-step game loop and drives the menus.
+import * as THREE from "three";
+import { TEST, TIME_SCALE, AUTOPILOT, SEED } from "./env.js";
+import { loadSave, writeSave, save, carSave } from "./save.js";
+import { World, autoQuality } from "./scene.js";
+import { TrackPath } from "./track.js";
+import { buildTrackMeshes } from "./trackmesh.js";
+import { buildScenery } from "./scenery.js";
+import { TRACKS, THEMES, trackById } from "./tracks.js";
+import { CARS, PAINTS, carById, carSpec } from "./cars.js";
+import { makeCar, setDoors } from "./carmodel.js";
+import { Vehicle } from "./vehicle.js";
+import { input, bindPad, readControls, setTilt } from "./input.js";
+import * as sfx from "./audio.js";
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const wrapA = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+const errors = [];
+
+loadSave();
+const world = new World($("stage"), save.settings.quality || autoQuality());
+const { scene, camera } = world;
+
+const G = {
+  mode: "menu", track: null, path: null, player: null, car: null, laps: TEST && new URLSearchParams(location.search).get("laps") ? Number(new URLSearchParams(location.search).get("laps")) : 3,
+  countT: 0, raceTime: 0, lapStart: 0, lapTimes: [], menuT: 0, doors: 1, shake: 0, paused: false,
+};
+
+// ---------- track ----------
+function loadTrack(id) {
+  const def = trackById(id);
+  const theme = THEMES[def.theme];
+  G.track = def; G.path = new TrackPath(def);
+  const grp = buildTrackMeshes(G.path, theme);
+  grp.add(buildScenery(G.path, theme, world.qname === "low" ? 0.45 : world.qname === "medium" ? 0.75 : 1, SEED ^ 0x1234));
+  world.setTrack(grp); world.setTheme(theme);
+}
+
+// ---------- player car ----------
+function buildPlayer() {
+  const def = carById(save.car), cs = carSave(def.id);
+  if (G.car) scene.remove(G.car.group);
+  G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex);
+  G.car.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  scene.add(G.car.group);
+  G.player = new Vehicle(carSpec(def, cs.upgrades), G.path);
+  G.player.reset(-8, 0);
+}
+
+function gridUp() {
+  G.player.spec = carSpec(carById(save.car), carSave(save.car).upgrades);
+  G.player.track = G.path; G.player.boost = 0.25; G.player.reset(-8, 0);
+  G.raceTime = 0; G.lapStart = 0; G.lapTimes = [];
+}
+
+// ---------- UI ----------
+function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), ms); }
+const fmt = (t) => { if (t == null || !isFinite(t)) return "–"; const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); };
+function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns"].forEach((id) => ($(id).hidden = !on)); }
+
+function buildPaints() {
+  const el = $("paints"); el.innerHTML = "";
+  const cs = carSave(save.car);
+  PAINTS.forEach((p, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "paint"; b.id = "paint" + i;
+    b.style.background = "#" + p.hex.toString(16).padStart(6, "0"); b.setAttribute("aria-label", p.name);
+    b.setAttribute("aria-pressed", String(i === cs.paint));
+    b.addEventListener("click", () => {
+      sfx.click(); cs.paint = i; G.car.paint.color.setHex(p.hex);
+      [...el.children].forEach((c, j) => c.setAttribute("aria-pressed", String(j === i)));
+      $("paintName").textContent = p.name; writeSave();
+    });
+    el.appendChild(b);
+  });
+  $("paintName").textContent = PAINTS[cs.paint % PAINTS.length].name;
+}
+
+function startRace() {
+  sfx.startAudio(); sfx.click();
+  gridUp();
+  ["menu", "finish", "pause"].forEach((id) => ($(id).hidden = true));
+  setRaceUI(true); G.paused = false;
+  $("count").hidden = false; G.mode = "countdown"; G.countT = 0; G.lastBeep = -1;
+  $("bestV").textContent = fmt(save.best[G.track.id]);
+}
+
+function toMenu() {
+  sfx.click();
+  G.mode = "menu"; G.paused = false;
+  ["finish", "pause", "count"].forEach((id) => ($(id).hidden = true));
+  setRaceUI(false); $("menu").hidden = false;
+  gridUp();
+}
+
+function finishRace() {
+  G.mode = "done";
+  const total = G.lapTimes.reduce((a, b) => a + b, 0), fastest = Math.min(...G.lapTimes);
+  let html = "";
+  G.lapTimes.forEach((t, i) => { const cls = t === fastest ? ' class="best"' : ""; html += `<div${cls}>Lap ${i + 1}</div><div${cls}>${fmt(t)}</div>`; });
+  html += `<div class="tot">Total</div><div class="tot">${fmt(total)}</div>`;
+  html += `<div>Track record</div><div class="best">${fmt(save.best[G.track.id])}</div>`;
+  $("results").innerHTML = html;
+  writeSave();
+  setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; } }, TEST ? 200 : 1400);
+}
+
+function pause(on) {
+  if (G.mode !== "race" && G.mode !== "countdown") return;
+  G.paused = on; $("pause").hidden = !on;
+}
+
+$("startBtn").addEventListener("click", startRace);
+$("againBtn").addEventListener("click", startRace);
+$("menuBtn").addEventListener("click", toMenu);
+$("pauseBtn").addEventListener("click", () => pause(true));
+$("resumeBtn").addEventListener("click", () => { sfx.click(); pause(false); });
+$("restartBtn").addEventListener("click", startRace);
+$("quitBtn").addEventListener("click", toMenu);
+$("muteBtn").addEventListener("click", () => {
+  save.settings.sound = !save.settings.sound; sfx.setMuted(!save.settings.sound); writeSave();
+  $("muteBtn").textContent = save.settings.sound ? "Sound on" : "Sound off";
+});
+$("tiltBtn").addEventListener("click", async () => {
+  const on = await setTilt(!input.tiltOn, toast);
+  $("tiltBtn").textContent = on ? "Tilt: on" : "Tilt: off"; $("tiltBtn").classList.toggle("on", on);
+});
+bindPad($("padL"), "left"); bindPad($("padR"), "right");
+input.onKey = (k) => {
+  if (k === "Escape" || k === "p" || k === "P") pause(!G.paused);
+  else if ((k === "r" || k === "R") && G.mode === "race") G.player.respawn();
+  else if (k === "m" || k === "M") $("muteBtn").click();
+};
+sfx.setMuted(!save.settings.sound);
+$("muteBtn").textContent = save.settings.sound ? "Sound on" : "Sound off";
+
+// ---------- autopilot (tests and attract mode) ----------
+function autopilot(v) {
+  const t = G.path, look = Math.max(10, v.vF * 0.55);
+  const i = Math.floor(t.wrapD(v.p.d + look) / t.ds) % t.N;
+  const tp = t.pointAt(v.p.d + look, t.line[i] * 0.8, {});
+  const want = Math.atan2(tp.x - v.x, tp.z - v.z);
+  const prof = t.speedProfile(v.spec.grip);
+  let vt = Infinity; for (let k = 0; k < 40; k += 3) vt = Math.min(vt, prof[(v.p.i + k) % t.N]);
+  return { steer: clamp(wrapA(v.h - want) * 2.2, -1, 1), targetSpeed: vt * 0.98 };
+}
+
+// ---------- simulation ----------
+const lookAt = new THREE.Vector3(), camPos = new THREE.Vector3();
+
+function step(dt) {
+  if (G.paused) return;
+  G.doors += ((G.mode === "menu" ? 1 : 0) - G.doors) * Math.min(1, dt * 3.2);
+  setDoors(G.car, G.doors);
+
+  if (G.mode === "countdown") {
+    G.countT += dt;
+    const c = G.countT;
+    [$("l1"), $("l2"), $("l3")].forEach((l, i) => { l.className = "lamp" + (c >= 4 ? " green" : c >= 1 + i ? " red" : ""); });
+    $("countV").textContent = c < 1 ? "" : c < 4 ? String(3 - Math.floor(c - 1)) : "GO";
+    const b = Math.floor(c); if (b !== G.lastBeep && b >= 1 && b <= 4) { G.lastBeep = b; sfx.beep(b === 4); }
+    if (c >= 4) G.mode = "race";
+  }
+  if (G.mode === "race" && G.countT < 5) { G.countT += dt; if (G.countT >= 5) $("count").hidden = true; }
+
+  const v = G.player, racing = G.mode === "race";
+  const ctl = readControls();
+  const ap = AUTOPILOT && racing ? autopilot(v) : null;
+  v.ctl.steer = ap ? ap.steer : ctl.steer;
+  v.ctl.boost = ctl.boost; v.ctl.drift = ctl.drift; v.ctl.brake = ctl.brake;
+  v.ctl.targetSpeed = ap ? ap.targetSpeed : Infinity;
+  if (G.mode === "race" || G.mode === "done") v.step(dt, racing);
+
+  if (racing) {
+    G.raceTime += dt;
+    const L = G.path.length, done = G.lapTimes.length;
+    if (v.totalD >= (done + 1) * L) {
+      const lap = G.raceTime - G.lapStart; G.lapTimes.push(lap); G.lapStart = G.raceTime;
+      const best = save.best[G.track.id];
+      if (best == null || lap < best) { save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < G.laps) toast("New best lap · " + fmt(lap), 1800); }
+      if (G.lapTimes.length >= G.laps) finishRace();
+    }
+  }
+  if (v.wallHit > 4) { G.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
+  G.shake = Math.max(0, G.shake - dt * 2.5);
+}
+
+function render(dt) {
+  const v = G.player, car = G.car;
+  car.group.position.set(v.x, v.y, v.z);
+  car.group.rotation.set(0, v.h, 0);
+  car.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06);
+  car.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
+  car.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36));
+  car.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
+
+  const portrait = camera.aspect < 1;
+  if (G.mode === "menu") {
+    G.menuT += dt;
+    const a = G.menuT * 0.22 + 2.2, rad = portrait ? 10.5 : 7.5;
+    camPos.set(v.x + Math.sin(a) * rad, v.y + (portrait ? 3.2 : 2.2), v.z + Math.cos(a) * rad);
+    camera.position.lerp(camPos, 1 - Math.exp(-dt * 3));
+    lookAt.set(v.x, v.y + (portrait ? -1.6 : 0.3), v.z);
+    camera.fov += ((portrait ? 62 : 50) - camera.fov) * Math.min(1, dt * 3);
+  } else {
+    const fx = Math.sin(v.h), fz = Math.cos(v.h);
+    const back = portrait ? 9.2 : 7.2, up = portrait ? 3.4 : 2.8;
+    camPos.set(v.x - fx * back, v.y + up, v.z - fz * back);
+    camera.position.lerp(camPos, 1 - Math.exp(-dt * 7));
+    if (G.shake > 0) { camera.position.x += (Math.random() - 0.5) * G.shake * 0.3; camera.position.y += (Math.random() - 0.5) * G.shake * 0.3; }
+    lookAt.set(v.x + fx * 6, v.y + 1.0, v.z + fz * 6);
+    camera.fov += ((portrait ? 70 : 60) + v.vF * 0.15 - camera.fov) * Math.min(1, dt * 3);
+  }
+  camera.updateProjectionMatrix();
+  camera.lookAt(lookAt);
+  world.follow(v.x, v.y, v.z);
+
+  if (G.mode !== "menu") {
+    $("lapV").textContent = Math.min(G.lapTimes.length + 1, G.laps) + "/" + G.laps;
+    $("timeV").textContent = fmt(G.mode === "race" ? G.raceTime - G.lapStart : G.lapTimes[G.lapTimes.length - 1] || 0);
+    $("bestV").textContent = fmt(save.best[G.track.id]);
+    $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
+    $("spdBar").style.width = Math.min(100, (v.vF / v.spec.vmax) * 100) + "%";
+    $("offtrack").hidden = !(v.offTrack && G.mode === "race");
+  }
+  sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
+}
+
+// ---------- boot ----------
+loadTrack(TRACKS[0].id);
+buildPlayer();
+buildPaints();
+camera.position.set(G.player.x + 8, 3, G.player.z + 7);
+addEventListener("resize", () => world.resize());
+world.resize();
+
+let last = performance.now(), acc = 0;
+const STEP = 1 / 60;
+function frame(now) {
+  const real = Math.min(TEST ? 0.25 : 0.1, (now - last) / 1000); last = now;
+  acc += real * TIME_SCALE;
+  let n = 0;
+  while (acc >= STEP && n++ < 240) { step(STEP); acc -= STEP; }
+  render(real);
+  world.render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- test hook ----------
+addEventListener("error", (e) => errors.push(String(e.message)));
+if (TEST) {
+  window.__apex = {
+    get mode() { return G.mode; },
+    get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, drifting: v.drifting, lat: v.lat }; },
+    get laps() { return G.lapTimes.slice(); },
+    get trackLength() { return G.path.length; },
+    get save() { return JSON.parse(JSON.stringify(save)); },
+    errors,
+    ready: true,
+  };
+}

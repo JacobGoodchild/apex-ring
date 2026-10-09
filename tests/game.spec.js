@@ -1,0 +1,87 @@
+import { test, expect } from "@playwright/test";
+import { openGame, game, startRace } from "./helpers.js";
+
+test.describe("Apex Ring", () => {
+  test("loads with no console errors and shows the menu", async ({ page }) => {
+    const problems = await openGame(page);
+    await expect(page.locator("#menu")).toBeVisible();
+    await expect(page.locator("#startBtn")).toBeVisible();
+    await page.waitForTimeout(800);
+    expect(problems).toEqual([]);
+  });
+
+  test("start button runs the countdown then the race", async ({ page }) => {
+    const problems = await openGame(page);
+    await page.click("#startBtn");
+    await expect(page.locator("#count")).toBeVisible();
+    expect(await game(page, () => window.__apex.mode)).toBe("countdown");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 20_000 });
+    await expect(page.locator("#hud")).toBeVisible();
+    expect(problems).toEqual([]);
+  });
+
+  test("car moves forward and steering changes heading", async ({ page }) => {
+    await openGame(page);
+    await startRace(page);
+    const a = await game(page, () => window.__apex.player);
+    await page.waitForFunction((d0) => window.__apex.player.totalD > d0 + 20, a.totalD, { timeout: 20_000 });
+    const b = await game(page, () => window.__apex.player);
+    expect(b.vF).toBeGreaterThan(5);
+    // steer right for a moment and compare heading change with the track's own curve
+    const h0 = (await game(page, () => window.__apex.player)).h;
+    await page.keyboard.down("ArrowRight");
+    await page.waitForTimeout(400);
+    await page.keyboard.up("ArrowRight");
+    const h1 = (await game(page, () => window.__apex.player)).h;
+    await page.keyboard.down("ArrowLeft");
+    await page.waitForTimeout(400);
+    await page.keyboard.up("ArrowLeft");
+    const h2 = (await game(page, () => window.__apex.player)).h;
+    const d = (x) => Math.atan2(Math.sin(x), Math.cos(x));
+    // right turns decrease heading, left turns increase it
+    expect(d(h1 - h0)).toBeLessThan(d(h2 - h1));
+    expect(Math.abs(d(h1 - h0))).toBeGreaterThan(0.05);
+  });
+
+  test("HUD shows speed and lap time", async ({ page }) => {
+    await openGame(page);
+    await startRace(page);
+    await page.waitForFunction(() => window.__apex.player.vF > 10, null, { timeout: 20_000 });
+    const spd = Number(await page.textContent("#spdV"));
+    expect(spd).toBeGreaterThan(10);
+    await expect(page.locator("#timeV")).toHaveText(/^\d:\d\d\.\d\d$/);
+    await expect(page.locator("#lapV")).toHaveText(/^1\/\d$/);
+  });
+
+  test("laps count and the race finishes, and the best lap is saved", async ({ page }) => {
+    test.setTimeout(150_000);
+    const problems = await openGame(page, "autopilot=1&speed=12&laps=2");
+    await startRace(page);
+    await page.waitForFunction(() => window.__apex.laps.length >= 1, null, { timeout: 60_000 });
+    await expect(page.locator("#lapV")).toHaveText("2/2");
+    await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 60_000 });
+    await expect(page.locator("#finish")).toBeVisible({ timeout: 10_000 });
+    const laps = await game(page, () => window.__apex.laps);
+    expect(laps.length).toBe(2);
+    laps.forEach((t) => expect(t).toBeGreaterThan(5));
+    const saved = await game(page, () => window.__apex.save);
+    expect(Object.values(saved.best).length).toBeGreaterThan(0);
+    expect(problems).toEqual([]);
+  });
+
+  test("progress is saved and loaded across reloads", async ({ page }) => {
+    await openGame(page);
+    await page.click("#paint2");
+    await expect(page.locator("#paintName")).toHaveText("Volt Yellow");
+    await page.reload();
+    await page.waitForFunction(() => window.__apex && window.__apex.ready);
+    await expect(page.locator("#paintName")).toHaveText("Volt Yellow");
+    await expect(page.locator("#paint2")).toHaveAttribute("aria-pressed", "true");
+    // a broken save must not crash the game
+    await page.evaluate(() => localStorage.setItem("apexring.test.save", "{not json"));
+    await page.reload();
+    await page.waitForFunction(() => window.__apex && window.__apex.ready);
+    await expect(page.locator("#menu")).toBeVisible();
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+});

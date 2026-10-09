@@ -1,37 +1,54 @@
 # Apex Ring — brief for Claude Code
 
 ## What this is
-A browser racing game. One file, `index.html`, using Three.js r128 from cdnjs. No build step.
-Hosted on GitHub Pages straight from `main`, so every push goes live.
-The player drives an original hypercar (the Vanta S1, with scissor doors) round a track.
-The car always accelerates; the player only steers (left/right pads, arrow keys, or phone tilt).
+An arcade hypercar racing game for the browser. Plain ES modules, no build step:
+`index.html`, `styles.css`, `src/*.js`, and Three.js vendored into `vendor/three/` (from npm, via `npm run vendor`).
+An import map in `index.html` points `three` and `three/addons/` at the vendored copy, so nothing loads from a CDN.
+GitHub Actions (`.github/workflows/deploy.yml`) runs the tests on every push to `main` and deploys to GitHub Pages only if they pass.
+
+The player drives original hypercars (the Vanta S1 and friends) round spline-built tracks against rule-based rivals.
+The car accelerates by itself; the player steers, and has boost and drift/brake buttons.
+
+## Code map
+- `src/main.js` — boot, fixed-step game loop (60 Hz), menus, race flow, test hook (`window.__apex` in test mode).
+- `src/env.js` — URL options: `?test=1` (fixed seed, faster time, test save slot), `speed=`, `seed=`, `autopilot=1`, `laps=`, `quality=`.
+- `src/track.js` — `TrackPath`: Catmull-Rom centre-line, projection, banking, racing line, speed profile, bridge detection.
+- `src/trackmesh.js`, `src/scenery.js` — track meshes and themed scenery. `src/tracks.js` — track + theme data.
+- `src/vehicle.js` — arcade physics shared by player and AI. `src/cars.js` — car stats and upgrades. `src/carmodel.js` — car meshes.
+- `src/scene.js` — renderer, sky, lights, quality presets, bloom. `src/input.js`, `src/audio.js`, `src/save.js`, `src/rng.js`, `src/textures.js`.
 
 ## Rules
 - Never use real car brands, logos or exact copies of real car designs.
 - Only use 3D models, textures and sounds with a licence that allows reuse (CC0 or CC-BY). Record each one in `CREDITS.md`.
-- Must run smoothly on a mid-range phone (aim for 60fps on a Pixel 7). Watch the polygon and draw-call counts.
+- Must run smoothly on a mid-range phone (aim for 60fps on a Pixel 7). Watch polygon and draw-call counts; instance repeated things.
+- No external network requests at runtime (only files in this repo), no tracking, no eval, no remote code, no secrets, no cookies. Only localStorage (always in try/catch).
+- Only well-known npm dependencies (three, @playwright/test).
 - Keep it playable after every commit. If something breaks, revert it rather than piling fixes on top.
 
 ## How to check your work (do this before every commit)
-1. Run `npm test`. It runs the Playwright tests in `tests/`.
-2. Tests must load the page in headless Chromium and confirm:
-   - no console errors
-   - the Start button starts the countdown and the race
-   - the car moves forward and steering changes its heading
-   - a full lap is counted once the car goes all the way round
-   - the HUD shows speed and lap time
-3. Save screenshots of the menu and the race to `screenshots/`, then look at them and fix anything that looks wrong.
-4. Commit with a clear message, then push.
+1. Run `npm test` (Playwright, headless Chromium). Tests cover: no console errors, menu, countdown and race start,
+   car moves and steers, laps count, race finishes, saving and loading.
+2. Screenshots land in `screenshots/` at phone portrait (412x915) and landscape (915x412). Look at them and fix anything ugly.
+3. Commit with a clear message (one feature per commit), then push.
 
-## Feature list (work top to bottom, one feature per commit)
-1. Split the code into files: `index.html`, `src/*.js`, `styles.css`. Add `package.json` with Playwright tests.
-2. Better car model: load a licensed glTF hypercar model with GLTFLoader. Keep the current car as a fallback.
-3. Three AI rival cars that follow a racing line, with a position counter (1st/2nd/3rd/4th).
-4. Drifting: the car slides a bit at high speed, with tyre smoke and skid marks.
-5. A second track: a figure-of-eight with a bridge.
-6. A minimap in the corner.
-7. A ghost car showing your best lap.
-8. Sound: a sampled engine sound, tyre squeal, and the countdown beeps.
+## Feature list (work top to bottom)
+1. [x] Setup: CI + Pages deploy, ES modules, vendored Three.js, Playwright tests with test mode.
+2. Driving feel: acceleration, auto-brake into tight corners, grip, weight transfer, body roll, drift button. Chase cam tuned for portrait and landscape, optional bonnet cam.
+3. First real track built from a spline: hairpins, chicanes, sweepers, elevation, banking, a bridge. Minimap.
+4. Rivals: 5–7 rule-based AI drivers with personalities, mistakes, braking points, overtaking, slipstream, subtle rubber-banding. Position counter and results screen.
+5. Boost + drift: boost meter and button, exhaust flames, speed lines, FOV kick; drifting fills boost, tyre smoke, skid marks.
+6. Better car model: smooth lofted bodywork, wheel arches, detailed wheels, glossy paint with reflections, glowing lights.
+7. Garage / lobby: 3D showroom, rotating car, doors opening, paint colours.
+8. Coins + gems, upgrades (engine, tyres, handling, boost, weight) with stat bars, shop, cosmetics (paints, rims).
+9. More cars: at least 6 with different stats and door styles.
+10. More tracks: coastal city at night, mountain pass, desert canyon, neon city, forest circuit. Track previews.
+11. Career mode: races, time trials, drift challenges, elimination, head-to-head; unlocks. Quick race + time trial.
+12. Sound polish: engine with gears, tyre squeal, boost whoosh, countdown beeps, menu clicks, mute.
+13. Visual polish: bloom, shadows, transitions, results podium, graphics quality settings with auto default.
+14. Installable web app: manifest + service worker, works offline.
+15. Keep improving cars, tracks and features.
 
 ## Progress log
-Add a dated line here after each session saying what you did and what you'd do next.
+- 2026-10-09: Setup. Split into ES modules with vendored Three.js r186, spline-based track engine (the oval is now a spline),
+  shared arcade vehicle physics, Playwright tests with a test mode (fixed seed, 4x time, autopilot), GitHub Actions test + Pages deploy.
+  Dropped Google Fonts (external request). Next: driving feel + chase cam.
