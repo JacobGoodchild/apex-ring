@@ -147,3 +147,27 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
 - 2026-10-09: Sinking patches, for real this time: on banked bends the low edge of the road dipped up to 1.8 m below the ground plane, so the grass showed through and cars looked half-buried. TrackPath now lifts banked sections so the road and run-off always stay above the grass (unit test checks every track). Dev probe: __apex.roadCover() + scripts/dev/roadcover.mjs.
 - 2026-10-09: Less glare: everything toned down from the theme values (exposure x0.88, sun x0.8, sky light x0.85, reflections x0.6, bloom half strength with a higher threshold), softer headlights, glass and paint gloss, sun/moon halo, lamp heads and lit windows, fainter racing-line stripe; snow caps no longer flicker (they were exactly on the mountain surface). scripts/dev/raceshots.mjs takes in-race High-quality shots.
 - 2026-10-09: Readability: results, pause, garage, career, settings and race cards all sit on a solid dark panel. Results: estimated times for cars still racing use their average speed and stay in finishing order.
+
+## Overnight release push (2026-10-09 19:05 UTC → 2026-10-10 05:40 UTC = 06:40 UK)
+The user asked for a full-release push overnight: work flat out until 05:40 UTC, one tested feature per commit, push to
+`claude/bold-cray-7rck1e` and `main`. Plan, in order (tick as done, note choices in the progress log):
+- [ ] R1 Realism pass (top priority, see user's reference screenshot of a rainy coastal road): CC0 photo textures
+      (Poly Haven / ambientCG, small jpgs, credited) for asphalt, grass, rock, sand; clouds in the sky; atmospheric haze;
+      terrain around the track instead of a flat plane; road markings; better trees/rocks; colour grading; keep 60fps on a phone.
+- [ ] R2 Fixed-timestep determinism: physics at a fixed 60 Hz tick independent of refresh rate, render interpolation for
+      120 Hz screens, input sampled per tick, determinism test (same seed + inputs at 30/60/144 fps → identical result).
+- [ ] R3 Audio: RPM engine (exists, refine), spatial sound for passing rivals (panner, nearest 2-3), squeal from drift angle,
+      procedural synthwave soundtrack (Web Audio sequencer, no files) with music volume + on/off.
+- [ ] R4 Pro controls toggle: manual throttle, brake, handbrake drift (keyboard + on-screen pedals); casual stays default.
+- [ ] R5 Slipstream meter (visible draft bar, fills behind a rival, gives a tow/boost); drift multiplier chain (x2..x5 for
+      continuous/linked drifts, lost on wall hit).
+- [ ] R6 AI: blocker personality (defends the line), apex-hunter, settings sliders for rubber-banding and AI skill.
+- [ ] R7 Car classes (Compact, Muscle, Supercar, Prototype) with Top Speed / Accel / Drift Grip / Boost Duration; new
+      compact + muscle cars; paint finishes (gloss, matte, metallic, pearl, neon glow); boost trail colours; parts shop
+      lines Engine, Tyres, ECU, Turbo (map old upgrade saves).
+- [ ] R8 Tracks: Reverse and Mirror variants for every circuit (not reverse on Xtreme); Coastal Highway track (like the
+      reference: sea, cliffs, rain/wet road); hazards: oil slicks, wet patches (less grip); a split-path shortcut if time.
+- [ ] R9 Career node map; Drift Attack (timed score); timed elimination (every 15 s); Rival boss 1v1 that unlocks their car.
+- [ ] R10 Ghosts/leaderboards without servers: local weekly/monthly bests per track, ghost export/import as a file/code.
+      Online leaderboards, global ghosts and online multiplayer need a server + accounts, which the safety rules forbid
+      (no external requests, no accounts) — left for the user to decide. Local 2-player split-screen (keyboard) if time.
