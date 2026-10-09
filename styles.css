@@ -316,3 +316,16 @@ button { font-family: inherit; }
 .boardlist .empty { list-style: none; margin-left: -20px; color: var(--muted); font-size: 12px; }
 .ghostbar, .ghostpanel .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .ghostpanel textarea { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.35); color: var(--text); border: 1px solid rgba(238,242,247,.18); border-radius: 8px; font: 11px ui-monospace, monospace; padding: 6px; resize: none; }
+
+/* lens vignette + a touch of contrast over the 3D view (free: just CSS) */
+#vignette { position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(ellipse 75% 70% at 50% 52%, transparent 58%, rgba(4,6,10,.38) 100%); }
+
+/* split-screen: a compact HUD in each player's half, and a divider */
+#splitHud { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+#splitHud::after { content: ""; position: absolute; background: rgba(0,0,0,.6); }
+.shud { position: absolute; padding: 6px 10px; border-radius: 10px; background: rgba(9,14,25,.7); font: 800 15px var(--display); color: var(--text); white-space: nowrap; }
+.shud b { color: var(--amber); } .shud .p { font-size: 11px; letter-spacing: .14em; color: var(--muted); margin-right: 6px; }
+@media (orientation: landscape) { #shud1 { left: 12px; bottom: 12px; } #shud2 { left: calc(50% + 12px); bottom: 12px; } #splitHud::after { left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; } }
+@media (orientation: portrait) { #shud1 { left: 12px; bottom: 12px; } #shud2 { left: 12px; top: calc(var(--safe-t, 0px) + 12px); } #splitHud::after { top: 50%; left: 0; right: 0; height: 2px; margin-top: -1px; } }
+#hud.split .chip:not(.center) { display: none; }
+body:has(#hud.split) #gapV { display: none; }

@@ -18,10 +18,12 @@
 </head>
 <body>
 <div id="stage"></div>
+<div id="vignette" aria-hidden="true"></div>
 <div id="loading"><div class="brand">APEX<span>RING</span></div><div class="bar"><i></i></div></div>
 <div id="fade"></div>
 
 <!-- race HUD -->
+<div id="splitHud" hidden><div class="shud" id="shud1"></div><div class="shud" id="shud2"></div></div>
 <div class="hud" id="hud" hidden>
   <div class="chip"><div class="k">Pos</div><div class="v" id="posV">–</div></div>
   <div class="chip center"><div class="k">Time</div><div class="v" id="timeV">0:00.00</div></div>
@@ -108,6 +110,9 @@
     <div class="ghostbar" id="ghostBar" hidden><button class="chipbtn" id="ghostShare" type="button">Share my ghost</button><button class="chipbtn" id="ghostImport" type="button">Race a friend's ghost</button></div>
     <div class="ghostpanel" id="ghostPanel" hidden><textarea id="ghostCode" rows="3" spellcheck="false" aria-label="Ghost code"></textarea>
       <div class="row"><button class="chipbtn" id="ghostCopy" type="button">Copy</button><button class="chipbtn" id="ghostLoad" type="button">Load code</button><span class="hint" id="ghostMsg"></span></div></div>
+    <div class="tabs" id="playersTabs"><button class="tab" data-n="1" type="button">1 player</button><button class="tab" data-n="2" type="button">2 players</button></div>
+    <div class="hint" id="playersHint" hidden>Split-screen: player 1 steers with A/D and boosts with W, player 2 uses ← → and ↑. Two gamepads work too.</div>
+    <div class="tabs" id="weatherTabs"><button class="tab" data-w="dry" type="button">Dry</button><button class="tab" data-w="rain" type="button">Rain</button></div>
     <div class="tabs" id="layoutTabs"><button class="tab" data-l="" type="button">Normal</button><button class="tab" data-l="r" type="button">Reverse</button><button class="tab" data-l="m" type="button">Mirror</button></div>
     <button class="btn" id="startBtn" type="button">Start race</button>
     <button class="btn ghost" id="setupBack" type="button">Back</button>

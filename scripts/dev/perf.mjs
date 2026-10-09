@@ -2,8 +2,8 @@ import { chromium } from "@playwright/test";
 const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"] });
 const p = await b.newPage({ viewport: { width: 412, height: 915 } });
 p.on("pageerror", e => console.log("err", e.message));
-for (const t of ["gp", "harbour", "neon", "forest"]) {
-  for (const q of ["medium", "high"]) {
+for (const t of (process.argv[2] || "gp,forest,alpine,coastal,harbour").split(",")) {
+  for (const q of (process.argv[3] || "low,medium,high").split(",")) {
   await p.goto(`http://localhost:4174/index.html?test=1&track=${t}&quality=${q}&speed=2`);
   await p.waitForFunction(() => window.__apex && window.__apex.ready);
   await p.click("#raceBtn"); await p.click("#startBtn");

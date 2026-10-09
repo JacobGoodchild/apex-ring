@@ -50,7 +50,7 @@ export class Terrain {
       const k = this.key(Math.floor(P.x[i] / this.cell), Math.floor(P.z[i] / this.cell));
       if (!this.hashMap.has(k)) this.hashMap.set(k, []); this.hashMap.get(k).push(i);
     }
-    this.res = { low: 112, medium: 160, high: 200 }[quality] || 160;
+    this.res = { low: 100, medium: 140, high: 180 }[quality] || 140;
     this.spacing = (this.inner * 2) / (this.res * 0.7);
     this.geometry = this.buildGeometry();
     this.theme = theme;

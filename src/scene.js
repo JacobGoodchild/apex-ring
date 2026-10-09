@@ -178,6 +178,20 @@ export class World {
     if (this.composer) { this.composer.setPixelRatio(this.renderer.getPixelRatio()); this.composer.setSize(w, h); }
   }
 
+  // Split-screen: draw the scene once per camera into its own half (side by side in landscape, stacked in portrait).
+  renderSplit(cams) {
+    const r = this.renderer, el = r.domElement, w = el.clientWidth || innerWidth, h = el.clientHeight || innerHeight, land = w >= h;
+    r.setScissorTest(true);
+    cams.forEach((cam, i) => {
+      const vw = land ? w / 2 : w, vh = land ? h : h / 2, x = land ? i * vw : 0, y = land ? 0 : i === 0 ? 0 : vh; // GL y is from the bottom: player 1 gets the bottom half
+      r.setViewport(x, y, vw, vh); r.setScissor(x, y, vw, vh);
+      if (Math.abs(cam.aspect - vw / vh) > 1e-3) { cam.aspect = vw / vh; cam.updateProjectionMatrix(); }
+      this.sky.position.copy(cam.position);
+      r.render(this.scene, cam);
+    });
+    r.setScissorTest(false); r.setViewport(0, 0, w, h);
+  }
+
   render(sceneOverride) {
     const sc = sceneOverride || this.scene;
     if (sceneOverride) this.camera.updateMatrixWorld();

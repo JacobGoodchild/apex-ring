@@ -215,6 +215,28 @@ test.describe("Apex Ring", () => {
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 
+  test("split-screen: two players on one keyboard, each with their own car and view", async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.setViewportSize({ width: 915, height: 412 });
+    const problems = await openGame(page, "track=oval&rivals=3");
+    await page.click("#raceBtn");
+    await page.click('#playersTabs [data-n="2"]');
+    await expect(page.locator('#playersTabs [data-n="2"]')).toHaveAttribute("aria-pressed", "true");
+    await page.click("#startBtn");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 30_000 });
+    expect(await game(page, () => window.__apex.splitRace)).toBe(true);
+    await expect(page.locator("#shud2")).toContainText("P2");
+    await page.waitForFunction(() => window.__apex.p2.vF > 15 && window.__apex.player.vF > 15, null, { timeout: 20_000 });
+    // player 2 steers with the arrows; player 1 is unaffected
+    const h1 = (await game(page, () => window.__apex.player)).h, h2 = (await game(page, () => window.__apex.p2)).h;
+    await page.keyboard.down("ArrowLeft"); await page.waitForTimeout(1200); await page.keyboard.up("ArrowLeft");
+    const d2 = Math.abs((await game(page, () => window.__apex.p2)).h - h2), d1 = Math.abs((await game(page, () => window.__apex.player)).h - h1);
+    expect(d2).toBeGreaterThan(0.05);
+    expect(d1).toBeLessThan(d2);
+    await page.screenshot({ path: "screenshots/split-landscape.png" });
+    expect(problems).toEqual([]);
+  });
+
   test("career: a time trial event can be completed and is saved", async ({ page }) => {
     test.setTimeout(120_000);
     const problems = await openGame(page, "autopilot=1&speed=12");

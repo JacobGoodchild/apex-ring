@@ -1,7 +1,7 @@
 // Themed scenery around a track. Everything repeated is instanced (one draw call per kind).
 import * as THREE from "three";
 import { makeRng } from "./rng.js";
-import { canvasTex } from "./textures.js";
+import { canvasTex, waveNormals } from "./textures.js";
 import { photo } from "./photo.js";
 import { Terrain, hasTerrain } from "./terrain.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -125,7 +125,10 @@ export function buildScenery(path, theme, density, seed) {
     });
   }
   if (theme.sea) {
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(4000, 6000), new THREE.MeshStandardMaterial({ color: theme.seaColor || 0x0a1a33, metalness: theme.seaColor ? 0.35 : 0.7, roughness: theme.seaColor ? 0.12 : 0.18 }));
+    // water: rippling normals (scrolled in main.js) so it catches the sky instead of being a flat mirror
+    const nm = waveNormals(); nm.repeat.set(160, 240);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(4000, 6000), new THREE.MeshStandardMaterial({ color: theme.seaColor || 0x0a1a33, metalness: theme.seaColor ? 0.35 : 0.7, roughness: theme.seaColor ? 0.12 : 0.18, normalMap: nm, normalScale: new THREE.Vector2(0.5, 0.5) }));
+    sea.name = "sea";
     sea.rotation.x = -Math.PI / 2; sea.position.set(bounds.maxX + 40 + 2000, theme.seaY || 0, cz); g.add(sea);
     // a lit far shore
   }
@@ -137,16 +140,19 @@ export function buildScenery(path, theme, density, seed) {
     const tiers = [[2.6, 4.2, 3.2], [2.1, 3.8, 5.4], [1.6, 3.4, 7.4], [1.0, 2.8, 9.2]];
     const pine = mergeGeometries(tiers.map(([r, h, y], k) => jitter(new THREE.ConeGeometry(r, h, 7, 1, true).translate(0, y, 0), 0.18, k)));
     const blob = (r, x, y, z, k) => { const b = new THREE.IcosahedronGeometry(r, 0); jitter(b, 0.25, k); return b.translate(x, y, z); };
-    const round = mergeGeometries([blob(2.6, 0, 5.2, 0, 1), blob(2.0, 1.4, 6.6, 0.6, 2), blob(1.9, -1.2, 6.3, -0.8, 3), blob(1.7, 0.2, 7.6, -0.3, 4)]);
-    const trunk = new THREE.CylinderGeometry(0.22, 0.38, 4.2, 5); trunk.translate(0, 2.1, 0);
+    const round = mergeGeometries([blob(2.7, 0, 5.3, 0, 1), blob(2.1, 1.3, 6.7, 0.5, 2), blob(2.0, -1.1, 6.6, -0.7, 3)]);
+    const trunk = new THREE.CylinderGeometry(0.22, 0.38, 4.2, 5, 1, true); trunk.translate(0, 2.1, 0); // no caps: never seen
     const leafTex = canvasTex(64, 64, (c, w, h) => { c.fillStyle = "#8a8a8a"; c.fillRect(0, 0, w, h); for (let k = 0; k < 700; k++) { const l = 30 + Math.random() * 70; c.fillStyle = `rgb(${l},${l},${l})`; c.fillRect(Math.random() * w, Math.random() * h, 2, 2); } }, { repeat: [2, 2] });
     const leaves = new THREE.MeshStandardMaterial({ color: 0xffffff, map: leafTex, roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
     const pick = kind === "mountain" || kind === "coastal" ? 1 : kind === "forest" ? 0.72 : 0.35; // share of pines
     const base = new THREE.Color(theme.tree || 0x1f4a32);
     const make = (x, z) => (theme.sea && theme.seaY != null && x > bounds.maxX + 20 ? null : { x, z, y: ground(x, z) - 0.3, s: 0.9 + rnd() * 0.9, r: rnd() * 6, pine: rnd() < pick, c: base.clone().offsetHSL((rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.08) });
-    const trees = [...scatter(path, grid, rnd, n, edge + 8, 260, make), ...(terrain ? scatter(path, grid, rnd, Math.round(n * 0.5), edge + 60, 700, make) : [])];
+    const trees = scatter(path, grid, rnd, n, edge + 8, 260, make);
+    // trees out on the far hills are only ever seen small: one simple cone each (a quarter of the triangles)
+    const far = terrain ? scatter(path, grid, rnd, Math.round(n * 0.5), edge + 90, 700, make) : [];
     const pines = trees.filter((t) => t.pine), rounds = trees.filter((t) => !t.pine);
     add(instanced(pine, leaves, pines));
+    if (far.length) { const cone = new THREE.ConeGeometry(2.3, 8.5, 6); cone.translate(0, 5.2, 0); add(instanced(cone, leaves, far.map((t) => ({ ...t, s: t.s * 1.1 })))); }
     add(instanced(round, leaves, rounds.map((t) => ({ ...t, c: t.c.clone().offsetHSL(0.03, 0.05, 0.06) }))));
     add(instanced(trunk, new THREE.MeshStandardMaterial({ color: 0x4a3626, roughness: 1 }), trees.map((t) => ({ ...t, c: null }))));
   }

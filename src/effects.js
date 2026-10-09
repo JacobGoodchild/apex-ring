@@ -166,3 +166,23 @@ export function addBeams(model) {
   const pool = new THREE.Mesh(geo, mat);
   const grp = new THREE.Group(); grp.add(pool); model.group.add(grp); model.beams = grp;
 }
+
+// Soft contact shadow: a dark blurred patch under each car so it sits on the road (cheap, works without shadow maps).
+let blobTex = null;
+export function addContactShadow(model) {
+  if (!blobTex) {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 128; const g = c.getContext("2d");
+    const r = g.createRadialGradient(32, 64, 4, 32, 64, 60); r.addColorStop(0, "rgba(0,0,0,.62)"); r.addColorStop(0.55, "rgba(0,0,0,.4)"); r.addColorStop(1, "rgba(0,0,0,0)");
+    g.save(); g.scale(1, 1); g.fillStyle = r; g.fillRect(0, 0, 64, 128); g.restore();
+    blobTex = new THREE.CanvasTexture(c);
+  }
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 5.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, fog: true }));
+  m.position.y = 0.04; m.renderOrder = 1; model.group.add(m); model.blob = m;
+}
+// keep the shadow on the ground under a jumping car, fading as it climbs
+export function updateContactShadow(model, carY, groundY) {
+  if (!model.blob) return;
+  const up = Math.max(0, carY - groundY);
+  model.blob.position.y = 0.04 - up; model.blob.material.opacity = Math.max(0, 1 - up / 6);
+  const k = 1 + up * 0.08; model.blob.scale.set(k, 1, k);
+}

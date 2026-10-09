@@ -211,5 +211,12 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
 - Local leaderboard per track layout (Week / Month / All, every finished lap logged in save.laps) and ghost codes:
   "Share my ghost" turns your best time-trial lap into a text code (delta-encoded, deflated, base64, ~2-4 KB);
   "Race a friend's ghost" loads one, and it races as an orange ghost next to yours. No server involved.
+- Part 2: soft contact shadows under every car (stay on the ground and fade during jumps), rippling sea (wave normal
+  map drawn once, scrolled), CSS vignette, gamepad support (stick/d-pad steer, A boost, triggers = pedals in Pro,
+  pad 2 drives player 2), local 2-player split-screen for quick races (P1 A/D + W, P2 arrows + Up; side by side in
+  landscape, stacked in portrait; P2 + 5 rivals; renderSplit draws the scene once per half, bloom off), Weather
+  Dry/Rain for every track (rainy(theme) greys the sky/fog, wet shiny road, grip x0.86, rain streaks; the Coastal
+  Highway is always wet; career events are dry unless they say so), brake lights flare when a car slows hard,
+  cheaper far trees (one cone), open-ended trunks, lighter terrain grid (medium ~170-200k tris, ~220 draw calls).
 - Tests run on a frozen copy (scratchpad snaptest.sh, PW_PORT=4175) so edits during a 15-min run don't leak in.
   Don't run other heavy Playwright tests at the same time: CPU contention made a countdown time out once.

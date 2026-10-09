@@ -7,7 +7,7 @@ import { TrackPath } from "./track.js";
 import { buildTrackMeshes } from "./trackmesh.js";
 import { buildScenery } from "./scenery.js";
 import { hasTerrain } from "./terrain.js";
-import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse } from "./tracks.js";
+import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse, rainy } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec, GARAGE_ORDER } from "./cars.js";
 import { makeCar, setDoors, setRims, setDecal, setFinish, RIMS, DECALS, FINISHES } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
@@ -19,13 +19,13 @@ import { levelOf, slot, rivalSpec, AUTO_BRAKE, AUTO_ASSIST } from "./race.js";
 import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { Vehicle } from "./vehicle.js";
-import { input, bindZones, bindPads, readControls, setTilt, calibrateTilt, tiltCfg } from "./input.js";
+import { input, bindZones, bindPads, readControls, readControls2, setTilt, calibrateTilt, tiltCfg } from "./input.js";
 import * as sfx from "./audio.js";
 import { setMusicMode, setMusicVolume, songName, SONGS } from "./music.js";
 import { ChaseCam } from "./camera.js";
 import { Driver, RIVALS, collide } from "./ai.js";
 import { makeRng } from "./rng.js";
-import { Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS } from "./effects.js";
+import { Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
 
 const $ = (id) => document.getElementById(id);
@@ -37,6 +37,8 @@ loadSave();
 const world = new World($("stage"), save.settings.quality || autoQuality());
 const { scene, camera } = world;
 const chase = new ChaseCam(camera);
+// split-screen: a second camera and chase cam for player 2
+const camera2 = new THREE.PerspectiveCamera(60, 1, 0.1, 2600), chase2 = new ChaseCam(camera2);
 scene.add(camera);
 const showroom = new Showroom(world);
 showroom.bindDrag($("menu")); showroom.bindDrag($("garage"));
@@ -51,15 +53,19 @@ const G = {
 };
 
 // ---------- track ----------
-function loadTrack(id) {
-  const def = trackById(id);
-  const theme = THEMES[def.theme];
+// weather: "dry" or "rain" (the Coastal Highway is always wet)
+function loadTrack(id, weather = G.wantWeather || "dry") {
+  const base = trackById(id), wet = weather === "rain" || !!THEMES[base.theme].rain;
+  const def = wet && !base.wet ? { ...base, wet: true } : base;
+  const theme = wet ? rainy(THEMES[def.theme]) : THEMES[def.theme];
+  G.weather = wet ? "rain" : "dry";
   G.track = def; G.path = new TrackPath(def);
   const grp = buildTrackMeshes(G.path, theme, { embankments: !hasTerrain(theme) });
   grp.add(buildScenery(G.path, theme, world.qname === "low" ? 0.45 : world.qname === "medium" ? 0.75 : 1, SEED ^ 0x1234));
   world.setTrack(grp); world.setTheme(theme);
   world.ground.visible = !hasTerrain(theme); // the terrain replaces the flat ground plane
   G.night = !!theme.stars; G.wet = !!theme.rain;
+  const sea = grp.getObjectByName("sea"); G.water = sea ? sea.material.normalMap : null;
   if (theme.rain && !G.rain) G.rain = new Rain(scene);
   if (G.rain) G.rain.lines.visible = !!theme.rain;
   if (G.car && G.car.beams) G.car.beams.visible = G.night;
@@ -100,6 +106,7 @@ function refreshBoard() {
   const list = ((save.laps || {})[G.track.id] || []).filter((e) => e.d >= from).slice(0, 5);
   $("boardList").innerHTML = list.length ? list.map((e) => `<li><b>${fmt(e.t)}</b><span>${carById(e.c).name} · ${new Date(e.d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span></li>`).join("") : `<li class="empty">No laps here yet${p !== "all" ? " this " + p : ""}.</li>`;
   $("ghostBar").hidden = !G.trial; if (!G.trial) $("ghostPanel").hidden = true;
+  $("playersTabs").hidden = !!G.trial; applyPlayers(); applyWeather();
 }
 document.querySelectorAll("#boardTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.boardPeriod = b.dataset.p; refreshBoard(); }));
 $("ghostShare").addEventListener("click", async () => {
@@ -128,6 +135,16 @@ function pickTrack(dir) {
   const i = (TRACKS.findIndex((t) => t.id === baseId(G.track.id)) + dir + TRACKS.length) % TRACKS.length;
   loadTrack(TRACKS[i].id); writeSave();
 }
+function applyWeather() {
+  const always = !!THEMES[G.track.theme].rain;
+  document.querySelectorAll("#weatherTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.w === G.weather)); b.disabled = always && b.dataset.w === "dry"; });
+}
+document.querySelectorAll("#weatherTabs .tab").forEach((b) => b.addEventListener("click", () => { if (b.dataset.w === G.weather) return; sfx.click(); G.wantWeather = b.dataset.w; loadTrack(G.track.id); writeSave(); }));
+function applyPlayers() {
+  document.querySelectorAll("#playersTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.n === "2") === !!G.split)));
+  $("playersHint").hidden = !G.split; input.split = !!G.split;
+}
+document.querySelectorAll("#playersTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.split = b.dataset.n === "2"; applyPlayers(); }));
 document.querySelectorAll("#layoutTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); loadTrack(baseId(G.track.id) + (b.dataset.l ? ":" + b.dataset.l : "")); writeSave(); }));
 $("trackPrev").addEventListener("click", () => pickTrack(-1));
 $("trackNext").addEventListener("click", () => pickTrack(1));
@@ -138,7 +155,7 @@ function buildPlayer(id = save.car) {
   if (G.car) G.car.group.removeFromParent();
   G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex, cs.rims, cs.decal || 0);
   sfx.setEngine(def.engine);
-  addFlames(G.car); addBeams(G.car); G.car.beams.visible = !!G.night;
+  addFlames(G.car); addBeams(G.car); addContactShadow(G.car); G.car.beams.visible = !!G.night;
   setFinish(G.car, cs.finish || 0, PAINTS[cs.paint % PAINTS.length].hex); setTrail(G.car, cs.trail || 0);
   if (G.mode === "menu") showroom.setCar(G.car); else scene.add(G.car.group);
   if (!G.player) { G.player = new Vehicle(carSpec(def, cs.upgrades), G.path); G.player.reset(-8, 0); }
@@ -146,13 +163,23 @@ function buildPlayer(id = save.car) {
 }
 
 
+// Player 2 for split-screen: your car in a different paint, driven from readControls2().
+function makeP2() {
+  const def = carById(save.car), cs = carSave(def.id), paint = PAINTS[(cs.paint + 4) % PAINTS.length].hex;
+  const veh = new Vehicle(carSpec(def, cs.upgrades), G.path);
+  const model = makeCar(def, paint, cs.rims, cs.decal || 0);
+  addFlames(model); addBeams(model); addContactShadow(model); model.beams.visible = !!G.night; setFinish(model, cs.finish || 0, paint); setDoors(model, 0);
+  scene.add(model.group);
+  return { carId: def.id, veh, model, name: "Player 2", color: 0x4cc9f0, human: true, touch: {} };
+}
+
 // Boss: a legend in their own special car, driving a level above your difficulty setting.
 function makeBoss(ev) {
   const prof = RIVALS.find((r) => r.name === ev.rival) || RIVALS[0], def = carById(ev.car);
   const veh = new Vehicle(carSpec(def, {}), G.path);
   const model = makeCar(def, prof.color, 2, 4);
   model.group.traverse((o) => { if (o.isMesh) o.castShadow = false; }); model.body.children[0].castShadow = true;
-  addFlames(model); addBeams(model); model.beams.visible = !!G.night; setFinish(model, 2, prof.color); setTrail(model, 3); setDoors(model, 0);
+  addFlames(model); addBeams(model); addContactShadow(model); model.beams.visible = !!G.night; setFinish(model, 2, prof.color); setTrail(model, 3); setDoors(model, 0);
   scene.add(model.group);
   const up = { easy: "normal", normal: "hard", hard: "hard" }[save.settings.difficulty || "easy"];
   const driver = new Driver(veh, prof, save.settings.difficulty === "hard" ? 1.02 : 1, (SEED + 4242) >>> 0, levelOf(up));
@@ -169,7 +196,7 @@ function buildRivals() {
     const model = makeCar(def, prof.color, k % 4, [1, 4, 2, 3, 0, 4, 1][k % 7]);
     model.group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
     model.body.children[0].castShadow = true;
-    addFlames(model); addBeams(model); model.beams.visible = !!G.night;
+    addFlames(model); addBeams(model); addContactShadow(model); model.beams.visible = !!G.night;
     setFinish(model, [0, 2, 0, 3, 1, 2, 0][k % 7], prof.color); setTrail(model, [0, 1, 0, 4, 2, 1, 3][k % 7]);
     setDoors(model, 0);
     scene.add(model.group);
@@ -189,7 +216,7 @@ function gridUp() {
   for (const r of G.field) {
     // rivals drive their own cars, but tuned halfway toward yours so races stay close; a boss brings a tuned car
     const base = carSpec(carById(r.carId), {});
-    r.veh.spec = r.boss ? carSpec(carById(r.carId), { engine: 2, tyres: 2, handling: 2, boost: 2, weight: 1 }) : rivalSpec(base, ps2);
+    r.veh.spec = r.human ? carSpec(carById(r.carId), carSave(r.carId).upgrades) : r.boss ? carSpec(carById(r.carId), { engine: 2, tyres: 2, handling: 2, boost: 2, weight: 1 }) : rivalSpec(base, ps2);
     if (r.boss) { r.driver.level = r.level; r.driver.band = band * 0.5; }
     if (k === Math.min(G.gridSlot, G.rivals.length)) k++;
     const [d, lat] = slot(G.field.length === 1 ? 0 : k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
@@ -218,6 +245,9 @@ function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hi
 const fmt = (t) => { if (t == null || !isFinite(t)) return "–"; const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); };
 function setRaceUI(on) {
   ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on));
+  $("splitHud").hidden = !(on && G.splitRace);
+  $("hud").classList.toggle("split", !!(on && G.splitRace));
+  if (on && G.splitRace) { ["speedo", "minimap", "pads"].forEach((id) => ($(id).hidden = true)); }
   const pro = save.settings.drive === "pro" && matchMedia("(pointer: coarse)").matches;
   $("proPads").hidden = !(on && pro); if (on && pro) $("pads").hidden = true; $("proSteer").hidden = input.tiltOn; $("tags").hidden = !on; if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; } }
 
@@ -232,7 +262,7 @@ function show(id) {
   if (id === "menu") { if (G.garageCar && G.garageCar !== save.car) buildPlayer(); refreshLobby(); }
   if (id === "settings") refreshSettings();
   if (id === "career") buildCareer();
-  if (id === "setup") { G.event = null; if (G.track.id !== (save.track || G.track.id)) loadTrack(save.track); refreshLock(); }
+  if (id === "setup") { G.event = null; if (G.track.id !== (save.track || G.track.id) || G.weather !== (THEMES[G.track.theme].rain ? "rain" : G.wantWeather || "dry")) loadTrack(save.track || G.track.id); refreshLock(); }
 }
 function refreshLobby() {
   $("lobbyCar").textContent = carById(save.car).name;
@@ -374,7 +404,9 @@ function startRace() {
   scene.add(G.car.group); setDoors(G.car, 0); G.doors = 0;
   const ev = G.event, solo = ev ? ev.type === "trial" || ev.type === "drift" || ev.type === "attack" : G.trial;
   if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
-  G.field = solo ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.rivals;
+  if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
+  G.splitRace = !!G.split && !ev && !G.trial;
+  G.field = solo ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
   for (const r of G.rivals) r.model.group.visible = G.field.includes(r);
   G.elimDone = 0; G.eliminated = false; G.attackShown = -1;
   if (!G.ghost) { G.ghost = new Ghost(makeCar(CARS[0], 0xffffff)); scene.add(G.ghost.model.group); }
@@ -387,7 +419,7 @@ function startRace() {
   if (trialMode() && fg) setTimeout(() => toast(`Racing ${fg.n}'s ghost · ${fmt(fg.t)}`, 2200), 600);
   $("eventTag").hidden = !ev;
   if (ev) $("eventTag").textContent = ev.name + " · " + ev.desc;
-  gridUp();
+  gridUp(); if (G.p2) chase2.snap(G.p2.veh);
   [...SCREENS, "finish", "pause", "topbar"].forEach((id) => ($(id).hidden = true));
   setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
   // each track has its own song; the menu plays a calmer version
@@ -515,7 +547,8 @@ function selectEvent(ev, quiet) {
 $("evGo").addEventListener("click", () => { if (G.selEvent) startEvent(G.selEvent); });
 function startEvent(ev) {
   G.event = ev;
-  if (G.track.id !== ev.track) { const keep = save.track; loadTrack(ev.track); save.track = keep; }
+  const evWeather = ev.weather || "dry";
+  if (G.track.id !== ev.track || (G.weather !== evWeather && !THEMES[trackById(ev.track).theme].rain)) { const keep = save.track; loadTrack(ev.track, evWeather); save.track = keep; }
   startRace();
 }
 ["setupBack", "garageBack", "settingsBack"].forEach((id) => $(id).addEventListener("click", () => show("menu")));
@@ -633,6 +666,17 @@ function stepRivals(dt) {
   const cars = [G.player, ...G.field.map((r) => r.veh)], L = G.path.length;
   for (const r of G.field) {
     const done = r.finished != null;
+    if (r.human) {
+      // player 2: same casual driving aids as player 1 (auto throttle/brake, steering assist by difficulty)
+      const c2 = readControls2(), aid = assistLevel(), v2 = r.veh;
+      const s2 = smoothSteer(r.touch, c2.steer, v2.vF, v2.spec.vmax, dt);
+      v2.ctl.steer = G.mode === "race" ? assistSteer(v2, G.path, s2, aid) : 0;
+      v2.ctl.targetSpeed = cornerSpeed(v2, G.path, AUTO_BRAKE[save.settings.difficulty] || 1, aid ? 1 : 0);
+      if (c2.boost && G.mode === "race") v2.ctl.boost = true;
+      v2.step(dt, G.mode === "race");
+      if (!done && v2.totalD >= laps() * L) r.finished = G.raceTime;
+      continue;
+    }
     r.driver.think(dt, cars, r.veh.totalD - G.player.totalD);
     if (done) r.veh.ctl.targetSpeed = Math.min(r.veh.ctl.targetSpeed, 30);
     r.veh.step(dt, true);
@@ -644,6 +688,7 @@ function stepRivals(dt) {
 const tagPos = new THREE.Vector3();
 function drawTags() {
   const tags = $("tags"); if (!G.tagEls) G.tagEls = [];
+  tags.hidden = !!G.splitRace || G.mode !== "race" && G.mode !== "done"; if (G.splitRace) return;
   const v = G.player, near = G.field.filter((r) => { const dd = r.veh.totalD - v.totalD; return dd > 4 && dd < 70; }).slice(0, 3);
   while (G.tagEls.length < near.length) { const e = document.createElement("div"); e.className = "tag"; tags.appendChild(e); G.tagEls.push(e); }
   G.tagEls.forEach((e, i) => {
@@ -792,9 +837,11 @@ function tyreFx(key, m, v, dt) {
     m.wheels[w].parent.getWorldPosition(wp);
     skids.mark(key + w, wp.x, v.y, wp.z, v.h, k);
     if (k > 0.2 && Math.random() < k * dt * 40) smoke.emit(wp.x, v.y, wp.z, v.vx, v.vz, k);
-    else if (G.wet && v.vF > 30 && Math.random() < dt * 4) smoke.emit(wp.x, v.y, wp.z, v.vx * 0.7, v.vz * 0.7, 0.22); // spray off a wet road
   }
 }
+
+// brake lights flare when a car slows hard (auto-brake, Pro brake, or lifting into a corner)
+function brakeLights(m, v) { if (!m.tailMat) return; const want = v.lonAcc < -4 ? 3.4 : 1.1; m.tailMat.emissiveIntensity += (want - m.tailMat.emissiveIntensity) * 0.3; }
 
 // nose follows the climb / fall (pitch), smoothed so landings don't snap
 function pitchOf(v) { const target = -Math.atan2(v.vy || 0, Math.max(10, v.vF)) * 0.8; v.pitchS = (v.pitchS || 0) + (target - (v.pitchS || 0)) * 0.2; return v.pitchS; }
@@ -805,6 +852,7 @@ function poseCar(m, v, dt) {
   if (far !== m.far) { m.far = far; m.body.children.forEach((c, i) => { if (i > 2 && c !== m.tailMesh) c.visible = !far; }); m.wheels.forEach((w) => (w.parent.visible = !far)); }
   updateFlames(m, v.boosting, performance.now() / 1000);
   m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
+  updateContactShadow(m, v.y, v.groundPrev ?? v.y); brakeLights(m, v);
   m.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06); m.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   m.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36)); m.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
 }
@@ -813,6 +861,7 @@ function render(dt) {
   const v = G.player, car = G.car;
   car.group.position.set(v.x, v.y, v.z);
   car.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
+  updateContactShadow(car, v.y, v.groundPrev ?? v.y); brakeLights(car, v);
   car.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06);
   car.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   // suspension squash after a hard landing, springing back over ~0.3 s
@@ -831,6 +880,7 @@ function render(dt) {
     G.field.forEach((r, i) => tyreFx("r" + i, r.model, r.veh, dt));
   }
   smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight);
+  if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
   if (G.rain) G.rain.update(Math.min(dt, 0.05), camera.position, G.mode === "menu" ? 0 : v.vx, G.mode === "menu" ? 0 : v.vz);
   speedLines.update(dt, v.vF, G.mode === "race" ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
 
@@ -842,9 +892,16 @@ function render(dt) {
     const want = G.screen === "garage" ? 1 : (G.menuT % 9) < 5 ? 1 : 0;
     G.doors += (want - G.doors) * Math.min(1, dt * 2.2); setDoors(G.car, G.doors);
     car.group.position.set(0, 0, 0); car.group.rotation.set(0, 0, 0, "YXZ"); car.body.rotation.set(0, 0, 0); car.body.position.y = 0;
+    updateContactShadow(car, 0, 0);
     showroom.update(dt, camera);
     chase.snap(v);
   } else chase.update(v, dt, v.boosting ? 1 : 0);
+  if (G.splitRace && G.p2 && G.mode !== "menu") {
+    chase2.update(G.p2.veh, dt, G.p2.veh.boosting ? 1 : 0);
+    const order = standings(), L = G.path.length, n = laps();
+    const box = (e, veh, who) => `<span class="p">${who}</span><b>${ordinal(order.indexOf(e) + 1)}</b> · Lap ${Math.min(n, Math.floor(Math.max(0, veh.totalD) / L) + 1)}/${n} · ${Math.round(Math.max(0, veh.vF) * 3.6)} km/h`;
+    $("shud1").innerHTML = box(order.find((e) => e.me), G.player, "P1"); $("shud2").innerHTML = box(G.p2, G.p2.veh, "P2");
+  }
   car.body.visible = chase.mode !== "bonnet" || G.mode === "menu";
   world.follow(v.x, v.y, v.z);
 
@@ -931,7 +988,8 @@ function frame(now) {
     v.x = v.px + (v.x - v.px) * a; v.y = v.py + (v.y - v.py) * a; v.z = v.pz + (v.z - v.pz) * a; v.h = v.ph + wrapA(v.h - v.ph) * a;
   }
   render(real);
-  world.render(G.mode === "menu" ? showroom.scene : null);
+  if (G.splitRace && G.p2 && G.mode !== "menu") { world.renderSplit([camera, camera2]); G.wasSplit = true; }
+  else { if (G.wasSplit) { G.wasSplit = false; world.resize(); } world.render(G.mode === "menu" ? showroom.scene : null); }
   for (const [v, x, y, z, h] of saved) { v.x = x; v.y = y; v.z = z; v.h = h; }
   requestAnimationFrame(frame);
 }
@@ -1006,6 +1064,10 @@ if (TEST) {
       return hits;
     },
     get world() { return world; },
+    get p2() { return G.p2 ? { x: G.p2.veh.x, z: G.p2.veh.z, h: G.p2.veh.h, vF: G.p2.veh.vF } : null; },
+    get splitRace() { return !!G.splitRace; },
+    get weather() { return G.weather; },
+    get grip() { return G.path.surfaceAt(G.player.p.d, 0); },
     get tick() { return G.tick; },
     get raceTime() { return G.raceTime; },
     get fieldCars() { return G.field.map((r) => r.carId); },
