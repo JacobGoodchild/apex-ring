@@ -326,8 +326,13 @@ function finishRace() {
   }
   html += `<ol class="standings">`;
   const L = G.path.length;
+  let prevT = 0;
   order.forEach((e, i) => {
-    const gap = e.finished != null ? fmt(e.finished) : "~" + fmt(G.raceTime + Math.max(0.5, (laps() * L - e.veh.totalD) / Math.max(25, e.veh.vF || 40)));
+    // cars still racing get an estimate from their average speed so far, kept in finishing order
+    let t = e.finished;
+    if (t == null) t = Math.max(prevT + 0.1, G.raceTime + Math.max(0.5, (laps() * L - e.veh.totalD) / Math.max(25, e.veh.totalD / Math.max(1, G.raceTime))));
+    prevT = Math.max(prevT, t);
+    const gap = (e.finished != null ? "" : "~") + fmt(t);
     html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${e.name}</span><span class="tm">${gap}</span></li>`;
   });
   html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
@@ -794,6 +799,19 @@ if (TEST) {
     warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
     rampD() { const r = G.path.ramps[0]; return r ? r.d - r.len - 45 : -1; },
     get airPops() { return G.airPops || 0; },
+    // anything solid within car height above the road surface (should be nothing)
+    roadCover() {
+      const P = G.path, rc = new THREE.Raycaster(), o = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), pt = {}, hits = [];
+      rc.far = 3; world.trackGroup.updateMatrixWorld(true);
+      for (let i = 0; i < P.N; i += 2) for (const f of [-0.9, -0.45, 0, 0.45, 0.9]) {
+        if (P.cliff[i]) continue;
+        const lat = f * (P.width / 2 - 1); P.pointAt(i * P.ds, lat, pt);
+        o.set(pt.x, pt.y + P.rampAt(i * P.ds, lat) + 0.3, pt.z); rc.set(o, up);
+        const h = rc.intersectObject(world.trackGroup, true).find((x) => x.object.visible && !x.object.isSprite && !x.object.isPoints);
+        if (h) hits.push({ i, lat: Math.round(lat), dist: +h.distance.toFixed(2), col: h.object.material.color ? h.object.material.color.getHexString() : "?", name: h.object.name || h.object.type });
+      }
+      return hits;
+    },
     get airborne() { return !!G.player.airborne; },
     sharpD() { const i = G.path.cs.findIndex((c) => Math.abs(c) > 0.011); return i < 0 ? 0 : i * G.path.ds - 110; },
     bridgeD() { const i = G.path.bridge.findIndex((b) => b); return i < 0 ? -1 : (i - 30) * G.path.ds; },
