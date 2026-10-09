@@ -51,6 +51,7 @@ test.describe("Apex Ring", () => {
     expect(spd).toBeGreaterThan(10);
     await expect(page.locator("#timeV")).toHaveText(/^\d:\d\d\.\d\d$/);
     await expect(page.locator("#lapV")).toHaveText(/^1\/\d$/);
+    await expect(page.locator("#posV")).toHaveText(/^\d(st|nd|rd|th)\/8$/);
   });
 
   test("laps count and the race finishes, and the best lap is saved", async ({ page }) => {
@@ -61,6 +62,10 @@ test.describe("Apex Ring", () => {
     await expect(page.locator("#lapV")).toHaveText("2/2");
     await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 60_000 });
     await expect(page.locator("#finish")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".standings li")).toHaveCount(8);
+    await expect(page.locator(".standings li.me")).toHaveCount(1);
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.screenshot({ path: "screenshots/results-portrait.png" });
     const laps = await game(page, () => window.__apex.laps);
     expect(laps.length).toBe(2);
     laps.forEach((t) => expect(t).toBeGreaterThan(5));

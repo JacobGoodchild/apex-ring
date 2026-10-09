@@ -78,7 +78,8 @@ export class Driver {
     // subtle rubber-banding so the pack stays together
     if (gapToPlayer > 120) pace *= 0.97; else if (gapToPlayer < -120) pace *= 1.03;
     v.ctl.targetSpeed = vt * Math.min(1.02, pace);
-    v.spec.vmaxScale = pace;
+    // don't drive into the back of someone: follow until there's a gap to pass
+    if (ahead && ahead.dd < 11 && Math.abs(ahead.dl) < 2.3) v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, ahead.o.vF + (this.style === "aggressive" ? 1.5 : 0));
 
     // boost on long straights
     let straight = Infinity; for (let k = 0; k < 60; k += 4) straight = Math.min(straight, prof[(v.p.i + k) % t.N]);

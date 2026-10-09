@@ -16,9 +16,9 @@
 
 <!-- race HUD -->
 <div class="hud" id="hud" hidden>
-  <div class="chip"><div class="k">Lap</div><div class="v" id="lapV">1/3</div></div>
+  <div class="chip"><div class="k">Pos</div><div class="v" id="posV">–</div></div>
   <div class="chip center"><div class="k">Time</div><div class="v" id="timeV">0:00.00</div></div>
-  <div class="chip right"><div class="k">Best lap</div><div class="v" id="bestV">–</div></div>
+  <div class="chip right"><div class="k">Lap</div><div class="v" id="lapV">1/3</div></div>
 </div>
 <div class="topbtns" id="topbtns" hidden>
   <button class="pill" id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
@@ -75,7 +75,7 @@
 <!-- results -->
 <div class="overlay" id="finish" hidden>
   <div class="card">
-    <div class="brand">FINISHED</div>
+    <div class="brand small">RESULTS</div>
     <div class="results" id="results"></div>
     <button class="btn" id="againBtn" type="button">Race again</button>
     <button class="btn ghost" id="menuBtn" type="button">Menu</button>

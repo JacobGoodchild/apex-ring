@@ -61,7 +61,7 @@ export class Vehicle {
     if (this.boosting) this.boost = Math.max(0, this.boost - dt * 0.3);
 
     // longitudinal
-    const vmax = s.vmax * (this.offTrack ? 0.62 : 1) * (this.boosting ? 1.16 : 1);
+    const vmax = s.vmax * (this.offTrack ? 0.62 : 1) * (this.boosting ? 1.16 : 1) * (this.draft || 1);
     let a = active ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) : 0;
     if (this.boosting) a += s.boostPower;
     let decel = 0;

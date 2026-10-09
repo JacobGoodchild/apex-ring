@@ -1,5 +1,5 @@
 // Reads URL options. Test mode (?test=1) fixes the random seed, speeds up time and exposes a small hook for tests.
-const q = new URLSearchParams(location.search);
+const q = new URLSearchParams(globalThis.location ? location.search : "");
 
 export const TEST = q.has("test");
 export const SEED = Number(q.get("seed") || (TEST ? 1234 : 0)) || ((Date.now() ^ 0x5bd1e995) >>> 0);

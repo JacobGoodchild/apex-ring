@@ -13,6 +13,8 @@ import { Vehicle } from "./vehicle.js";
 import { input, bindPad, readControls, setTilt } from "./input.js";
 import * as sfx from "./audio.js";
 import { ChaseCam } from "./camera.js";
+import { Driver, RIVALS, collide } from "./ai.js";
+import { makeRng } from "./rng.js";
 import { Minimap, drawTrack } from "./minimap.js";
 
 const $ = (id) => document.getElementById(id);
@@ -29,7 +31,8 @@ chase.mode = save.settings.camera === "bonnet" ? "bonnet" : "chase";
 const QS = new URLSearchParams(location.search);
 const G = {
   mode: "menu", track: null, path: null, player: null, car: null, lapsOverride: TEST && QS.get("laps") ? Number(QS.get("laps")) : 0,
-  countT: 0, raceTime: 0, lapStart: 0, lapTimes: [], menuT: 0, doors: 1, paused: false,
+  countT: 0, raceTime: 0, lapStart: 0, lapTimes: [], menuT: 0, doors: 1, paused: false, rivals: [], finishOrder: [],
+  nRivals: QS.get("rivals") != null ? Number(QS.get("rivals")) : 7, gridSlot: 5,
 };
 
 // ---------- track ----------
@@ -66,11 +69,46 @@ function buildPlayer() {
   G.player.reset(-8, 0);
 }
 
+// Grid slots: two columns, staggered. The player starts near the back so there's a field to race through.
+function slot(k) { const row = Math.floor(k / 2), col = k % 2; return [-7 - row * 9 - col * 4.5, col ? -3.3 : 3.3]; }
+
+function buildRivals() {
+  for (const r of G.rivals) scene.remove(r.model.group);
+  G.rivals = [];
+  const rnd = makeRng(SEED ^ 0x77);
+  for (let k = 0; k < G.nRivals; k++) {
+    const prof = RIVALS[k % RIVALS.length], def = CARS[k % CARS.length];
+    const veh = new Vehicle(carSpec(def, {}), G.path);
+    const model = makeCar(def, prof.color);
+    setDoors(model, 0);
+    scene.add(model.group);
+    G.rivals.push({ veh, model, driver: new Driver(veh, prof, 0.95 + rnd() * 0.05, (SEED + k * 977) >>> 0), name: prof.name, color: prof.color });
+  }
+}
+
 function gridUp() {
   G.player.spec = carSpec(carById(save.car), carSave(save.car).upgrades);
-  G.player.track = G.path; G.player.boost = 0.25; G.player.reset(-8, 0);
-  G.raceTime = 0; G.lapStart = 0; G.lapTimes = [];
+  G.player.track = G.path; G.player.boost = 0.25;
+  const ps = slot(Math.min(G.gridSlot, G.rivals.length)); G.player.reset(ps[0], ps[1]);
+  let k = 0;
+  for (const r of G.rivals) {
+    if (k === Math.min(G.gridSlot, G.rivals.length)) k++;
+    const [d, lat] = slot(k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
+  }
+  G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null;
 }
+
+// Everyone in the race, ordered by position.
+function standings() {
+  const L = G.path.length, n = laps();
+  const all = [{ veh: G.player, name: "You", me: true, finished: G.playerFinish, color: 0xf2a65a }, ...G.rivals];
+  return all.sort((a, b) => {
+    if (a.finished != null && b.finished != null) return a.finished - b.finished;
+    if (a.finished != null) return -1; if (b.finished != null) return 1;
+    return Math.min(b.veh.totalD, n * L) - Math.min(a.veh.totalD, n * L);
+  });
+}
+const ordinal = (n) => n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th");
 
 const laps = () => G.lapsOverride || G.track.laps;
 
@@ -102,7 +140,6 @@ function startRace() {
   ["menu", "finish", "pause"].forEach((id) => ($(id).hidden = true));
   setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
   $("count").hidden = false; G.mode = "countdown"; G.countT = 0; G.lastBeep = -1;
-  $("bestV").textContent = fmt(save.best[G.track.id]);
 }
 
 function toMenu() {
@@ -115,11 +152,17 @@ function toMenu() {
 
 function finishRace() {
   G.mode = "done";
-  const total = G.lapTimes.reduce((a, b) => a + b, 0), fastest = Math.min(...G.lapTimes);
-  let html = "";
-  G.lapTimes.forEach((t, i) => { const cls = t === fastest ? ' class="best"' : ""; html += `<div${cls}>Lap ${i + 1}</div><div${cls}>${fmt(t)}</div>`; });
-  html += `<div class="tot">Total</div><div class="tot">${fmt(total)}</div>`;
-  html += `<div>Track record</div><div class="best">${fmt(save.best[G.track.id])}</div>`;
+  G.playerFinish = G.raceTime;
+  const order = standings(), place = order.findIndex((e) => e.me) + 1;
+  G.place = place;
+  const fastest = Math.min(...G.lapTimes);
+  let html = `<div class="place">${ordinal(place)}<small> of ${order.length}</small></div><ol class="standings">`;
+  const L = G.path.length;
+  order.forEach((e, i) => {
+    const gap = e.finished != null ? fmt(e.finished) : "~" + fmt(G.raceTime + Math.max(0.5, (laps() * L - e.veh.totalD) / Math.max(25, e.veh.vF || 40)));
+    html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${e.name}</span><span class="tm">${gap}</span></li>`;
+  });
+  html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
   $("results").innerHTML = html;
   writeSave();
   setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; } }, TEST ? 200 : 1400);
@@ -179,6 +222,17 @@ function assistSpeed(v) {
   return vt * 1.06;
 }
 
+function stepRivals(dt) {
+  const cars = [G.player, ...G.rivals.map((r) => r.veh)], L = G.path.length;
+  for (const r of G.rivals) {
+    const done = r.finished != null;
+    r.driver.think(dt, cars, r.veh.totalD - G.player.totalD);
+    if (done) r.veh.ctl.targetSpeed = Math.min(r.veh.ctl.targetSpeed, 30);
+    r.veh.step(dt, true);
+    if (!done && r.veh.totalD >= laps() * L) r.finished = G.raceTime;
+  }
+}
+
 // ---------- simulation ----------
 const lookAt = new THREE.Vector3(), camPos = new THREE.Vector3();
 
@@ -203,7 +257,13 @@ function step(dt) {
   v.ctl.steer = ap ? ap.steer : ctl.steer;
   v.ctl.boost = ctl.boost; v.ctl.drift = ctl.drift; v.ctl.brake = ctl.brake;
   v.ctl.targetSpeed = ap ? ap.targetSpeed : assistSpeed(v);
-  if (G.mode === "race" || G.mode === "done") v.step(dt, racing);
+  if (G.mode === "race" || G.mode === "done") {
+    v.step(dt, racing);
+    stepRivals(dt);
+    collide([v, ...G.rivals.map((r) => r.veh)], (a, b, k) => { if (k > 3 && (a === v || b === v)) { chase.shake = Math.min(0.6, k * 0.04); sfx.thud(k); } });
+    v.draft = 1;
+    for (const r of G.rivals) { const dd = r.veh.totalD - v.totalD; if (dd > 6 && dd < 35 && Math.abs(r.veh.lat - v.lat) < 2.4) v.draft = 1.045; }
+  }
 
   if (racing) {
     G.raceTime += dt;
@@ -218,6 +278,12 @@ function step(dt) {
   if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
 }
 
+function poseCar(m, v, dt) {
+  m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(0, v.h, 0);
+  m.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06); m.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
+  m.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36)); m.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
+}
+
 function render(dt) {
   const v = G.player, car = G.car;
   car.group.position.set(v.x, v.y, v.z);
@@ -226,6 +292,7 @@ function render(dt) {
   car.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   car.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36));
   car.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
+  for (const r of G.rivals) poseCar(r.model, r.veh, dt);
 
   car.group.position.y += Math.sin(G.bob = (G.bob || 0) + dt * v.vF * 0.9) * 0.006 * Math.min(1, v.vF / 30);
   const portrait = camera.aspect < 1;
@@ -246,11 +313,11 @@ function render(dt) {
   if (G.mode !== "menu") {
     $("lapV").textContent = Math.min(G.lapTimes.length + 1, laps()) + "/" + laps();
     $("timeV").textContent = fmt(G.mode === "race" ? G.raceTime - G.lapStart : G.lapTimes[G.lapTimes.length - 1] || 0);
-    $("bestV").textContent = fmt(save.best[G.track.id]);
+    if ((G.hudTick = (G.hudTick || 0) + 1) % 6 === 0) { const o = standings(); $("posV").textContent = ordinal(o.findIndex((e) => e.me) + 1) + "/" + o.length; }
     $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
     $("spdBar").style.width = Math.min(100, (v.vF / v.spec.vmax) * 100) + "%";
     $("offtrack").hidden = !(v.offTrack && G.mode === "race");
-    minimap.draw([{ x: v.x, z: v.z, color: "#f2a65a", me: true }]);
+    minimap.draw([...G.rivals.map((r) => ({ x: r.veh.x, z: r.veh.z, color: "#" + r.color.toString(16).padStart(6, "0") })), { x: v.x, z: v.z, color: "#f2a65a", me: true }]);
   }
   sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
 }
@@ -258,6 +325,8 @@ function render(dt) {
 // ---------- boot ----------
 loadTrack(QS.get("track") || save.track || "gp");
 buildPlayer();
+buildRivals();
+gridUp();
 buildPaints();
 camera.position.set(G.player.x + 8, 3, G.player.z + 7);
 addEventListener("resize", () => world.resize());
@@ -283,6 +352,8 @@ if (TEST) {
     get mode() { return G.mode; },
     get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, drifting: v.drifting, lat: v.lat }; },
     get laps() { return G.lapTimes.slice(); },
+    get place() { return G.place; },
+    get rivals() { return G.rivals.map((r) => ({ totalD: r.veh.totalD, vF: r.veh.vF, lat: r.veh.lat, finished: r.finished })); },
     get trackLength() { return G.path.length; },
     get save() { return JSON.parse(JSON.stringify(save)); },
     get track() { return G.track.id; },
