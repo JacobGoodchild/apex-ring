@@ -1,5 +1,5 @@
 // All sound is synthesised with Web Audio: engine with gears, tyre squeal, boost whoosh, beeps and clicks.
-let ctx = null, master = null, eng = null, squeal = null, wind = null, muted = false;
+let ctx = null, master = null, eng = null, squeal = null, wind = null, muted = false, lastGear = 0, shiftT = 0;
 
 function noiseBuffer(c) {
   const b = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), d = b.getChannelData(0);
@@ -40,6 +40,7 @@ export function updateAudio(v, vmax, on, slip, boost) {
   let g = 0; while (g < 6 && f > gears[g + 1]) g++;
   const inGear = (f - gears[g]) / (gears[g + 1] - gears[g]);
   const rpm = 0.28 + 0.72 * Math.min(1, inGear);
+  if (on && g > lastGear && v > 3) shiftBlip(); lastGear = g;
   const base = 48 + rpm * 150 + g * 6;
   eng.o1.frequency.setTargetAtTime(base, t, 0.03); eng.o2.frequency.setTargetAtTime(base * 1.5, t, 0.03); eng.o3.frequency.setTargetAtTime(base / 2, t, 0.03);
   eng.lp.frequency.setTargetAtTime(400 + rpm * 2200 + (boost ? 900 : 0), t, 0.04);
@@ -49,6 +50,17 @@ export function updateAudio(v, vmax, on, slip, boost) {
   wind.g.gain.setTargetAtTime(on ? f * 0.05 + (boost ? 0.12 : 0) : 0, t, 0.12);
   wind.f.frequency.setTargetAtTime(boost ? 2400 : 500 + f * 900, t, 0.1);
 }
+
+// A quick dip and crackle on each upshift.
+function shiftBlip() {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime; if (t - shiftT < 0.25) return; shiftT = t;
+  eng.g.gain.cancelScheduledValues(t); eng.g.gain.setValueAtTime(eng.g.gain.value, t); eng.g.gain.linearRampToValueAtTime(0.02, t + 0.06); eng.g.gain.linearRampToValueAtTime(0.1, t + 0.18);
+  tone(90, 0.08, "sawtooth", 0.06); tone(140, 0.05, "square", 0.04, 0.03);
+}
+
+// Pause all sound while the page is hidden.
+export function suspend(hidden) { if (!ctx) return; if (hidden) ctx.suspend(); else ctx.resume(); }
 
 function tone(freq, dur, type = "square", vol = 0.15, when = 0) {
   if (!ctx || muted) return;
@@ -66,4 +78,9 @@ export function whoosh() {
   const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 2; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(3000, t + 0.5);
   const g = ctx.createGain(); g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
   s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 0.8);
+}
+export const lapChime = () => { tone(784, 0.15, "triangle", 0.1); tone(1046, 0.25, "triangle", 0.1, 0.1); };
+export function fanfare(win) {
+  const notes = win ? [523, 659, 784, 1046, 784, 1046] : [392, 440, 523];
+  notes.forEach((f, i) => tone(f, 0.28, "triangle", 0.12, i * 0.13));
 }

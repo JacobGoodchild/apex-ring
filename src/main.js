@@ -282,6 +282,7 @@ function finishRace() {
   G.mode = "done";
   G.playerFinish = G.raceTime;
   const order = standings(), place = order.findIndex((e) => e.me) + 1;
+  sfx.fanfare(place <= 3 && !G.eliminated);
   G.place = place;
   const fastest = Math.min(...G.lapTimes);
   let html = `<div class="place">${ordinal(place)}<small> of ${order.length}</small></div><ol class="standings">`;
@@ -367,7 +368,7 @@ document.querySelectorAll("#camTabs .tab").forEach((b) => b.addEventListener("cl
 document.querySelectorAll("#soundTabs .tab").forEach((b) => b.addEventListener("click", () => { if ((b.dataset.s === "1") !== save.settings.sound) $("muteBtn").click(); sfx.click(); refreshSettings(); }));
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
-  resetSave(); G.garageCar = null; buildPlayer(); toast("Progress reset."); show("menu");
+  resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
 $("menuBtn").addEventListener("click", () => { const ev = G.event; toMenu(); if (ev) show("career"); });
@@ -477,7 +478,7 @@ function step(dt) {
       if (G.lapWall === 0) G.cleanLaps++;
       G.lapWall = 0;
       if (best == null || lap < best) { if (best != null) G.newRecord = true; save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
-      if (G.lapTimes.length >= laps()) finishRace();
+      if (G.lapTimes.length >= laps()) finishRace(); else sfx.lapChime();
     }
     if (G.event && G.event.type === "elim" && G.mode === "race") eliminate();
   }
@@ -576,6 +577,8 @@ showroom.setCar(G.car);
 show("menu");
 camera.position.set(G.player.x + 8, 3, G.player.z + 7);
 addEventListener("resize", () => world.resize());
+// pause when the app goes to the background (phone lock, tab switch)
+document.addEventListener("visibilitychange", () => { sfx.suspend(document.hidden); if (document.hidden && G.mode === "race") pause(true); });
 world.resize();
 
 let last = performance.now(), acc = 0;

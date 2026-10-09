@@ -167,6 +167,19 @@ test.describe("Apex Ring", () => {
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 
+  test("settings: sound and quality choices are saved", async ({ page }) => {
+    await openGame(page);
+    await page.click("#settingsBtn");
+    await page.click('#soundTabs [data-s="0"]');
+    await page.click('#qualityTabs [data-q="low"]');
+    const sv = await game(page, () => window.__apex.save);
+    expect(sv.settings.sound).toBe(false);
+    expect(sv.settings.quality).toBe("low");
+    await page.click("#resetBtn");
+    expect((await game(page, () => window.__apex.save)).settings.sound).toBe(true);
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
   test("time trial runs without rivals", async ({ page }) => {
     await openGame(page);
     await page.click("#raceBtn");
