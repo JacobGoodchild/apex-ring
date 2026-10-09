@@ -16,6 +16,8 @@ for (const t of TRACKS) {
       await page.evaluate(() => window.__apex.warp(window.__apex.rampD()));
       await page.waitForFunction(() => window.__apex.airborne, null, { timeout: 15_000 });
       await page.screenshot({ path: `screenshots/jump-${t.id}.png` });
+      // a long flight pays out a BIG AIR boost bonus
+      await page.waitForFunction(() => window.__apex.airPops > 0, null, { timeout: 40_000 });
     }
     if (t.difficulty > 1) {
       await page.evaluate(() => window.__apex.warp(window.__apex.sharpD() - 30));

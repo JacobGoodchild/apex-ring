@@ -13,7 +13,7 @@ export class Vehicle {
 
   reset(d, lat) {
     const p = this.track.pointAt(d, lat, {});
-    this.x = p.x; this.z = p.z; this.y = p.y; this.h = p.h; this.vy = 0; this.airborne = false; this.groundPrev = null; this.landed = 0;
+    this.x = p.x; this.z = p.z; this.y = p.y; this.h = p.h; this.vy = 0; this.airborne = false; this.groundPrev = null; this.landed = 0; this.airT = 0; this.airDone = 0;
     this.vx = 0; this.vz = 0; this.vF = 0; this.vL = 0;
     this.yawRate = 0; this.steer = 0; this.latAcc = 0; this.lonAcc = 0;
     this.drifting = false; this.driftAngle = 0; this.driftTime = 0; this.driftScore = 0;
@@ -139,8 +139,10 @@ export class Vehicle {
     if (this.groundPrev == null) this.groundPrev = ground;
     this.vy -= 15.7 * dt; // arcade gravity (1.6 g) so jumps stay short and punchy
     this.y += this.vy * dt;
-    this.landed = 0;
+    this.landed = 0; this.airDone = 0;
+    if (this.airborne) this.airT += dt;
     if (this.y <= ground) {
+      if (this.airborne) { this.airDone = this.airT; this.airT = 0; }
       if (this.airborne && this.vy < -3) { this.landed = -this.vy; this.vx *= 0.98; this.vz *= 0.98; }
       this.y = ground;
       this.vy = Math.min(14, Math.max(-14, (ground - this.groundPrev) / dt));

@@ -131,7 +131,7 @@ function gridUp() {
     const [d, lat] = slot(G.field.length === 1 ? 0 : k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
   G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null;
-  skids.clear(); G.driftPts = 0; G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
+  skids.clear(); G.driftPts = 0; G.airPops = 0; G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
 }
 
 // Everyone in the race, ordered by position.
@@ -520,8 +520,8 @@ function drawTags() {
   });
 }
 
-function popDrift(n) {
-  const el = $("driftPop"); el.textContent = "DRIFT +" + n; el.hidden = false; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+function popDrift(n, label = "DRIFT +") {
+  const el = $("driftPop"); el.textContent = label + n; el.hidden = false; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
   clearTimeout(popDrift._t); popDrift._t = setTimeout(() => (el.hidden = true), 1200);
 }
 
@@ -597,6 +597,9 @@ function step(dt) {
     if (G.event && G.event.type === "elim" && G.mode === "race") eliminate();
     if (G.tips && G.tips.length && G.raceTime > G.tips[0][0] - 4) { toast(G.tips.shift()[1], 5000); if (!G.tips.length) { save.tipsSeen = true; writeSave(); } }
   }
+  // big jumps top up the boost meter
+  if (v.airDone > 0.7 && G.mode === "race") { v.boost = Math.min(1, v.boost + Math.min(0.3, v.airDone * 0.12)); popDrift(v.airDone.toFixed(1) + "s", "BIG AIR "); sfx.chime(); G.airPops = (G.airPops || 0) + 1; }
+  if (v.landed > 4) G.squash = Math.min(0.14, v.landed * 0.012);
   if (v.landed > 4) { chase.shake = Math.min(0.8, v.landed * 0.05); sfx.thud(v.landed); }
   if (v.wallHit > 2) G.lapWall++;
   if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
@@ -648,6 +651,8 @@ function render(dt) {
   car.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
   car.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06);
   car.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
+  // suspension squash after a hard landing, springing back over ~0.3 s
+  G.squash = (G.squash || 0) * Math.exp(-dt * 9); car.body.position.y = -G.squash;
   car.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36));
   car.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
   for (const r of G.field) poseCar(r.model, r.veh, dt);
@@ -668,7 +673,7 @@ function render(dt) {
     // doors swing open and shut every few seconds in the lobby; held open in the garage
     const want = G.screen === "garage" ? 1 : (G.menuT % 9) < 5 ? 1 : 0;
     G.doors += (want - G.doors) * Math.min(1, dt * 2.2); setDoors(G.car, G.doors);
-    car.group.position.set(0, 0, 0); car.group.rotation.set(0, 0, 0, "YXZ"); car.body.rotation.set(0, 0, 0);
+    car.group.position.set(0, 0, 0); car.group.rotation.set(0, 0, 0, "YXZ"); car.body.rotation.set(0, 0, 0); car.body.position.y = 0;
     showroom.update(dt, camera);
     chase.snap(v);
   } else chase.update(v, dt, v.boosting ? 1 : 0);
@@ -788,6 +793,7 @@ if (TEST) {
     // jump the player to a distance along the track (used for screenshots of specific corners)
     warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
     rampD() { const r = G.path.ramps[0]; return r ? r.d - r.len - 45 : -1; },
+    get airPops() { return G.airPops || 0; },
     get airborne() { return !!G.player.airborne; },
     sharpD() { const i = G.path.cs.findIndex((c) => Math.abs(c) > 0.011); return i < 0 ? 0 : i * G.path.ds - 110; },
     bridgeD() { const i = G.path.bridge.findIndex((b) => b); return i < 0 ? -1 : (i - 30) * G.path.ds; },
