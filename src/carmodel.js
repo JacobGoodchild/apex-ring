@@ -59,14 +59,14 @@ const MATS = {};
 function mats(paintHex) {
   if (!MATS.carbon) {
     MATS.carbon = new THREE.MeshStandardMaterial({ color: 0x15171c, metalness: 0.4, roughness: 0.4 });
-    MATS.glass = new THREE.MeshPhysicalMaterial({ color: 0x0a121c, metalness: 0.3, roughness: 0.04, clearcoat: 1, envMapIntensity: 1.6 });
+    MATS.glass = new THREE.MeshPhysicalMaterial({ color: 0x0a121c, metalness: 0.3, roughness: 0.04, clearcoat: 1, envMapIntensity: 1.0 });
     MATS.dark = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.8 });
-    MATS.head = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeeff, emissiveIntensity: 3, polygonOffset: true, polygonOffsetFactor: -3 });
+    MATS.head = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeeff, emissiveIntensity: 1.6, polygonOffset: true, polygonOffsetFactor: -3 });
     MATS.tyre = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.92 });
     MATS.disc = new THREE.MeshStandardMaterial({ color: 0x5a5e66, metalness: 0.8, roughness: 0.35 });
   }
   return {
-    paint: new THREE.MeshPhysicalMaterial({ color: paintHex, metalness: 0.55, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.05 }),
+    paint: new THREE.MeshPhysicalMaterial({ color: paintHex, metalness: 0.5, roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.08 }),
     tail: new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff1a0a, emissiveIntensity: 1.4, polygonOffset: true, polygonOffsetFactor: -3 }),
     rim: new THREE.MeshStandardMaterial({ color: 0x9aa1ab, metalness: 0.95, roughness: 0.2 }),
     caliper: new THREE.MeshStandardMaterial({ color: 0xf2a65a, roughness: 0.35 }),

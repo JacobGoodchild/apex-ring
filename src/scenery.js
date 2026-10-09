@@ -64,12 +64,12 @@ export function buildScenery(path, theme, density, seed) {
       const h = kind === "mountain" ? 220 + rnd() * 260 : kind === "desert" ? 60 + rnd() * 90 : 50 + rnd() * 70;
       const w = kind === "desert" ? 90 + rnd() * 120 : h * (0.9 + rnd() * 0.6);
       peaks.push({ x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r, sx: w, sy: h, sz: w, r: rnd() * 6 });
-      if (kind === "mountain") caps.push({ x: cx + Math.cos(a) * r, y: h * 0.62, z: cz + Math.sin(a) * r, sx: w * 0.38, sy: h * 0.38, sz: w * 0.38, r: peaks[k].r });
+      if (kind === "mountain") caps.push({ x: cx + Math.cos(a) * r, y: h * 0.62, z: cz + Math.sin(a) * r, sx: w * 0.395, sy: h * 0.38, sz: w * 0.395, r: peaks[k].r });
     }
     const geo = kind === "desert" ? new THREE.CylinderGeometry(0.42, 0.5, 1, 7) : new THREE.ConeGeometry(1, 1, 7); geo.translate(0, 0.5, 0);
     const col = kind === "mountain" ? 0x5d6470 : kind === "desert" ? 0xb4583a : 0x355a35;
     add(instanced(geo, new THREE.MeshStandardMaterial({ color: col, roughness: 1, flatShading: true }), peaks));
-    if (caps.length) add(instanced(geo, new THREE.MeshStandardMaterial({ color: 0xf4f7fb, roughness: 0.8, flatShading: true }), caps));
+    if (caps.length) add(instanced(geo, new THREE.MeshStandardMaterial({ color: 0xc9d0da, roughness: 0.95, flatShading: true }), caps));
   }
 
   // rocks and boulders
@@ -101,7 +101,7 @@ export function buildScenery(path, theme, density, seed) {
           c.fillRect(x, y, 6, 7);
         }
       }, { repeat: [rx, ry] });
-      const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: neon ? 1.4 : 0.9, roughness: 0.6, metalness: 0.2 });
+      const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: neon ? 1.1 : 0.6, roughness: 0.6, metalness: 0.2 });
       const list = scatter(path, grid, rnd, Math.round([90, 70, 40][ci] * density), edge + 10 + ci * 14, 180, (x, z) => {
         if (theme.sea && x > bounds.maxX + 20) return null;
         const w = 14 + rnd() * 18; return { x, z, sx: w, sy: h0 + rnd() * (h1 - h0), sz: 14 + rnd() * 18, r: Math.round(rnd() * 4) * Math.PI / 2 };
@@ -193,7 +193,7 @@ export function buildScenery(path, theme, density, seed) {
     }
     const pg = new THREE.CylinderGeometry(0.15, 0.22, 12, 6); pg.translate(0, 6, 0);
     add(instanced(pg, new THREE.MeshStandardMaterial({ color: 0x30384a, metalness: 0.5, roughness: 0.5 }), poles));
-    const hm = add(instanced(new THREE.BoxGeometry(2.2, 0.5, 0.9), new THREE.MeshBasicMaterial({ color: theme.lampColor || 0xfff0cc }), heads));
+    const hm = add(instanced(new THREE.BoxGeometry(2.2, 0.5, 0.9), new THREE.MeshBasicMaterial({ color: new THREE.Color(theme.lampColor || 0xfff0cc).multiplyScalar(0.7) }), heads));
     if (hm) hm.userData.glow = true;
   }
   return g;

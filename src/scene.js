@@ -52,7 +52,7 @@ export class World {
         float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
         void main(){ vec3 d = normalize(vP); float h = d.y;
           vec3 c = mix(hor, mid, smoothstep(-0.02, 0.22, h)); c = mix(c, top, smoothstep(0.22, 0.75, h));
-          float s = max(dot(d, sunDir), 0.0); c += sunCol*(pow(s, 300.0)*2.0 + pow(s, 40.0)*0.6 + pow(s,6.0)*0.18);
+          float s = max(dot(d, sunDir), 0.0); c += sunCol*(pow(s, 300.0)*1.4 + pow(s, 40.0)*0.3 + pow(s,6.0)*0.08);
           if(stars > 0.0){ vec3 q = floor(d*420.0); float st = step(0.9975, hash(q)); c += vec3(st)*stars*smoothstep(0.05,0.3,h); }
           gl_FragColor = vec4(c,1.0);
           #include <tonemapping_fragment>
@@ -94,7 +94,7 @@ export class World {
     if (q.bloom && !this.composer) {
       this.composer = new EffectComposer(this.renderer);
       this.composer.addPass(new RenderPass(this.scene, this.camera));
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.5, 0.82);
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.3, 0.4, 0.92);
       this.composer.addPass(this.bloom);
       this.composer.addPass(new OutputPass());
     }
@@ -124,13 +124,14 @@ export class World {
     u.top.value.set(t.sky[0]); u.mid.value.set(t.sky[1]); u.hor.value.set(t.sky[2]);
     u.sunDir.value.set(...t.sunDir).normalize(); u.sunCol.value.set(t.sunColor); u.stars.value = t.stars || 0;
     this.scene.fog = new THREE.Fog(t.fog, t.fogNear || 160, t.fogFar || 1100);
-    this.hemi.color.set(t.hemi[0]); this.hemi.groundColor.set(t.hemi[1]); this.hemi.intensity = t.hemi[2];
-    this.sun.color.set(t.sunColor); this.sun.intensity = t.sunIntensity;
+    this.hemi.color.set(t.hemi[0]); this.hemi.groundColor.set(t.hemi[1]); this.hemi.intensity = t.hemi[2] * 0.85;
+    // everything is toned down from the theme values: at full strength races felt blinding on a phone
+    this.sun.color.set(t.sunColor); this.sun.intensity = t.sunIntensity * 0.8;
     this.sunOff.set(...t.sunDir).normalize().multiplyScalar(90);
     this.ground.material.color.set(t.ground);
-    this.renderer.toneMappingExposure = t.exposure || 1;
-    this.scene.environmentIntensity = t.envIntensity ?? 0.55;
-    if (this.bloom) this.bloom.strength = t.bloom ?? 0.55;
+    this.renderer.toneMappingExposure = (t.exposure || 1) * 0.88;
+    this.scene.environmentIntensity = (t.envIntensity ?? 0.55) * 0.6;
+    if (this.bloom) this.bloom.strength = (t.bloom ?? 0.55) * 0.5;
   }
 
   setTrack(group) {
