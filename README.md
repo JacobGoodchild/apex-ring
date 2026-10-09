@@ -18,7 +18,11 @@ no servers: everything (saves, leaderboards, ghosts) stays on your device.
 - ↑ / W accelerate, ↓ / S brake, Space handbrake (kicks the car into a drift), Shift boost.
 - On a touch screen, steering buttons and GAS / BRAKE / HAND / BOOST pedals appear.
 
-Other keys: C camera, P pause, R back on track, M mute.
+Other keys: C camera, P pause, R back on track, M mute. Gamepads work too (stick steers, A boosts, triggers are
+the pedals in Pro mode).
+
+**Two players:** pick "2 players" in race setup for split-screen on one keyboard (player 1: A/D + W,
+player 2: ← → + ↑) or with two gamepads.
 
 ## Modes and content
 - **Quick race** against 7 rule-based rivals with personalities (aggressive, careful, wild card, blocker, apex hunter),
@@ -26,10 +30,12 @@ Other keys: C camera, P pause, R back on track, M mute.
   best laps this week / month / ever.
 - **Career:** 20 events on a map: races, time trials, drift challenges, timed Drift Attacks, eliminations, timed
   Knockouts, head-to-heads and Boss battles that win you the boss's car.
+- **Weather:** race any track Dry or in the Rain (wet, reflective road and less grip).
+- **Replays:** watch your best time-trial lap back from the chase camera.
 - **9 tracks**, each also raceable Reversed or Mirrored: Dusk Oval, Apex Ring GP, Greenwood, Red Canyon,
   Harbour Lights, Neon District, Alpine Pass, Xtreme (cliffs and ramps) and Coastal Highway (rain, wet road).
 - **9 cars** in four classes (Compact, Muscle, Supercar, Prototype), upgrades (Engine, Tyres, ECU, Turbo, Weight),
-  paints, finishes (matte, metallic, pearl, neon), rims, decals and boost flame colours.
+  paints, finishes (matte, metallic, pearl, neon), rims, decals with your choice of livery colour, and boost flame colours.
 - Procedural synthwave soundtrack and engine sounds, all made in code.
 
 ## Run it locally

@@ -23,6 +23,7 @@
 <div id="fade"></div>
 
 <!-- race HUD -->
+<div id="replayTag" hidden></div>
 <div id="splitHud" hidden><div class="shud" id="shud1"></div><div class="shud" id="shud2"></div></div>
 <div class="hud" id="hud" hidden>
   <div class="chip"><div class="k">Pos</div><div class="v" id="posV">–</div></div>
@@ -107,7 +108,7 @@
     <div class="board" id="board"><div class="row between"><div class="label">Your best laps</div>
       <div class="tabs mini" id="boardTabs"><button class="tab" data-p="week" type="button">Week</button><button class="tab" data-p="month" type="button">Month</button><button class="tab" data-p="all" type="button">All</button></div></div>
       <ol class="boardlist" id="boardList"></ol></div>
-    <div class="ghostbar" id="ghostBar" hidden><button class="chipbtn" id="ghostShare" type="button">Share my ghost</button><button class="chipbtn" id="ghostImport" type="button">Race a friend's ghost</button></div>
+    <div class="ghostbar" id="ghostBar" hidden><button class="chipbtn" id="ghostShare" type="button">Share my ghost</button><button class="chipbtn" id="ghostImport" type="button">Race a friend's ghost</button><button class="chipbtn" id="replayBtn" type="button">Watch best lap</button></div>
     <div class="ghostpanel" id="ghostPanel" hidden><textarea id="ghostCode" rows="3" spellcheck="false" aria-label="Ghost code"></textarea>
       <div class="row"><button class="chipbtn" id="ghostCopy" type="button">Copy</button><button class="chipbtn" id="ghostLoad" type="button">Load code</button><span class="hint" id="ghostMsg"></span></div></div>
     <div class="tabs" id="playersTabs"><button class="tab" data-n="1" type="button">1 player</button><button class="tab" data-n="2" type="button">2 players</button></div>
@@ -138,7 +139,7 @@
       <div class="label">Finish</div><div class="chips" id="finishes"></div>
       <div class="label">Boost flame</div><div class="chips" id="trails"></div></div>
     <div class="panel" id="panelRims" hidden><div class="chips" id="rims"></div></div>
-    <div class="panel" id="panelDecal" hidden><div class="chips" id="decals"></div></div>
+    <div class="panel" id="panelDecal" hidden><div class="chips" id="decals"></div><div class="label">Livery colour</div><div class="chips" id="liveries"></div></div>
     <div class="panel" id="panelUp" hidden><div id="upgrades"></div></div>
     <button class="btn" id="carAction" type="button">Selected</button>
     <button class="btn ghost" id="garageBack" type="button">Back</button>

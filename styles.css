@@ -329,3 +329,7 @@ button { font-family: inherit; }
 @media (orientation: portrait) { #shud1 { left: 12px; bottom: 12px; } #shud2 { left: 12px; top: calc(var(--safe-t, 0px) + 12px); } #splitHud::after { top: 50%; left: 0; right: 0; height: 2px; margin-top: -1px; } }
 #hud.split .chip:not(.center) { display: none; }
 body:has(#hud.split) #gapV { display: none; }
+
+#replayTag { position: fixed; left: 50%; top: calc(var(--safe-t, 0px) + 14px); transform: translateX(-50%); z-index: 4; padding: 8px 14px; border-radius: 10px; background: rgba(9,14,25,.75); font: 800 13px var(--display); letter-spacing: .08em; color: var(--text); white-space: nowrap; }
+.standings .sty { font: 700 9px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-left: 4px; }
+.standings .sty.boss { color: #ff8fa3; }

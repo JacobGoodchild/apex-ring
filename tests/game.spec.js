@@ -227,11 +227,11 @@ test.describe("Apex Ring", () => {
     expect(await game(page, () => window.__apex.splitRace)).toBe(true);
     await expect(page.locator("#shud2")).toContainText("P2");
     await page.waitForFunction(() => window.__apex.p2.vF > 15 && window.__apex.player.vF > 15, null, { timeout: 20_000 });
-    // player 2 steers with the arrows; player 1 is unaffected
-    const h1 = (await game(page, () => window.__apex.player)).h, h2 = (await game(page, () => window.__apex.p2)).h;
+    // player 2 steers with the arrows (moves across the road); player 1 is unaffected
+    const l1 = (await game(page, () => window.__apex.player)).lat, l2 = (await game(page, () => window.__apex.p2)).lat;
     await page.keyboard.down("ArrowLeft"); await page.waitForTimeout(1200); await page.keyboard.up("ArrowLeft");
-    const d2 = Math.abs((await game(page, () => window.__apex.p2)).h - h2), d1 = Math.abs((await game(page, () => window.__apex.player)).h - h1);
-    expect(d2).toBeGreaterThan(0.05);
+    const d2 = Math.abs((await game(page, () => window.__apex.p2)).lat - l2), d1 = Math.abs((await game(page, () => window.__apex.player)).lat - l1);
+    expect(d2).toBeGreaterThan(1.5);
     expect(d1).toBeLessThan(d2);
     await page.screenshot({ path: "screenshots/split-landscape.png" });
     expect(problems).toEqual([]);
@@ -338,6 +338,14 @@ test.describe("Apex Ring", () => {
     await page.click("#ghostLoad");
     await expect(page.locator("#ghostMsg")).toContainText("Loaded");
     expect((await game(page, () => window.__apex.save)).friendGhosts.oval.s.length).toBeGreaterThan(40);
+    // and the best lap can be watched back as a replay
+    await page.click("#replayBtn");
+    await page.waitForFunction(() => window.__apex.mode === "replay");
+    await expect(page.locator("#replayTag")).toContainText("REPLAY");
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: "screenshots/replay-landscape.png" });
+    await page.keyboard.press("x");
+    await page.waitForFunction(() => window.__apex.mode === "menu");
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 

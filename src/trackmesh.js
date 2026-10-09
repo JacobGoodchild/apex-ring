@@ -183,6 +183,27 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
     }
   }
 
+  // rubber laid down by braking cars: faint dark tyre lines either side of the racing line into each corner
+  {
+    const prof = path.speedProfile(34), pos = [], idx = [];
+    let n = 0;
+    for (let i = 0; i < N; i++) {
+      const drop = Math.max(0, Math.min(84, prof[i]) - Math.min(84, prof[(i + 14) % N])) / 12;
+      if (drop < 0.35) continue;
+      const lat = path.line[i] * 0.9;
+      for (const o of [-0.85, 0.85]) for (const w of [-0.14, 0.14]) {
+        path.pointAt(i * path.ds, lat + o + w, tmp); pos.push(tmp.x, tmp.y + 0.025, tmp.z);
+        path.pointAt((i + 1) * path.ds, lat + o + w, tmp); pos.push(tmp.x, tmp.y + 0.025, tmp.z);
+      }
+      for (let k = 0; k < 2; k++) { const a = n + k * 4; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+      n += 8;
+    }
+    if (idx.length) {
+      const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+      group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x050505, transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, side: THREE.DoubleSide })));
+    }
+  }
+
   // racing-line guide: an amber/red stripe on the ideal line in the braking zones before corners
   {
     const prof = path.speedProfile(34), pos = [], col = [], idx = [];

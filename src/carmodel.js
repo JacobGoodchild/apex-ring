@@ -81,6 +81,23 @@ export const RIMS = [
   { name: "Chrome Y", color: 0xe6e9ee, spokes: 6, twin: false },
 ];
 
+let _blurTex = null;
+function blurTex() {
+  if (_blurTex) return _blurTex;
+  const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d");
+  const r = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+  r.addColorStop(0, "rgba(90,90,90,1)"); r.addColorStop(0.2, "rgba(200,200,200,.9)"); r.addColorStop(0.5, "rgba(150,150,150,.65)"); r.addColorStop(0.85, "rgba(210,210,210,.8)"); r.addColorStop(1, "rgba(60,60,60,1)");
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  _blurTex = new THREE.CanvasTexture(c); _blurTex.colorSpace = THREE.SRGBColorSpace;
+  return _blurTex;
+}
+// spinning-wheel blur from speed (m/s): invisible when slow, mostly opaque flat out
+export function wheelBlur(model, speed) {
+  if (!model.blurs) return;
+  const k = Math.max(0, Math.min(0.85, (Math.abs(speed) - 12) / 25));
+  model.blurMat.opacity = k; for (const b of model.blurs) b.visible = k > 0.02;
+}
+
 function wheelGeos(r, wdt, rim) {
   const tyre = new THREE.CylinderGeometry(r, r, wdt, 28, 1, false); tyre.rotateZ(Math.PI / 2);
   const side = new THREE.TorusGeometry(r * 0.86, r * 0.14, 6, 28); side.rotateY(Math.PI / 2);
@@ -174,6 +191,11 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
     mesh.material.side = THREE.DoubleSide;
     hinge.add(mesh, wm); hinge.userData.side = s; body.add(hinge); doors.push(hinge);
   }
+  // rear number plate (made-up registration)
+  {
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.12), new THREE.MeshStandardMaterial({ map: plateTex(def.id), roughness: 0.4, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2 }));
+    plate.position.set(0, Math.max(0.36, Math.min(0.52, S.tail - 0.42)), -L - 0.015); plate.rotation.y = Math.PI; body.add(plate);
+  }
   // interior hint (seats) visible with doors open
   add([box(0.42, 0.5, 0.12, 0.33, t(0) - 0.32, -0.45, -0.3), box(0.42, 0.5, 0.12, -0.33, t(0) - 0.32, -0.45, -0.3)], new THREE.MeshStandardMaterial({ color: 0x2a0f0f, roughness: 0.8 }), false);
 
@@ -181,17 +203,21 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   const rim = RIMS[rimIdx % RIMS.length];
   const wg = wheelGeos(S.wheelR, 0.32, rim);
   const rimMat = M.rim; rimMat.color.setHex(rim.color);
-  const wheels = [], steerers = [], rimMeshes = [];
+  const wheels = [], steerers = [], rimMeshes = [], blurs = [];
+  // spoke blur: at speed a soft spinning-disc look replaces the sharp spokes (opacity set from speed in main.js)
+  const blurMat = new THREE.MeshStandardMaterial({ map: blurTex(), color: rim.color, metalness: 0.7, roughness: 0.35, transparent: true, opacity: 0, depthWrite: false });
+  const blurGeo = new THREE.CircleGeometry(S.wheelR * 0.72, 24);
   [[1, zf], [-1, zf], [1, zr], [-1, zr]].forEach(([s, z], i) => {
     const pivot = new THREE.Group(); pivot.position.set(s * (S.wid * 0.9), S.wheelR, z); car.add(pivot);
     const spin = new THREE.Group(); pivot.add(spin);
     const tm = new THREE.Mesh(wg.tyre, M.tyre); tm.castShadow = true; spin.add(tm);
     const rm = new THREE.Mesh(wg.rim, rimMat); rm.scale.x = s; spin.add(rm); rimMeshes.push(rm);
     const disc = new THREE.Mesh(wg.disc, M.disc); disc.position.x = -s * 0.05; pivot.add(disc);
+    const bl = new THREE.Mesh(blurGeo, blurMat); bl.rotation.y = s * Math.PI / 2; bl.position.x = s * 0.17; bl.visible = false; pivot.add(bl); blurs.push(bl);
     const cal = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.26), M.caliper); cal.position.set(-s * 0.02, S.wheelR * 0.42, 0.12 * Math.sign(z)); pivot.add(cal);
     wheels.push(spin); if (i < 2) steerers.push(pivot);
   });
-  const model = { group: car, body, doors, doorType: def.doors || "scissor", wheels, steerers, paint: M.paint, rimMat, tailMat: M.tail, tailMesh,
+  const model = { blurs, blurMat, group: car, body, doors, doorType: def.doors || "scissor", wheels, steerers, paint: M.paint, rimMat, tailMat: M.tail, tailMesh,
     decalCtx: { w, t, b, L, dz0, dz1, n: S.n, tumble: S.tumble, number: (def.id.charCodeAt(0) % 9) + 1 },
     exhaust: [new THREE.Vector3(-0.32, 0.38, -L - 0.02), new THREE.Vector3(0.32, 0.38, -L - 0.02)] };
   setDecal(model, decalIdx, paintHex);
@@ -214,7 +240,7 @@ export function setDoors(car, open) {
 
 export function setRims(car, idx) {
   const rim = RIMS[idx % RIMS.length];
-  car.rimMat.color.setHex(rim.color);
+  car.rimMat.color.setHex(rim.color); if (car.blurMat) car.blurMat.color.setHex(rim.color);
 }
 
 // Paint finishes: changes how the paint reflects light (gloss is the default clear-coat look).
@@ -233,11 +259,14 @@ export function setFinish(model, idx, paintHex) {
 export const DECALS = [{ name: "None" }, { name: "Twin stripes" }, { name: "Centre stripe" }, { name: "Side flash" }, { name: "Race number" }];
 
 // Decals are thin patches lifted just off the bodywork, in a colour that contrasts with the paint.
-export function setDecal(car, idx, paintHex) {
+// livery colours for stripes and numbers; 0 = automatic (dark on light paint, white on dark)
+export const LIVERY = [{ name: "Auto" }, { name: "White", hex: 0xf2f4f7 }, { name: "Black", hex: 0x14161b }, { name: "Red", hex: 0xd7263d }, { name: "Gold", hex: 0xe0a526 }, { name: "Cyan", hex: 0x2bc4e8 }, { name: "Lime", hex: 0x8fd400 }];
+export function setDecal(car, idx, paintHex, livery = car.livery || 0) {
+  car.livery = livery;
   if (car.decals) { car.decals.forEach((m) => { m.removeFromParent(); m.geometry.dispose(); }); }
   car.decals = [];
   const c = new THREE.Color(paintHex), lum = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
-  const mat = new THREE.MeshPhysicalMaterial({ color: lum > 0.55 ? 0x14161b : 0xf2f4f7, roughness: 0.3, clearcoat: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
+  const mat = new THREE.MeshPhysicalMaterial({ color: LIVERY[livery] && LIVERY[livery].hex != null ? LIVERY[livery].hex : lum > 0.55 ? 0x14161b : 0xf2f4f7, roughness: 0.3, clearcoat: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
   const { w, t, b, L, dz0, dz1, n: secN, tumble: tb } = car.decalCtx;
   const patch = (th0, th1, z0, z1) => { const m = new THREE.Mesh(loft({ z0, z1, nz: 40, nt: 3, w, t, b, n: secN, tumble: () => tb, th0, th1, scale: 1.012, closeEnds: false }), mat); car.body.add(m); car.decals.push(m); };
   const top = Math.PI / 2;
@@ -256,6 +285,17 @@ export function setDecal(car, idx, paintHex) {
   }
 }
 
+const plateCache = {};
+function plateTex(id) {
+  if (plateCache[id]) return plateCache[id];
+  let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const txt = "APX " + String(100 + (h % 900)) + " " + String.fromCharCode(65 + (h >> 4) % 26, 65 + (h >> 9) % 26);
+  const c = document.createElement("canvas"); c.width = 256; c.height = 64; const g = c.getContext("2d");
+  g.fillStyle = "#f1c40f"; g.fillRect(0, 0, 256, 64); g.strokeStyle = "#222"; g.lineWidth = 4; g.strokeRect(3, 3, 250, 58);
+  g.fillStyle = "#111"; g.font = "bold 40px Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, 128, 35);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return (plateCache[id] = t);
+}
 const numberTexCache = {};
 function numberTex(n) {
   if (numberTexCache[n]) return numberTexCache[n];

@@ -9,7 +9,7 @@ import { buildScenery } from "./scenery.js";
 import { hasTerrain } from "./terrain.js";
 import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse, rainy } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec, GARAGE_ORDER } from "./cars.js";
-import { makeCar, setDoors, setRims, setDecal, setFinish, RIMS, DECALS, FINISHES } from "./carmodel.js";
+import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
 import { encodeGhost, decodeGhost } from "./ghostcode.js";
@@ -23,7 +23,7 @@ import { input, bindZones, bindPads, readControls, readControls2, setTilt, calib
 import * as sfx from "./audio.js";
 import { setMusicMode, setMusicVolume, songName, SONGS } from "./music.js";
 import { ChaseCam } from "./camera.js";
-import { Driver, RIVALS, collide } from "./ai.js";
+import { Driver, RIVALS, collide, STYLE_NAMES } from "./ai.js";
 import { makeRng } from "./rng.js";
 import { Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
@@ -37,6 +37,9 @@ loadSave();
 const world = new World($("stage"), save.settings.quality || autoQuality());
 const { scene, camera } = world;
 const chase = new ChaseCam(camera);
+// real headlights for the player's car on night tracks (one spotlight; the rivals keep their cheap fake beams)
+const headLight = new THREE.SpotLight(0xfff0d8, 0, 110, 0.5, 0.6, 1.1);
+headLight.visible = false; scene.add(headLight, headLight.target);
 // split-screen: a second camera and chase cam for player 2
 const camera2 = new THREE.PerspectiveCamera(60, 1, 0.1, 2600), chase2 = new ChaseCam(camera2);
 scene.add(camera);
@@ -64,7 +67,8 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
   grp.add(buildScenery(G.path, theme, world.qname === "low" ? 0.45 : world.qname === "medium" ? 0.75 : 1, SEED ^ 0x1234));
   world.setTrack(grp); world.setTheme(theme);
   world.ground.visible = !hasTerrain(theme); // the terrain replaces the flat ground plane
-  G.night = !!theme.stars; G.wet = !!theme.rain;
+  G.night = !!theme.stars || (!!theme.rain && (THEMES[def.theme].stars || 0) > 0); G.wet = !!theme.rain;
+  headLight.visible = G.night;
   const sea = grp.getObjectByName("sea"); G.water = sea ? sea.material.normalMap : null;
   if (theme.rain && !G.rain) G.rain = new Rain(scene);
   if (G.rain) G.rain.lines.visible = !!theme.rain;
@@ -116,6 +120,29 @@ $("ghostShare").addEventListener("click", async () => {
   $("ghostCode").value = await encodeGhost(g, G.track.id, save.car, "Apex driver");
   $("ghostMsg").textContent = `Your ${fmt(g.t)} lap. Send this code to a friend.`;
 });
+// Replay: watch your best time-trial lap from the chase camera (your car follows the recorded ghost line).
+$("replayBtn").addEventListener("click", () => {
+  const g = (save.ghosts || {})[G.track.id];
+  if (!g) { $("ghostPanel").hidden = false; $("ghostMsg").textContent = "Set a lap in Time trial first."; return; }
+  sfx.startAudio(); sfx.click();
+  G.replay = g; G.replayT = 0; G.mode = "replay";
+  SCREENS.forEach((s) => ($(s).hidden = true)); $("topbar").hidden = true;
+  if (G.car.def && G.car.def !== save.car) buildPlayer();
+  scene.add(G.car.group); setDoors(G.car, 0);
+  for (const r of G.rivals) r.model.group.visible = false;
+  G.field = []; setMusicMode("race", 1);
+  $("replayTag").hidden = false; chase.snap(G.player); chase.ready = false;
+  setTimeout(() => { G.replayArmed = true; }, 400);
+});
+function endReplay() { if (G.mode !== "replay") return; G.replayArmed = false; $("replayTag").hidden = true; G.mode = "menu"; showroom.setCar(G.car); show("setup"); }
+addEventListener("pointerdown", () => { if (G.mode === "replay" && G.replayArmed) endReplay(); });
+addEventListener("keydown", () => { if (G.mode === "replay" && G.replayArmed) endReplay(); });
+// sample the ghost recording (10 per second) at time t: position, heading and velocity
+function replayPose(g, t) {
+  const s = g.s, n = s.length / 4, f = Math.max(0, Math.min(n - 1.001, t * 10)), i = Math.floor(f), k = f - i, a = i * 4, b = Math.min(n - 1, i + 1) * 4;
+  let dh = s[b + 3] - s[a + 3]; if (dh > Math.PI) dh -= 2 * Math.PI; if (dh < -Math.PI) dh += 2 * Math.PI;
+  return { x: s[a] + (s[b] - s[a]) * k, y: s[a + 1] + (s[b + 1] - s[a + 1]) * k, z: s[a + 2] + (s[b + 2] - s[a + 2]) * k, h: s[a + 3] + dh * k, vx: (s[b] - s[a]) * 10, vz: (s[b + 2] - s[a + 2]) * 10 };
+}
 $("ghostImport").addEventListener("click", () => { $("ghostPanel").hidden = false; $("ghostCode").value = ""; $("ghostCode").focus(); $("ghostMsg").textContent = "Paste a code, then Load."; });
 $("ghostCopy").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("ghostCode").value); $("ghostMsg").textContent = "Copied!"; } catch (_) { $("ghostCode").select(); $("ghostMsg").textContent = "Select and copy the code."; } });
 $("ghostLoad").addEventListener("click", async () => {
@@ -157,6 +184,7 @@ function buildPlayer(id = save.car) {
   sfx.setEngine(def.engine);
   addFlames(G.car); addBeams(G.car); addContactShadow(G.car); G.car.beams.visible = !!G.night;
   setFinish(G.car, cs.finish || 0, PAINTS[cs.paint % PAINTS.length].hex); setTrail(G.car, cs.trail || 0);
+  if (cs.livery) setDecal(G.car, cs.decal || 0, PAINTS[cs.paint % PAINTS.length].hex, cs.livery);
   if (G.mode === "menu") showroom.setCar(G.car); else scene.add(G.car.group);
   if (!G.player) { G.player = new Vehicle(carSpec(def, cs.upgrades), G.path); G.player.reset(-8, 0); }
   G.player.spec = carSpec(def, cs.upgrades);
@@ -348,6 +376,15 @@ function buildDecals() {
     });
     el.appendChild(b);
   });
+  // livery colour for the stripes / number (free)
+  const lv = $("liveries"); lv.innerHTML = "";
+  LIVERY.forEach((l, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chipbtn"; b.id = "livery" + i; b.textContent = l.name;
+    if (l.hex != null) b.style.borderColor = "#" + l.hex.toString(16).padStart(6, "0");
+    b.setAttribute("aria-pressed", String(i === (cs.livery || 0)));
+    b.addEventListener("click", () => { sfx.click(); cs.livery = i; setDecal(G.car, cs.decal || 0, PAINTS[cs.paint % PAINTS.length].hex, i); writeSave(); buildDecals(); });
+    lv.appendChild(b);
+  });
 }
 function buildRims() {
   const el = $("rims"); el.innerHTML = ""; const cs = carSave(G.garageCar);
@@ -459,7 +496,7 @@ function finishRace() {
     if (t == null) t = Math.max(prevT + 0.1, G.raceTime + Math.max(0.5, (laps() * L - e.veh.totalD) / Math.max(25, e.veh.totalD / Math.max(1, G.raceTime))));
     prevT = Math.max(prevT, t);
     const gap = (e.finished != null ? "" : "~") + fmt(t);
-    html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${e.name}</span><span class="tm">${gap}</span></li>`;
+    html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${e.name}${e.boss ? ' <small class="sty boss">Boss</small>' : e.driver ? ` <small class="sty">${STYLE_NAMES[e.driver.style] || ""}</small>` : ""}</span><span class="tm">${gap}</span></li>`;
   });
   html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
   if (G.event) html = eventResult(place, fastest) + html;
@@ -711,7 +748,7 @@ function popDrift(n, label = "DRIFT +") {
 const lookAt = new THREE.Vector3(), camPos = new THREE.Vector3();
 
 function step(dt) {
-  if (G.paused) return;
+  if (G.paused || G.mode === "replay") return;
   const ctl = readControls();
 
   if (G.mode === "countdown") {
@@ -852,16 +889,28 @@ function poseCar(m, v, dt) {
   if (far !== m.far) { m.far = far; m.body.children.forEach((c, i) => { if (i > 2 && c !== m.tailMesh) c.visible = !far; }); m.wheels.forEach((w) => (w.parent.visible = !far)); }
   updateFlames(m, v.boosting, performance.now() / 1000);
   m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
-  updateContactShadow(m, v.y, v.groundPrev ?? v.y); brakeLights(m, v);
+  updateContactShadow(m, v.y, v.groundPrev ?? v.y); brakeLights(m, v); if (!far) wheelBlur(m, v.vF);
   m.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06); m.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   m.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36)); m.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
 }
 
 function render(dt) {
   const v = G.player, car = G.car;
+  if (G.mode === "replay" && G.replay) {
+    // puppet the player's car along the recorded lap
+    G.replayT = (G.replayT + dt) % G.replay.t;
+    const p = replayPose(G.replay, G.replayT);
+    Object.assign(v, { x: p.x, y: p.y, z: p.z, h: p.h, vx: p.vx, vz: p.vz, vy: 0, boosting: false, driftAngle: 0, latAcc: 0, lonAcc: 0 });
+    v.vF = Math.hypot(p.vx, p.vz); v.groundPrev = p.y; // (speed is a getter worked out from vx, vz)
+    $("replayTag").textContent = `REPLAY · ${fmt(G.replayT)} / ${fmt(G.replay.t)} · tap to exit`;
+  }
   car.group.position.set(v.x, v.y, v.z);
   car.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
   updateContactShadow(car, v.y, v.groundPrev ?? v.y); brakeLights(car, v);
+  if (headLight.visible) {
+    const on = G.mode !== "menu", fx = Math.sin(v.h), fz = Math.cos(v.h);
+    headLight.intensity = on ? 420 : 0; headLight.position.set(v.x + fx * 2.2, v.y + 0.75, v.z + fz * 2.2); headLight.target.position.set(v.x + fx * 26, v.y - 0.4, v.z + fz * 26);
+  } wheelBlur(car, G.mode === "menu" ? 0 : v.vF);
   car.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06);
   car.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
   // suspension squash after a hard landing, springing back over ~0.3 s
@@ -872,7 +921,7 @@ function render(dt) {
   // in the garage, picking a flame colour shows the flames for a moment
   const showFlames = G.mode === "menu" && (G.trailShow = Math.max(0, (G.trailShow || 0) - dt)) > 0;
   updateFlames(car, v.boosting || showFlames, performance.now() / 1000);
-  if (car.beams) car.beams.visible = !!G.night && G.mode !== "menu" && chase.mode !== "bonnet";
+  if (car.beams) car.beams.visible = false; // the player has a real spotlight at night instead
   if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.friend) G.friend.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.mode === "race" || G.mode === "done") {
@@ -896,6 +945,7 @@ function render(dt) {
     showroom.update(dt, camera);
     chase.snap(v);
   } else chase.update(v, dt, v.boosting ? 1 : 0);
+  if (G.mode === "replay") sfx.updateAudio(v.vF, v.spec.vmax, true, 0, false);
   if (G.splitRace && G.p2 && G.mode !== "menu") {
     chase2.update(G.p2.veh, dt, G.p2.veh.boosting ? 1 : 0);
     const order = standings(), L = G.path.length, n = laps();
@@ -944,6 +994,10 @@ function render(dt) {
     sfx.updateRivalAudio(near, true);
   } else sfx.updateRivalAudio([], false);
 }
+
+// sound (and the menu music) can only start after the first tap or key press
+const firstTouch = () => { sfx.startAudio(); removeEventListener("pointerdown", firstTouch); removeEventListener("keydown", firstTouch); };
+addEventListener("pointerdown", firstTouch); addEventListener("keydown", firstTouch);
 
 // ---------- boot ----------
 loadTrack(QS.get("track") || save.track || "gp");
@@ -1064,7 +1118,7 @@ if (TEST) {
       return hits;
     },
     get world() { return world; },
-    get p2() { return G.p2 ? { x: G.p2.veh.x, z: G.p2.veh.z, h: G.p2.veh.h, vF: G.p2.veh.vF } : null; },
+    get p2() { return G.p2 ? { x: G.p2.veh.x, z: G.p2.veh.z, h: G.p2.veh.h, vF: G.p2.veh.vF, lat: G.p2.veh.lat } : null; },
     get splitRace() { return !!G.splitRace; },
     get weather() { return G.weather; },
     get grip() { return G.path.surfaceAt(G.player.p.d, 0); },

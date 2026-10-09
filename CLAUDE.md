@@ -218,5 +218,9 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   Dry/Rain for every track (rainy(theme) greys the sky/fog, wet shiny road, grip x0.86, rain streaks; the Coastal
   Highway is always wet; career events are dry unless they say so), brake lights flare when a car slows hard,
   cheaper far trees (one cone), open-ended trunks, lighter terrain grid (medium ~170-200k tris, ~220 draw calls).
+- Part 3: rubber marks laid down in the braking zones, lap replay ("Watch best lap" puppets your car along the saved
+  ghost with the chase cam; tap to exit), spoke blur discs on the wheels at speed, rival personality labels in the
+  results, livery colour for decals, menu music starts on the first tap, rear number plates (made-up "APX 123 AB"),
+  a real spotlight headlight for the player on night tracks (rivals keep the cheap fake beams).
 - Tests run on a frozen copy (scratchpad snaptest.sh, PW_PORT=4175) so edits during a 15-min run don't leak in.
   Don't run other heavy Playwright tests at the same time: CPU contention made a countdown time out once.
