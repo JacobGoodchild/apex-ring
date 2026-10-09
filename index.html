@@ -24,6 +24,7 @@
   <button class="pill" id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
   <button class="pill" id="muteBtn" type="button">Sound on</button>
   <button class="pill" id="tiltBtn" type="button">Tilt: off</button>
+  <button class="pill" id="camBtn" type="button">Cam: chase</button>
 </div>
 
 <div id="speedo" hidden>
@@ -36,6 +37,8 @@
 <div class="pads" id="pads" hidden>
   <button class="pad" id="padL" type="button" aria-label="Steer left"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
   <button class="pad" id="padR" type="button" aria-label="Steer right"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+  <button class="pad small" id="padBoost" type="button" aria-label="Boost">BOOST</button>
+  <button class="pad small" id="padDrift" type="button" aria-label="Drift or brake">DRIFT</button>
 </div>
 
 <div id="count" hidden>
@@ -49,7 +52,7 @@
 <div class="overlay" id="menu">
   <div class="card">
     <div class="brand">APEX<span>RING</span></div>
-    <div class="sub">Three laps in the Vanta S1. The car accelerates by itself; you steer.</div>
+    <div class="sub">Three laps in the Vanta S1. The car accelerates by itself and lifts for tight corners. You steer, drift and boost.</div>
     <div>
       <div class="label">Paint</div>
       <div class="row">
@@ -58,7 +61,7 @@
       </div>
     </div>
     <button class="btn" id="startBtn" type="button">Start race</button>
-    <div class="hint">Phone: hold the left and right pads, or switch on tilt. Keyboard: ← → or A / D.</div>
+    <div class="hint">Phone: hold the arrow pads to steer. Tap DRIFT while steering to slide, or hold it to brake. Keyboard: ← → steer, Space drift/brake, ↑ boost, C camera.</div>
   </div>
 </div>
 

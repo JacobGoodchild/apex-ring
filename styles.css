@@ -61,6 +61,16 @@ button { font-family: inherit; }
 .pad.on { background: rgba(242, 166, 90, .35); border-color: var(--amber); }
 #padL { left: calc(var(--safe-l) + 14px); }
 #padR { right: calc(var(--safe-r) + 14px); }
+.pad.small { width: min(17vw, 76px); height: min(17vw, 76px); bottom: calc(var(--safe-b) + 16px + min(24vw, 112px) + 12px);
+  font: 800 13px var(--display); letter-spacing: .08em; }
+#padBoost { left: calc(var(--safe-l) + 14px + min(3.5vw, 18px)); border-color: rgba(76, 201, 240, .55); color: var(--cyan); }
+#padDrift { right: calc(var(--safe-r) + 14px + min(3.5vw, 18px)); }
+#padBoost.on { background: rgba(76, 201, 240, .3); }
+@media (orientation: landscape) and (max-height: 500px) {
+  .pad.small { bottom: calc(var(--safe-b) + 16px); }
+  #padBoost { left: calc(var(--safe-l) + 14px + min(24vw, 112px) + 14px); }
+  #padDrift { right: calc(var(--safe-r) + 14px + min(24vw, 112px) + 14px); }
+}
 .pad svg { width: 40%; height: 40%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
 #count { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--display); }

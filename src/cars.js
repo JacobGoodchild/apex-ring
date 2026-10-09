@@ -8,7 +8,7 @@ export const PAINTS = [
 ];
 
 export const CARS = [
-  { id: "vanta", name: "Vanta S1", doors: "scissor", price: 0, vmax: 80, accel: 15, grip: 24, boostPower: 12, boostFill: 1, response: 8, steerFalloff: 0.035,
+  { id: "vanta", name: "Vanta S1", doors: "scissor", price: 0, vmax: 80, accel: 15, grip: 34, boostPower: 12, boostFill: 1, response: 8, steerFalloff: 0.035,
     blurb: "Balanced mid-engine hypercar with scissor doors." },
 ];
 

@@ -33,7 +33,7 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 
 ## Feature list (work top to bottom)
 1. [x] Setup: CI + Pages deploy, ES modules, vendored Three.js, Playwright tests with test mode.
-2. Driving feel: acceleration, auto-brake into tight corners, grip, weight transfer, body roll, drift button. Chase cam tuned for portrait and landscape, optional bonnet cam.
+2. [x] Driving feel: acceleration, auto-brake into tight corners, grip, weight transfer, body roll, drift button. Chase cam tuned for portrait and landscape, optional bonnet cam.
 3. First real track built from a spline: hairpins, chicanes, sweepers, elevation, banking, a bridge. Minimap.
 4. Rivals: 5–7 rule-based AI drivers with personalities, mistakes, braking points, overtaking, slipstream, subtle rubber-banding. Position counter and results screen.
 5. Boost + drift: boost meter and button, exhaust flames, speed lines, FOV kick; drifting fills boost, tyre smoke, skid marks.
@@ -52,3 +52,4 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 - 2026-10-09: Setup. Split into ES modules with vendored Three.js r186, spline-based track engine (the oval is now a spline),
   shared arcade vehicle physics, Playwright tests with a test mode (fixed seed, 4x time, autopilot), GitHub Actions test + Pages deploy.
   Dropped Google Fonts (external request). Next: driving feel + chase cam.
+- 2026-10-09: Driving feel. Grip-limited yaw with slip (drift button, tap-to-hold slides), auto-brake assist from the track speed profile, body roll/pitch, suspension bob, new chase cam (lag, drift swing, portrait/landscape framing) and bonnet cam (C key / Cam button), boost + drift pads on phone. Next: first real spline track.

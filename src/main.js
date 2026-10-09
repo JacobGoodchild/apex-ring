@@ -12,6 +12,7 @@ import { makeCar, setDoors } from "./carmodel.js";
 import { Vehicle } from "./vehicle.js";
 import { input, bindPad, readControls, setTilt } from "./input.js";
 import * as sfx from "./audio.js";
+import { ChaseCam } from "./camera.js";
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -21,10 +22,12 @@ const errors = [];
 loadSave();
 const world = new World($("stage"), save.settings.quality || autoQuality());
 const { scene, camera } = world;
+const chase = new ChaseCam(camera);
+chase.mode = save.settings.camera === "bonnet" ? "bonnet" : "chase";
 
 const G = {
   mode: "menu", track: null, path: null, player: null, car: null, laps: TEST && new URLSearchParams(location.search).get("laps") ? Number(new URLSearchParams(location.search).get("laps")) : 3,
-  countT: 0, raceTime: 0, lapStart: 0, lapTimes: [], menuT: 0, doors: 1, shake: 0, paused: false,
+  countT: 0, raceTime: 0, lapStart: 0, lapTimes: [], menuT: 0, doors: 1, paused: false,
 };
 
 // ---------- track ----------
@@ -125,11 +128,17 @@ $("tiltBtn").addEventListener("click", async () => {
   const on = await setTilt(!input.tiltOn, toast);
   $("tiltBtn").textContent = on ? "Tilt: on" : "Tilt: off"; $("tiltBtn").classList.toggle("on", on);
 });
-bindPad($("padL"), "left"); bindPad($("padR"), "right");
+bindPad($("padL"), "left"); bindPad($("padR"), "right"); bindPad($("padBoost"), "boost"); bindPad($("padDrift"), "drift");
+$("camBtn").addEventListener("click", () => {
+  chase.mode = chase.mode === "chase" ? "bonnet" : "chase"; save.settings.camera = chase.mode; writeSave();
+  $("camBtn").textContent = chase.mode === "chase" ? "Cam: chase" : "Cam: bonnet"; chase.ready = false;
+});
+$("camBtn").textContent = chase.mode === "chase" ? "Cam: chase" : "Cam: bonnet";
 input.onKey = (k) => {
   if (k === "Escape" || k === "p" || k === "P") pause(!G.paused);
   else if ((k === "r" || k === "R") && G.mode === "race") G.player.respawn();
   else if (k === "m" || k === "M") $("muteBtn").click();
+  else if (k === "c" || k === "C") $("camBtn").click();
 };
 sfx.setMuted(!save.settings.sound);
 $("muteBtn").textContent = save.settings.sound ? "Sound on" : "Sound off";
@@ -143,6 +152,14 @@ function autopilot(v) {
   const prof = t.speedProfile(v.spec.grip);
   let vt = Infinity; for (let k = 0; k < 40; k += 3) vt = Math.min(vt, prof[(v.p.i + k) % t.N]);
   return { steer: clamp(wrapA(v.h - want) * 2.2, -1, 1), targetSpeed: vt * 0.98 };
+}
+
+// Auto-brake: lift and brake for tight corners a little later than a careful driver would.
+function assistSpeed(v) {
+  if (v.drifting) return Infinity;
+  const t = G.path, prof = t.speedProfile(v.spec.grip * 1.1);
+  let vt = Infinity; for (let k = 2; k < 30; k += 3) vt = Math.min(vt, prof[(v.p.i + k) % t.N]);
+  return vt * 1.06;
 }
 
 // ---------- simulation ----------
@@ -168,7 +185,7 @@ function step(dt) {
   const ap = AUTOPILOT && racing ? autopilot(v) : null;
   v.ctl.steer = ap ? ap.steer : ctl.steer;
   v.ctl.boost = ctl.boost; v.ctl.drift = ctl.drift; v.ctl.brake = ctl.brake;
-  v.ctl.targetSpeed = ap ? ap.targetSpeed : Infinity;
+  v.ctl.targetSpeed = ap ? ap.targetSpeed : assistSpeed(v);
   if (G.mode === "race" || G.mode === "done") v.step(dt, racing);
 
   if (racing) {
@@ -181,8 +198,7 @@ function step(dt) {
       if (G.lapTimes.length >= G.laps) finishRace();
     }
   }
-  if (v.wallHit > 4) { G.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
-  G.shake = Math.max(0, G.shake - dt * 2.5);
+  if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
 }
 
 function render(dt) {
@@ -194,6 +210,7 @@ function render(dt) {
   car.wheels.forEach((w) => (w.rotation.x += v.vF * dt / 0.36));
   car.steerers.forEach((p) => (p.rotation.y = -v.steer * 0.4));
 
+  car.group.position.y += Math.sin(G.bob = (G.bob || 0) + dt * v.vF * 0.9) * 0.006 * Math.min(1, v.vF / 30);
   const portrait = camera.aspect < 1;
   if (G.mode === "menu") {
     G.menuT += dt;
@@ -202,17 +219,11 @@ function render(dt) {
     camera.position.lerp(camPos, 1 - Math.exp(-dt * 3));
     lookAt.set(v.x, v.y + (portrait ? -1.6 : 0.3), v.z);
     camera.fov += ((portrait ? 62 : 50) - camera.fov) * Math.min(1, dt * 3);
-  } else {
-    const fx = Math.sin(v.h), fz = Math.cos(v.h);
-    const back = portrait ? 9.2 : 7.2, up = portrait ? 3.4 : 2.8;
-    camPos.set(v.x - fx * back, v.y + up, v.z - fz * back);
-    camera.position.lerp(camPos, 1 - Math.exp(-dt * 7));
-    if (G.shake > 0) { camera.position.x += (Math.random() - 0.5) * G.shake * 0.3; camera.position.y += (Math.random() - 0.5) * G.shake * 0.3; }
-    lookAt.set(v.x + fx * 6, v.y + 1.0, v.z + fz * 6);
-    camera.fov += ((portrait ? 70 : 60) + v.vF * 0.15 - camera.fov) * Math.min(1, dt * 3);
-  }
-  camera.updateProjectionMatrix();
-  camera.lookAt(lookAt);
+    camera.updateProjectionMatrix();
+    camera.lookAt(lookAt);
+    chase.snap(v);
+  } else chase.update(v, dt, v.boosting ? 1 : 0);
+  car.body.visible = chase.mode !== "bonnet" || G.mode === "menu";
   world.follow(v.x, v.y, v.z);
 
   if (G.mode !== "menu") {

@@ -52,7 +52,9 @@ export class Vehicle {
     // drift: holding drift while steering at speed breaks the rear loose
     const wantDrift = active && c.drift && Math.abs(this.steer) > 0.25 && vF > 18;
     if (wantDrift && !this.drifting) { this.drifting = true; this.driftDir = Math.sign(this.steer); this.yawRate += this.driftDir * 0.6; }
-    if (this.drifting && (!c.drift || vF < 12)) { if (Math.abs(this.driftAngle) < 0.35 || vF < 12) this.drifting = false; }
+    // the slide holds while you keep steering into it (so a tap of drift is enough on a phone)
+    const holding = c.drift || this.steer * (this.driftDir || 0) > 0.3;
+    if (this.drifting && (!holding || vF < 12)) { if (Math.abs(this.driftAngle) < 0.3 || vF < 12) this.drifting = false; }
 
     // boost
     this.boosting = active && c.boost && this.boost > 0.01;
@@ -63,7 +65,7 @@ export class Vehicle {
     let a = active ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) : 0;
     if (this.boosting) a += s.boostPower;
     let decel = 0;
-    if (active && c.brake && !this.drifting) decel = 30;
+    if (active && (c.brake || (c.drift && Math.abs(this.steer) < 0.25)) && !this.drifting) decel = 30;
     if (vF > c.targetSpeed) decel = Math.max(decel, Math.min(26, (vF - c.targetSpeed) * 4));
     if (vF > vmax) decel = Math.max(decel, (vF - vmax) * 0.8);
     if (!active) decel = Math.max(decel, 10);
