@@ -332,6 +332,12 @@ function finishRace() {
   html += `<div class="reward">${rw.lines.map(([n, c]) => `<span>${n}</span><b>+${c}</b>`).join("")}<span class="tot">Total</span><b class="tot coin">+${rw.coins}</b>${rw.gems ? `<span>Gems</span><b class="gem">+${rw.gems}</b>` : ""}</div>`;
   $("results").innerHTML = html;
   writeSave();
+  const ni = G.event ? EVENTS.indexOf(G.event) + 1 : -1, next = G.event && G.eventOk ? EVENTS[ni] : null;
+  $("nextBtn").hidden = !next;
+  if (next) $("nextBtn").textContent = "Next: " + next.name;
+  $("againBtn").textContent = G.event ? (G.eventOk ? "Replay event" : "Try again") : "Race again";
+  $("againBtn").classList.toggle("ghost", !!next);
+  if (G.event && G.eventOk && ni === EVENTS.length) setTimeout(() => toast("Career complete. You're the Apex champion!", 5000), 1600);
   setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; } }, TEST ? 200 : 1400);
 }
 
@@ -411,6 +417,7 @@ $("resetBtn").addEventListener("click", () => {
   resetSave(); G.garageCar = null; buildPlayer(); applySteer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
+$("nextBtn").addEventListener("click", () => { const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
 $("menuBtn").addEventListener("click", () => { const ev = G.event; toMenu(); if (ev) show("career"); });
 $("pauseBtn").addEventListener("click", () => pause(true));
 $("resumeBtn").addEventListener("click", () => { sfx.click(); pause(false); });

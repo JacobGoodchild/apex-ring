@@ -153,6 +153,7 @@ test.describe("Apex Ring", () => {
     expect(await game(page, () => window.__apex.eventOk)).toBe(true);
     const sv = await game(page, () => window.__apex.save);
     expect(sv.career.c2.done).toBe(true);
+    await expect(page.locator("#nextBtn")).toHaveText(/Sideways 101/);
     await page.click("#menuBtn");
     await expect(page.locator("#career")).toBeVisible();
     expect(problems).toEqual([]);

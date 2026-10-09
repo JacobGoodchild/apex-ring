@@ -72,3 +72,4 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 - 2026-10-09: Performance + awareness: adaptive resolution (drops render resolution in steps when frames take >21 ms, raises it back under 15 ms, floor 55%), name tags over up to three rivals just ahead.
 - 2026-10-09: Controls: optional 'screen halves' touch steering (Settings > Touch steering), control help on the pause screen, README.md for humans.
 - 2026-10-09: CI: runs on main now queue instead of cancelling each other (a full run takes ~10 min), so every push gets tested and the latest green one deploys. Tried 2 Playwright workers: too slow under software WebGL, kept 1.
+- 2026-10-09: Career flow: 'Next: <event>' button after a completed event, Try again / Replay labels, champion message after the final. Tried letting bold rivals drift into hairpins: slower and more wall hits in the headless race sim, so reverted it.
