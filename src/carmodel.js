@@ -150,7 +150,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   const hl = S.lights || 0;
   const hz0 = L - (hl === 1 ? 0.62 : 0.5), hz1 = L - (hl === 1 ? 0.5 : 0.3);
   heads.push(patch(0.22, hl === 2 ? 0.75 : 0.55, hz0, hz1), patch(Math.PI - (hl === 2 ? 0.75 : 0.55), Math.PI - 0.22, hz0, hz1));
-  tails.push(patch(0.12, Math.PI - 0.12, -L + 0.1, -L + 0.2, 1.015));
+  tails.push(patch(0.3, Math.PI - 0.3, -L + 0.12, -L + 0.17, 1.015));
   const tz = -L + 0.1, ty = t(tz) - 0.1;
   for (const s of [-1, 1]) tails.push(box(0.05, 0.14, 0.06, s * S.wid * 0.8, ty - 0.06, tz - 0.08));
   add(heads, M.head, false);

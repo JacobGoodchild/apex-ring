@@ -151,6 +151,36 @@ export function buildScenery(path, theme, density, seed) {
     stand.position.set(tmp.x, tmp.y, tmp.z); stand.rotation.y = tmp.h; g.add(stand);
   }
 
+  // billboards with made-up sponsors along the straights, facing the track
+  {
+    const ads = [["NOVA", "TYRES", "#f2a65a", "#0b1220"], ["VOLTA", "FUEL", "#0b1220", "#4cc9f0"], ["APEX", "RING", "#e9edf2", "#d7263d"], ["HELIX", "OIL", "#46d38a", "#0b1220"]];
+    const tex = canvasTex(512, 256, (c, w, h) => {
+      ads.forEach(([a, b2, bg, fg], k) => {
+        const x = (k % 2) * 256, y = Math.floor(k / 2) * 128;
+        c.fillStyle = bg; c.fillRect(x, y, 256, 128); c.fillStyle = fg; c.font = "bold 56px Arial, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText(a, x + 128, y + 50); c.font = "bold 30px Arial, sans-serif"; c.fillText(b2, x + 128, y + 98);
+      });
+    });
+    const boards = [[], [], [], []];
+    let k = 0;
+    for (let d = 60; d < path.length - 60; d += 23) {
+      const i = Math.floor(d / path.ds) % path.N;
+      if (Math.abs(path.cs[i]) > 0.003 || path.bridge[i] || path.tunnel[i]) continue;
+      if ((k++ % 4) !== 0) continue;
+      const side = k % 8 < 4 ? 1 : -1;
+      path.pointAt(d, side * (edge + 3.5), tmp);
+      boards[k % 4].push({ x: tmp.x, y: tmp.y + 3.6, z: tmp.z, r: tmp.h + (side > 0 ? -Math.PI / 2 : Math.PI / 2) });
+    }
+    boards.forEach((list, a) => {
+      const geo = new THREE.PlaneGeometry(9, 4.5), uv = geo.attributes.uv;
+      for (let q = 0; q < uv.count; q++) uv.setXY(q, (a % 2) * 0.5 + uv.getX(q) * 0.5, (1 - Math.floor(a / 2)) * 0.5 + uv.getY(q) * 0.5 - 0.5 + 0.5);
+      add(instanced(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: theme.stars ? 0.6 : 0.15, side: THREE.DoubleSide }), list));
+    });
+    const legs = boards.flat();
+    const lg = new THREE.BoxGeometry(0.25, 1.5, 0.25);
+    add(instanced(lg, new THREE.MeshStandardMaterial({ color: 0x30384a }), legs.flatMap((b) => [-3, 3].map((o) => ({ x: b.x + Math.cos(b.r) * o, y: b.y - 3.6 + 0.7, z: b.z - Math.sin(b.r) * o, r: b.r })))));
+  }
+
   // light poles along the outside of the track
   {
     const poles = [], heads = [];

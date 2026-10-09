@@ -154,6 +154,19 @@ export function buildTrackMeshes(path, theme) {
     lm.userData.glow = true; group.add(lm);
   }
 
+  // painted grid boxes behind the line
+  {
+    const geos = [];
+    for (let k = 0; k < 8; k++) {
+      const row = Math.floor(k / 2), col = k % 2, d = -7 - row * 9 - col * 4.5 + 2.6, lat = col ? -3.3 : 3.3;
+      path.pointAt(d, lat, tmp);
+      const g = new THREE.PlaneGeometry(2.6, 0.22); g.rotateX(-Math.PI / 2); g.rotateY(tmp.h); g.translate(tmp.x, tmp.y + 0.025, tmp.z); geos.push(g);
+      for (const s of [-1, 1]) { path.pointAt(d - 0.7, lat + s * 1.2, tmp); const e = new THREE.PlaneGeometry(0.18, 1.4); e.rotateX(-Math.PI / 2); e.rotateY(tmp.h); e.translate(tmp.x, tmp.y + 0.025, tmp.z); geos.push(e); }
+    }
+    const grid = new THREE.Mesh(merge(geos.map((g) => { g.setIndex(g.index); return g; })), new THREE.MeshBasicMaterial({ color: 0xe8ecf0, polygonOffset: true, polygonOffsetFactor: -4 }));
+    group.add(grid);
+  }
+
   // start / finish line and gantry
   {
     path.pointAt(0, 0, tmp);

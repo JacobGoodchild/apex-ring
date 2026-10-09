@@ -296,6 +296,7 @@ function startRace() {
   setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
   $("count").hidden = false; G.countT = 0; G.lastBeep = -1;
   const f = $("fade"); f.classList.remove("out"); void f.offsetWidth; f.classList.add("out");
+  G.tips = !save.tipsSeen && !TEST ? [[5, "Hold ◀ ▶ (or ← →) to steer. The car speeds up and brakes for corners by itself."], [13, "Tap DRIFT while steering to slide. Drifting fills your BOOST bar."], [22, "Press BOOST (or ↑) when the blue bar has charge for a burst of speed."]] : [];
 }
 
 function toMenu() {
@@ -523,6 +524,7 @@ function step(dt) {
       if (G.lapTimes.length >= laps()) finishRace(); else sfx.lapChime();
     }
     if (G.event && G.event.type === "elim" && G.mode === "race") eliminate();
+    if (G.tips && G.tips.length && G.raceTime > G.tips[0][0] - 4) { toast(G.tips.shift()[1], 5000); if (!G.tips.length) { save.tipsSeen = true; writeSave(); } }
   }
   if (v.wallHit > 2) G.lapWall++;
   if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
