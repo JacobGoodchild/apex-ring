@@ -28,6 +28,8 @@ jobs:
       - run: npm ci
       - name: Check vendored Three.js matches package.json
         run: npm run vendor && git diff --exit-code vendor/
+      - name: Check sw.js file list is up to date
+        run: npm run sw && git diff --exit-code sw.js
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - uses: actions/upload-artifact@v4
@@ -52,7 +54,7 @@ jobs:
         run: |
           mkdir -p _site
           cp -r index.html styles.css src vendor _site/
-          for f in manifest.webmanifest sw.js icons assets CREDITS.md; do [ -e "$f" ] && cp -r "$f" _site/ || true; done
+          for f in manifest.webmanifest sw.js icons CREDITS.md; do [ -e "$f" ] && cp -r "$f" _site/ || true; done
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

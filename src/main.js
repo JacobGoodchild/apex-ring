@@ -608,6 +608,11 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
+// ---------- offline / install ----------
+if ("serviceWorker" in navigator && location.protocol !== "file:" && !TEST) {
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => { /* offline play just won't be available */ }));
+}
+
 // ---------- test hook ----------
 addEventListener("error", (e) => errors.push(String(e.message)));
 if (TEST) {

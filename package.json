@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "vendor": "node scripts/vendor.mjs",
+    "sw": "node scripts/sw.mjs",
+    "icons": "node scripts/icons.mjs",
     "serve": "node scripts/serve.mjs",
     "test": "playwright test"
   },
