@@ -67,3 +67,4 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 - 2026-10-09: Decals: twin stripes, centre stripe, side flash and race-number roundels on the doors (thin loft patches over the body, colour picked to contrast with the paint), 400 coins each per car, plus four more paints. Rivals now wear varied rims and liveries.
 - 2026-10-09: Ghost car (src/ghost.js): time trials record your lap at 10 Hz and replay your best lap per track as a see-through car; recordings saved in localStorage (save.ghosts).
 - 2026-10-09: Race extras: rival difficulty (easy/normal/hard) in settings, live gap to the car ahead (or lead over the car behind), respawn button for touch, soft fake headlight beams on night tracks.
+- 2026-10-09: Car refinement: fixed inside-out loft winding (paint lighting and the glass canopy now render correctly), curved LED headlight strips (three styles), full-width curved tail-light bar, recessed side scoops, twin exhaust pipes.

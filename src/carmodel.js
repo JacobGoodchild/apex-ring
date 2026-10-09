@@ -34,7 +34,7 @@ function loft({ z0, z1, nz = 40, nt = 28, w, t, b, n = 2.6, tumble = () => 0.85,
   }
   for (let i = 0; i < nz; i++) for (let j = 0; j < nt; j++) {
     const a = i * ring + j, b2 = a + ring;
-    idx.push(a, b2, a + 1, a + 1, b2, b2 + 1);
+    idx.push(a, a + 1, b2, a + 1, b2 + 1, b2);
   }
   if (closeEnds) {
     // cap both ends with a fan
@@ -42,7 +42,7 @@ function loft({ z0, z1, nz = 40, nt = 28, w, t, b, n = 2.6, tumble = () => 0.85,
       const c = pos.length / 3; let cx = 0, cy = 0;
       for (let j = 0; j <= nt; j++) { cx += pos[(i * ring + j) * 3]; cy += pos[(i * ring + j) * 3 + 1]; }
       pos.push(cx / ring, cy / ring, pos[(i * ring) * 3 + 2]);
-      for (let j = 0; j < nt; j++) flip ? idx.push(c, i * ring + j + 1, i * ring + j) : idx.push(c, i * ring + j, i * ring + j + 1);
+      for (let j = 0; j < nt; j++) flip ? idx.push(c, i * ring + j, i * ring + j + 1) : idx.push(c, i * ring + j + 1, i * ring + j);
     }
   }
   const g = new THREE.BufferGeometry();
@@ -61,13 +61,13 @@ function mats(paintHex) {
     MATS.carbon = new THREE.MeshStandardMaterial({ color: 0x15171c, metalness: 0.4, roughness: 0.4 });
     MATS.glass = new THREE.MeshPhysicalMaterial({ color: 0x0a121c, metalness: 0.3, roughness: 0.04, clearcoat: 1, envMapIntensity: 1.6 });
     MATS.dark = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.8 });
-    MATS.head = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeeff, emissiveIntensity: 3 });
+    MATS.head = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeeff, emissiveIntensity: 3, polygonOffset: true, polygonOffsetFactor: -3 });
     MATS.tyre = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.92 });
     MATS.disc = new THREE.MeshStandardMaterial({ color: 0x5a5e66, metalness: 0.8, roughness: 0.35 });
   }
   return {
     paint: new THREE.MeshPhysicalMaterial({ color: paintHex, metalness: 0.55, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.05 }),
-    tail: new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff1a0a, emissiveIntensity: 1.4 }),
+    tail: new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff1a0a, emissiveIntensity: 1.4, polygonOffset: true, polygonOffsetFactor: -3 }),
     rim: new THREE.MeshStandardMaterial({ color: 0x9aa1ab, metalness: 0.95, roughness: 0.2 }),
     caliper: new THREE.MeshStandardMaterial({ color: 0xf2a65a, roughness: 0.35 }),
     ...MATS,
@@ -124,7 +124,10 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   const carbonParts = [];
   if (S.splitter) carbonParts.push(box(S.wid * 2.02, 0.04, 0.4, 0, 0.17, L - 0.15));
   carbonParts.push(box(S.wid * 1.8, 0.24, 0.35, 0, 0.3, -L + 0.12, 0.45));
-  if (S.intake) for (const s of [-1, 1]) carbonParts.push(box(0.05, 0.22, 0.7, s * (w(-0.75) - 0.02), (t(-0.75) + 0.2) / 2 + 0.08, -0.75));
+  const scoops = [];
+  if (S.intake) scoops.push(loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: 3.2, tumble: () => 0.8, th0: -0.12, th1: 0.32, scale: 1.006, closeEnds: false }),
+    loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: 3.2, tumble: () => 0.8, th0: Math.PI - 0.32, th1: Math.PI + 0.12, scale: 1.006, closeEnds: false }));
+  for (const s of [-1, 1]) { const ex = new THREE.CylinderGeometry(0.075, 0.085, 0.24, 12); ex.rotateX(Math.PI / 2); ex.translate(s * 0.32, 0.38, -L + 0.02); carbonParts.push(ex); }
   // wing
   const wingY = S.wing === "high" ? S.deck + 0.42 : S.deck + 0.12;
   if (S.wing === "high" || S.wing === "low") {
@@ -142,15 +145,18 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   add(carbonParts, M.carbon);
   // lights
   const heads = [], tails = [];
-  const hz = L - 0.42;
-  for (const s of [-1, 1]) heads.push(box(0.36, 0.035, 0.3, s * S.wid * 0.56, t(hz) - 0.01, hz, -0.32, s * 0.3));
+  // light strips are thin patches of the body surface, so they follow its curves
+  const patch = (th0, th1, z0, z1, sc = 1.01) => loft({ z0, z1, nz: 8, nt: 16, w, t, b, n: 3.2, tumble: () => 0.8, th0, th1, scale: sc, closeEnds: false });
+  const hl = S.lights || 0;
+  const hz0 = L - (hl === 1 ? 0.62 : 0.5), hz1 = L - (hl === 1 ? 0.5 : 0.3);
+  heads.push(patch(0.22, hl === 2 ? 0.75 : 0.55, hz0, hz1), patch(Math.PI - (hl === 2 ? 0.75 : 0.55), Math.PI - 0.22, hz0, hz1));
+  tails.push(patch(0.12, Math.PI - 0.12, -L + 0.1, -L + 0.2, 1.015));
   const tz = -L + 0.1, ty = t(tz) - 0.1;
-  tails.push(box(S.wid * 1.6, 0.045, 0.06, 0, ty, tz - 0.02));
-  for (const s of [-1, 1]) tails.push(box(0.05, 0.14, 0.06, s * S.wid * 0.8, ty - 0.06, tz - 0.01));
+  for (const s of [-1, 1]) tails.push(box(0.05, 0.14, 0.06, s * S.wid * 0.8, ty - 0.06, tz - 0.08));
   add(heads, M.head, false);
   const tailMesh = add(tails, M.tail, false);
-  // grille / arch shadows
-  add([box(S.wid * 1.1, 0.1, 0.12, 0, (t(L - 0.08) + 0.2) / 2, L - 0.08), box(S.wid * 1.4, 0.14, 0.08, 0, 0.42, -L + 0.06)], M.dark, false);
+  // grille / arch shadows / scoops
+  add([...scoops, box(S.wid * 1.1, 0.1, 0.12, 0, (t(L - 0.08) + 0.2) / 2, L - 0.08), box(S.wid * 1.4, 0.14, 0.08, 0, 0.42, -L + 0.06)], M.dark, false);
 
   // doors: a patch of the body side, hinged according to the style
   const doors = [];
