@@ -261,7 +261,7 @@ test.describe("Apex Ring", () => {
     const problems = await openGame(page, "autopilot=1&speed=12");
     await page.click("#careerBtn");
     await expect(page.locator(".chapter:not(.daily):not(.trophies)")).toHaveCount(4);
-    await expect(page.locator(".chapter.trophies li")).toHaveCount(14);
+    await expect(page.locator(".chapter.trophies li")).toHaveCount(15);
     await page.click("#ev-a1");
     await expect(page.locator("#evDDesc")).toContainText("60 s");
     await page.click("#evGo");
@@ -305,6 +305,24 @@ test.describe("Apex Ring", () => {
     await page.click("#photoDone");
     await expect(page.locator("#pause")).toBeVisible();
     expect(problems).toEqual([]);
+  });
+
+  test("cup: a short championship with points after every race", async ({ page }) => {
+    test.setTimeout(240_000);
+    const problems = await openGame(page, "autopilot=1&speed=12&laps=1&rivals=3");
+    await page.click("#raceBtn");
+    await page.click("#modeCup");
+    await expect(page.locator("#cupName")).toContainText("Sunset Cup");
+    await expect(page.locator("#startBtn")).toHaveText("Start cup");
+    await page.click("#startBtn");
+    await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 90_000 });
+    await expect(page.locator(".cuphead")).toContainText("race 1 of 3");
+    await expect(page.locator("#nextBtn")).toContainText("Next race");
+    await page.click("#nextBtn");
+    await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 45_000 });
+    expect(await page.evaluate(() => window.__apex.track)).toBe("gp");
+    expect(problems).toEqual([]);
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 
   test("career: elimination drops the last car each lap", async ({ page }) => {

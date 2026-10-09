@@ -227,5 +227,9 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   (pause > Photo mode: HUD hidden, drag/pinch/scroll to orbit, Save photo downloads a PNG from the canvas), Trophies
   (src/trophies.js, 14 one-off achievements worth 300 coins each, listed at the bottom of the career map), near trees
   cast shadows on High quality.
+- Part 5: Day/Night for every track (nightly(theme): dark sky with stars, cool moonlight, the player's spotlight
+  headlight; combines with Rain as "Night rain"; career and cup races use their own time of day), Cup mode in race
+  setup (Sunset Cup / Rough Roads Cup / Apex Masters: 3-4 races, points 10-8-6-5-4-3-2-1, prize in full for a win and
+  half for a podium, best finish saved, "Silverware" trophy for a cup win).
 - Tests run on a frozen copy (scratchpad snaptest.sh, PW_PORT=4175) so edits during a 15-min run don't leak in.
   Don't run other heavy Playwright tests at the same time: CPU contention made a countdown time out once.

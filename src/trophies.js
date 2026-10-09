@@ -14,6 +14,7 @@ export const TROPHIES = [
   { id: "garage", name: "Full house", desc: "Own every car." },
   { id: "daily3", name: "Daily driver", desc: "Complete 3 daily challenges." },
   { id: "champ", name: "Apex champion", desc: "Win the career final." },
+  { id: "cup", name: "Silverware", desc: "Win a cup." },
 ];
 export const TROPHY_COINS = 300;
 

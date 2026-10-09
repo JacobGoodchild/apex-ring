@@ -64,3 +64,11 @@ export function dailyEvent(date = new Date()) {
   if (type === "attack") { const target = 900 + t.difficulty * 500; return { ...base, type, laps: 99, time: 60, target, desc: `60-second drift attack on ${where}: score ${target.toLocaleString("en-GB")}.` }; }
   return { ...base, type: "elim", every: 15, laps: 3, desc: `Knockout on ${where}: last car out every 15 seconds.` };
 }
+
+// Cups: a short championship of races on different tracks; points per finishing place, cup prize at the end.
+export const CUP_POINTS = [10, 8, 6, 5, 4, 3, 2, 1];
+export const CUPS = [
+  { id: "cup1", name: "Sunset Cup", tracks: ["oval", "gp", "forest"], reward: { coins: 1500, gems: 1 } },
+  { id: "cup2", name: "Rough Roads Cup", tracks: ["canyon", "harbour", "xtreme", "coastal"], reward: { coins: 3500, gems: 2 } },
+  { id: "cup3", name: "Apex Masters", tracks: ["neon", "alpine", "gp:r", "coastal:m"], reward: { coins: 7000, gems: 3 } },
+];

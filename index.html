@@ -98,6 +98,12 @@
     <div class="tabs" role="tablist">
       <button class="tab" id="modeRace" type="button" aria-pressed="true">Quick race</button>
       <button class="tab" id="modeTrial" type="button" aria-pressed="false">Time trial</button>
+      <button class="tab" id="modeCup" type="button" aria-pressed="false">Cup</button>
+    </div>
+    <div class="cuppick" id="cupPick" hidden>
+      <button class="arrow" id="cupPrev" type="button" aria-label="Previous cup">‹</button>
+      <div class="cupinfo"><div class="trackName" id="cupName"></div><div class="hint" id="cupTracks"></div></div>
+      <button class="arrow" id="cupNext" type="button" aria-label="Next cup">›</button>
     </div>
     <div class="trackpick" id="trackPick">
       <button class="arrow" id="trackPrev" type="button" aria-label="Previous track">‹</button>
@@ -113,6 +119,7 @@
       <div class="row"><button class="chipbtn" id="ghostCopy" type="button">Copy</button><button class="chipbtn" id="ghostLoad" type="button">Load code</button><span class="hint" id="ghostMsg"></span></div></div>
     <div class="tabs" id="playersTabs"><button class="tab" data-n="1" type="button">1 player</button><button class="tab" data-n="2" type="button">2 players</button></div>
     <div class="hint" id="playersHint" hidden>Split-screen: player 1 steers with A/D and boosts with W, player 2 uses ← → and ↑. Two gamepads work too.</div>
+    <div class="tabs" id="timeTabs"><button class="tab" data-t="day" type="button">Day</button><button class="tab" data-t="night" type="button">Night</button></div>
     <div class="tabs" id="weatherTabs"><button class="tab" data-w="dry" type="button">Dry</button><button class="tab" data-w="rain" type="button">Rain</button></div>
     <div class="tabs" id="layoutTabs"><button class="tab" data-l="" type="button">Normal</button><button class="tab" data-l="r" type="button">Reverse</button><button class="tab" data-l="m" type="button">Mirror</button></div>
     <button class="btn" id="startBtn" type="button">Start race</button>

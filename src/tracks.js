@@ -170,5 +170,14 @@ export function rainy(theme) {
   return { ...theme, rain: true, wetRoad: true, stars: 0, clouds: 0.95, cloudColor: night ? 0x262c36 : 0x9aa2aa,
     sky: theme.sky.map((c) => mixHex(c, grey, night ? 0.35 : 0.7)), fog: mixHex(theme.fog, grey, 0.7), fogNear: (theme.fogNear || 160) * 0.5, fogFar: (theme.fogFar || 1100) * 0.7,
     sunIntensity: theme.sunIntensity * 0.55, sunColor: mixHex(theme.sunColor, 0xd0d6dc, 0.6), hemi: [mixHex(theme.hemi[0], 0xc0c8d0, 0.5), theme.hemi[1], theme.hemi[2] * 1.05],
-    asphaltTint: (theme.asphaltTint || 0.8) * 0.78, label: (theme.label || "").split(" · ")[0] + " · Rain" };
+    asphaltTint: (theme.asphaltTint || 0.8) * 0.78, label: (theme.label || "").split(" · ")[0] + (night ? " · Night rain" : " · Rain") };
+}
+
+// Time of day: turn a daytime theme into night (dark sky with stars, a cool moon, lamps and headlights do the work).
+export function nightly(theme) {
+  if (theme.stars) return theme;
+  return { ...theme, stars: 1, sky: [0x02040c, 0x0a1428, 0x1a2a48], sunDir: [0.4, 0.45, -0.6], sunColor: 0x9fb8ff, sunIntensity: 0.45,
+    hemi: [0x4a5f9a, mixHex(theme.hemi[1], 0x05070c, 0.7), 0.5], fog: 0x0a1222, fogNear: (theme.fogNear || 160) * 0.8, fogFar: (theme.fogFar || 1100) * 0.85,
+    exposure: 1.15, clouds: (theme.clouds ?? 0.4) * 0.6, cloudColor: 0x1e2636, groundTint: mixHex(theme.groundTint || 0xd8d8d8, 0x404858, 0.4),
+    envIntensity: 0.4, bloom: 0.8, label: (theme.label || "").split(" · ")[0] + " · Night" };
 }

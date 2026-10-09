@@ -7,7 +7,7 @@ import { TrackPath } from "./track.js";
 import { buildTrackMeshes } from "./trackmesh.js";
 import { buildScenery } from "./scenery.js";
 import { hasTerrain } from "./terrain.js";
-import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse, rainy } from "./tracks.js";
+import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse, rainy, nightly } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec, GARAGE_ORDER } from "./cars.js";
 import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
@@ -16,7 +16,7 @@ import { encodeGhost, decodeGhost } from "./ghostcode.js";
 import { VERSION, BUILD } from "./version.js";
 import { assistSteer, cornerSpeed, smoothSteer } from "./assist.js";
 import { levelOf, slot, rivalSpec, AUTO_BRAKE, AUTO_ASSIST } from "./race.js";
-import { EVENTS, eventUnlocked, trackUnlocked, judge, dailyEvent } from "./career.js";
+import { EVENTS, eventUnlocked, trackUnlocked, judge, dailyEvent, CUPS, CUP_POINTS } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { TROPHIES, TROPHY_COINS, award } from "./trophies.js";
 import { Vehicle } from "./vehicle.js";
@@ -61,14 +61,17 @@ const G = {
 function loadTrack(id, weather = G.wantWeather || "dry") {
   const base = trackById(id), wet = weather === "rain" || !!THEMES[base.theme].rain;
   const def = wet && !base.wet ? { ...base, wet: true } : base;
-  const theme = wet ? rainy(THEMES[def.theme]) : THEMES[def.theme];
+  const night = (G.wantTime || "day") === "night";
+  let theme = THEMES[def.theme];
+  if (night) theme = nightly(theme);
+  if (wet) theme = rainy(theme);
   G.weather = wet ? "rain" : "dry";
   G.track = def; G.path = new TrackPath(def);
   const grp = buildTrackMeshes(G.path, theme, { embankments: !hasTerrain(theme) });
   grp.add(buildScenery(G.path, theme, world.qname === "low" ? 0.45 : world.qname === "medium" ? 0.75 : 1, SEED ^ 0x1234));
   world.setTrack(grp); world.setTheme(theme);
   world.ground.visible = !hasTerrain(theme); // the terrain replaces the flat ground plane
-  G.night = !!theme.stars || (!!theme.rain && (THEMES[def.theme].stars || 0) > 0); G.wet = !!theme.rain;
+  G.night = night || !!THEMES[def.theme].stars; G.wet = !!theme.rain;
   headLight.visible = G.night;
   const sea = grp.getObjectByName("sea"); G.water = sea ? sea.material.normalMap : null;
   if (theme.rain && !G.rain) G.rain = new Rain(scene);
@@ -86,14 +89,14 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
 }
 function refreshLock() {
   if (!G.track) return;
-  const open = TEST || trackUnlocked(save, baseId(G.track.id));
+  const open = G.cupMode ? cupOpen(CUPS[G.cupIdx]) : TEST || trackUnlocked(save, baseId(G.track.id));
   // layout tabs (Normal / Reverse / Mirror); Reverse is hidden on tracks with cliff drops
   const lay = layoutOf(G.track.id), base = TRACKS.find((t) => t.id === baseId(G.track.id));
   document.querySelectorAll("#layoutTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.l === lay)); b.hidden = b.dataset.l === "r" && !canReverse(base); });
   $("startBtn").disabled = !open;
   $("trackPick").classList.toggle("locked", !open);
   if (!open) $("startBtn").textContent = "Unlock it in Career";
-  else $("startBtn").textContent = G.trial ? "Start time trial" : "Start race";
+  else $("startBtn").textContent = G.cupMode ? "Start cup" : G.trial ? "Start time trial" : "Start race";
   refreshBoard();
 }
 // ---------- local leaderboard + ghost codes ----------
@@ -164,8 +167,10 @@ function pickTrack(dir) {
   loadTrack(TRACKS[i].id); writeSave();
 }
 function applyWeather() {
+  document.querySelectorAll("#timeTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.t === (G.night ? "night" : "day"))); b.disabled = !!THEMES[G.track.theme].stars && b.dataset.t === "day"; });
   const always = !!THEMES[G.track.theme].rain;
-  document.querySelectorAll("#weatherTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.w === G.weather)); b.disabled = always && b.dataset.w === "dry"; });
+  document.querySelectorAll("#timeTabs .tab").forEach((b) => b.addEventListener("click", () => { if (b.dataset.t === (G.night ? "night" : "day")) return; sfx.click(); G.wantTime = b.dataset.t; loadTrack(G.track.id); writeSave(); }));
+document.querySelectorAll("#weatherTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.w === G.weather)); b.disabled = always && b.dataset.w === "dry"; });
 }
 document.querySelectorAll("#weatherTabs .tab").forEach((b) => b.addEventListener("click", () => { if (b.dataset.w === G.weather) return; sfx.click(); G.wantWeather = b.dataset.w; loadTrack(G.track.id); writeSave(); }));
 function applyPlayers() {
@@ -291,7 +296,12 @@ function show(id) {
   if (id === "menu") { if (G.garageCar && G.garageCar !== save.car) buildPlayer(); refreshLobby(); }
   if (id === "settings") refreshSettings();
   if (id === "career") buildCareer();
-  if (id === "setup") { G.event = null; if (G.track.id !== (save.track || G.track.id) || G.weather !== (THEMES[G.track.theme].rain ? "rain" : G.wantWeather || "dry")) loadTrack(save.track || G.track.id); refreshLock(); }
+  if (id === "setup") {
+    G.event = null;
+    const base = THEMES[G.track.theme], wantNight = (G.wantTime || "day") === "night" || !!base.stars;
+    if (G.track.id !== (save.track || G.track.id) || G.weather !== (base.rain ? "rain" : G.wantWeather || "dry") || G.night !== wantNight) loadTrack(save.track || G.track.id);
+    refreshLock();
+  }
 }
 function refreshLobby() {
   $("lobbyCar").textContent = carById(save.car).name;
@@ -503,14 +513,18 @@ function finishRace() {
   });
   html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
   if (G.event) html = eventResult(place, fastest) + html;
+  if (G.cup) html = cupResult(order) + html;
   const rw = raceRewards({ place, field: order.length, drift: G.totalDrift, cleanLaps: G.cleanLaps, record: G.newRecord, trial: G.trial, mult: G.track.mult || 1 });
   save.coins += rw.coins; save.gems += rw.gems; G.lastReward = rw;
   html += `<div class="reward">${rw.lines.map(([n, c]) => `<span>${n}</span><b>+${c}</b>`).join("")}<span class="tot">Total</span><b class="tot coin">+${rw.coins}</b>${rw.gems ? `<span>Gems</span><b class="gem">+${rw.gems}</b>` : ""}</div>`;
   $("results").innerHTML = html;
   writeSave();
   const ni = G.event && !G.event.daily ? EVENTS.indexOf(G.event) + 1 : -1, next = G.event && G.eventOk && ni > 0 ? EVENTS[ni] : null;
-  $("nextBtn").hidden = !next;
+  const cupNext = G.cup && G.cup.i < G.cup.def.tracks.length - 1;
+  $("nextBtn").hidden = !next && !cupNext;
   if (next) $("nextBtn").textContent = "Next: " + next.name;
+  if (cupNext) $("nextBtn").textContent = "Next race: " + trackById(G.cup.def.tracks[G.cup.i + 1]).name;
+  $("againBtn").hidden = !!G.cup;
   $("againBtn").textContent = G.event ? (G.eventOk ? "Replay event" : "Try again") : "Race again";
   $("againBtn").classList.toggle("ghost", !!next);
   if (G.event && G.eventOk && ni === EVENTS.length) setTimeout(() => toast("Career complete. You're the Apex champion!", 5000), 1600);
@@ -578,7 +592,10 @@ $("photoSave").addEventListener("click", () => {
   addEventListener("wheel", (e) => { if (G.photo) G.photo.d = Math.max(3, Math.min(25, G.photo.d * (1 + Math.sign(e.deltaY) * 0.1))); }, { passive: true });
 }
 
-$("startBtn").addEventListener("click", startRace);
+$("startBtn").addEventListener("click", () => {
+  if (G.cupMode) { if (!cupOpen(CUPS[G.cupIdx])) return; G.cup = { def: CUPS[G.cupIdx], i: 0, pts: {} }; startCupRace(); }
+  else { G.cup = null; startRace(); }
+});
 $("raceBtn").addEventListener("click", () => show("setup"));
 $("garageBtn").addEventListener("click", () => show("garage"));
 $("settingsBtn").addEventListener("click", () => show("settings"));
@@ -634,12 +651,53 @@ function selectEvent(ev, quiet) {
 $("evGo").addEventListener("click", () => { if (G.selEvent) startEvent(G.selEvent); });
 function startEvent(ev) {
   G.event = ev;
-  const evWeather = ev.weather || "dry";
-  if (G.track.id !== ev.track || (G.weather !== evWeather && !THEMES[trackById(ev.track).theme].rain)) { const keep = save.track; loadTrack(ev.track, evWeather); save.track = keep; }
+  // events set their own weather and time of day (dry daytime unless they say otherwise)
+  const base = THEMES[trackById(ev.track).theme], evWeather = base.rain ? "rain" : ev.weather || "dry", evNight = ev.time === "night" || !!base.stars;
+  if (G.track.id !== ev.track || G.weather !== evWeather || G.night !== evNight) {
+    const keep = save.track, wt = G.wantTime; G.wantTime = ev.time || "day"; loadTrack(ev.track, evWeather); G.wantTime = wt; save.track = keep;
+  }
   startRace();
 }
 ["setupBack", "garageBack", "settingsBack"].forEach((id) => $(id).addEventListener("click", () => show("menu")));
-function setMode(trial) { G.trial = trial; $("modeRace").setAttribute("aria-pressed", String(!trial)); $("modeTrial").setAttribute("aria-pressed", String(trial)); refreshLock(); }
+function setMode(trial, cup = false) {
+  G.trial = trial; G.cupMode = cup;
+  $("modeRace").setAttribute("aria-pressed", String(!trial && !cup)); $("modeTrial").setAttribute("aria-pressed", String(trial)); $("modeCup").setAttribute("aria-pressed", String(cup));
+  $("cupPick").hidden = !cup; $("trackPick").hidden = cup; ["layoutTabs", "board"].forEach((id) => ($(id).hidden = cup));
+  if (cup) refreshCup();
+  refreshLock();
+}
+// ---------- cups ----------
+G.cupIdx = 0;
+const cupOpen = (c) => TEST || c.tracks.every((t) => trackUnlocked(save, baseId(t)));
+function refreshCup() {
+  const c = CUPS[G.cupIdx], best = (save.cups || {})[c.id];
+  $("cupName").textContent = c.name + (best ? ` · best ${ordinal(best)}` : "");
+  $("cupTracks").textContent = c.tracks.map((t) => trackById(t).name).join(" → ") + ` · prize ${c.reward.coins.toLocaleString("en-GB")} coins` + (cupOpen(c) ? "" : " · unlock its tracks in Career");
+}
+$("modeCup").addEventListener("click", () => { sfx.click(); setMode(false, true); });
+$("cupPrev").addEventListener("click", () => { sfx.click(); G.cupIdx = (G.cupIdx + CUPS.length - 1) % CUPS.length; refreshCup(); refreshLock(); });
+$("cupNext").addEventListener("click", () => { sfx.click(); G.cupIdx = (G.cupIdx + 1) % CUPS.length; refreshCup(); refreshLock(); });
+function startCupRace() {
+  const c = G.cup.def, id = c.tracks[G.cup.i];
+  const keep = save.track, wt = G.wantTime; G.wantTime = "day"; loadTrack(id, "dry"); G.wantTime = wt; save.track = keep;
+  startRace();
+}
+// points after each cup race; returns the standings table HTML (and pays the prize after the last race)
+function cupResult(order) {
+  const C = G.cup;
+  order.forEach((e, i) => { C.pts[e.name] = (C.pts[e.name] || 0) + (CUP_POINTS[i] || 0); });
+  const table = Object.entries(C.pts).sort((a, b) => b[1] - a[1]);
+  const last = C.i >= C.def.tracks.length - 1, myPos = table.findIndex(([n]) => n === "You") + 1;
+  let html = `<div class="cuphead">${C.def.name} · race ${C.i + 1} of ${C.def.tracks.length}</div><table class="cuptable">${table.map(([n, p], i) => `<tr class="${n === "You" ? "me" : ""}"><td>${i + 1}</td><td>${n}</td><td>${p}</td></tr>`).join("")}</table>`;
+  if (last) {
+    const r = C.def.reward, k = myPos === 1 ? 1 : myPos <= 3 ? 0.5 : 0;
+    save.cups = save.cups || {}; save.cups[C.def.id] = Math.min(save.cups[C.def.id] || 99, myPos);
+    if (k) { save.coins += Math.round(r.coins * k); if (myPos === 1) save.gems += r.gems; }
+    html += `<div class="evhead ${myPos <= 3 ? "ok" : "fail"}"><div class="evname">${myPos === 1 ? "Cup winner!" : "Cup finished " + ordinal(myPos)}</div>${k ? `<div class="evreward">Cup prize <b>+${Math.round(r.coins * k).toLocaleString("en-GB")}</b>${myPos === 1 ? ` <b class="gem">+${r.gems} gems</b>` : ""}</div>` : ""}</div>`;
+    if (myPos === 1) trophy("cup");
+  }
+  return html;
+}
 $("modeRace").addEventListener("click", () => { sfx.click(); setMode(false); });
 $("modeTrial").addEventListener("click", () => { sfx.click(); setMode(true); });
 
@@ -669,12 +727,12 @@ $("resetBtn").addEventListener("click", () => {
   resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
-$("nextBtn").addEventListener("click", () => { const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
-$("menuBtn").addEventListener("click", () => { const ev = G.event; toMenu(); if (ev) show("career"); });
+$("nextBtn").addEventListener("click", () => { if (G.cup) { G.cup.i++; startCupRace(); return; } const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
+$("menuBtn").addEventListener("click", () => { const ev = G.event; G.cup = null; $("againBtn").hidden = false; toMenu(); if (ev) show("career"); });
 $("pauseBtn").addEventListener("click", () => pause(true));
 $("resumeBtn").addEventListener("click", () => { sfx.click(); pause(false); });
 $("restartBtn").addEventListener("click", startRace);
-$("quitBtn").addEventListener("click", toMenu);
+$("quitBtn").addEventListener("click", () => { G.cup = null; $("againBtn").hidden = false; toMenu(); });
 $("muteBtn").addEventListener("click", () => {
   save.settings.sound = !save.settings.sound; sfx.setMuted(!save.settings.sound);
 setMusicVolume(save.settings.music ?? 0.6);
@@ -1186,6 +1244,7 @@ if (TEST) {
     get p2() { return G.p2 ? { x: G.p2.veh.x, z: G.p2.veh.z, h: G.p2.veh.h, vF: G.p2.veh.vF, lat: G.p2.veh.lat } : null; },
     get splitRace() { return !!G.splitRace; },
     get weather() { return G.weather; },
+    get night() { return !!G.night; },
     get eventId() { return G.event ? G.event.id : null; },
     get grip() { return G.path.surfaceAt(G.player.p.d, 0); },
     get tick() { return G.tick; },

@@ -49,12 +49,15 @@ test("reverse and mirror layouts can be picked and raced", async ({ page }) => {
   await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
 });
 
-test("weather: any track can be raced in the rain, which makes the road slippery", async ({ page }) => {
+test("weather and time: any track can be raced at night and in the rain, which makes the road slippery", async ({ page }) => {
   const problems = await openGame(page, "track=forest&rivals=2");
   await page.click("#raceBtn");
   await page.click('#weatherTabs [data-w="rain"]');
   expect(await page.evaluate(() => window.__apex.weather)).toBe("rain");
-  await expect(page.locator("#trackTheme")).toContainText("Rain");
+  await page.click('#timeTabs [data-t="night"]');
+  expect(await page.evaluate(() => window.__apex.night)).toBe(true);
+  await expect(page.locator("#trackTheme")).toContainText("Night rain");
+  await expect(page.locator("#trackTheme")).toContainText(/rain/i);
   await page.click("#startBtn");
   await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 30_000 });
   expect(await page.evaluate(() => window.__apex.grip)).toBeLessThan(0.9);
