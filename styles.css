@@ -231,3 +231,25 @@ button { font-family: inherit; }
 #eventTag { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t) + 66px); max-width: min(60vw, 420px); text-align: center;
   font: 600 12px var(--body); color: var(--text); background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 5px 10px; pointer-events: none; }
 @media (max-width: 500px) { #eventTag { top: calc(var(--safe-t) + 190px); max-width: 80vw; } }
+
+#loading { position: fixed; inset: 0; z-index: 100; background: var(--ink); display: grid; place-content: center; gap: 18px; transition: opacity .5s; }
+#loading.gone { opacity: 0; pointer-events: none; }
+#loading .bar { width: 180px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+#loading .bar i { display: block; height: 100%; width: 40%; background: var(--amber); animation: load 1s ease-in-out infinite alternate; }
+@keyframes load { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+#fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 40; }
+#fade.out { animation: fadeout .7s ease-out; }
+@keyframes fadeout { from { opacity: 1; } to { opacity: 0; } }
+.screen:not([hidden]) .card { animation: rise .35s ease-out; }
+@keyframes rise { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+.podium { display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; gap: 6px; height: 112px; }
+.podium .step { display: flex; flex-direction: column; align-items: stretch; text-align: center; gap: 4px; }
+.podium .who { font: 700 13px var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.podium .who::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 4px; }
+.podium .blk { font: 800 26px var(--display); color: var(--ink); background: linear-gradient(#e9edf2, #aab3c0); border-radius: 6px 6px 0 0; display: grid; place-items: center; }
+.podium .s1 .blk { height: 72px; background: linear-gradient(#ffe08a, #e0a526); }
+.podium .s2 .blk { height: 54px; }
+.podium .s3 .blk { height: 40px; background: linear-gradient(#f0b48a, #b8743f); }
+.podium .me .who { color: var(--amber); }
+@media (prefers-reduced-motion: reduce) { .screen:not([hidden]) .card, #fade.out { animation: none; } #loading .bar i { animation: none; } }
+@media (orientation: landscape) and (max-height: 600px) { .podium { display: none; } }

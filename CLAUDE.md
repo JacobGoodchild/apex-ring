@@ -44,7 +44,7 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 10. [x] More tracks: coastal city at night, mountain pass, desert canyon, neon city, forest circuit. Track previews.
 11. [x] Career mode: races, time trials, drift challenges, elimination, head-to-head; unlocks. Quick race + time trial.
 12. [x] Sound polish: engine with gears, tyre squeal, boost whoosh, countdown beeps, menu clicks, mute.
-13. Visual polish: bloom, shadows, transitions, results podium, graphics quality settings with auto default.
+13. [x] Visual polish: bloom, shadows, transitions, results podium, graphics quality settings with auto default.
 14. Installable web app: manifest + service worker, works offline.
 15. Keep improving cars, tracks and features.
 
@@ -62,3 +62,4 @@ The car accelerates by itself; the player steers, and has boost and drift/brake 
 - 2026-10-09: Five more tracks with themes: Harbour Lights (coastal city at night, sea, lit tower blocks), Alpine Pass (32 m climb, switchbacks, tunnel, snow peaks), Red Canyon (mesas, cacti, rocks, flyover), Neon District (glowing blocks, neon barriers, figure-of-eight overpass), Greenwood Circuit (dense forest, rolling hills). Track previews show the theme. Fixed the grandstand facing the wrong way. tests/tracks.spec.js races and screenshots every track. Next: career mode.
 - 2026-10-09: Career mode (src/career.js): 12 events across all tracks - races, time trials, drift challenges, elimination (last car out each lap), head to head - with 1-3 stars, one-off event rewards, and unlocks (tracks for quick race, free Kestrel GT and Nimbus R). Only Dusk Oval and Apex Ring GP are open in quick race at first. Event banner in the HUD and results. Next: sound, polish, installable app.
 - 2026-10-09: Sound polish: upshift blips with an engine dip, lap chime, finish fanfare (bigger for a podium), audio suspends and the race pauses when the app goes to the background; settings test covers sound/quality saving and reset.
+- 2026-10-09: Visual polish: results podium, loading screen, fade-in on race start, screen card transitions, WRONG WAY warning, far rivals drop small parts and only cast shadows from the body (about 210 draw calls / 140k triangles on medium with 8 cars). CREDITS.md added (everything is procedural, Three.js is MIT). scripts/dev/perf.mjs prints draw calls per track.

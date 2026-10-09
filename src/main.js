@@ -98,6 +98,8 @@ function buildRivals() {
     const prof = RIVALS[k % RIVALS.length], def = CARS[(k + 1) % CARS.length];
     const veh = new Vehicle(carSpec(def, {}), G.path);
     const model = makeCar(def, prof.color);
+    model.group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    model.body.children[0].castShadow = true;
     addFlames(model);
     setDoors(model, 0);
     scene.add(model.group);
@@ -268,6 +270,7 @@ function startRace() {
   [...SCREENS, "finish", "pause", "topbar"].forEach((id) => ($(id).hidden = true));
   setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
   $("count").hidden = false; G.countT = 0; G.lastBeep = -1;
+  const f = $("fade"); f.classList.remove("out"); void f.offsetWidth; f.classList.add("out");
 }
 
 function toMenu() {
@@ -285,7 +288,12 @@ function finishRace() {
   sfx.fanfare(place <= 3 && !G.eliminated);
   G.place = place;
   const fastest = Math.min(...G.lapTimes);
-  let html = `<div class="place">${ordinal(place)}<small> of ${order.length}</small></div><ol class="standings">`;
+  let html = `<div class="place">${ordinal(place)}<small> of ${order.length}</small></div>`;
+  if (order.length >= 3) {
+    const pod = [order[1], order[0], order[2]], hx = (c) => "#" + c.toString(16).padStart(6, "0");
+    html += `<div class="podium">${pod.map((e, i) => `<div class="step s${[2, 1, 3][i]}${e.me ? " me" : ""}"><span class="who" style="--c:${hx(e.color)}">${e.name}</span><span class="blk">${[2, 1, 3][i]}</span></div>`).join("")}</div>`;
+  }
+  html += `<ol class="standings">`;
   const L = G.path.length;
   order.forEach((e, i) => {
     const gap = e.finished != null ? fmt(e.finished) : "~" + fmt(G.raceTime + Math.max(0.5, (laps() * L - e.veh.totalD) / Math.max(25, e.veh.vF || 40)));
@@ -514,6 +522,9 @@ function tyreFx(key, m, v, dt) {
 }
 
 function poseCar(m, v, dt) {
+  // cheap level of detail: far-away rivals drop their small parts
+  const dx = v.x - camera.position.x, dz = v.z - camera.position.z, far = dx * dx + dz * dz > 110 * 110;
+  if (far !== m.far) { m.far = far; m.body.children.forEach((c, i) => { if (i > 2 && c !== m.tailMesh) c.visible = !far; }); m.wheels.forEach((w) => (w.parent.visible = !far)); }
   updateFlames(m, v.boosting, performance.now() / 1000);
   m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(0, v.h, 0);
   m.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06); m.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
@@ -561,7 +572,9 @@ function render(dt) {
     if (G.driftPts > 5) $("driftV").textContent = "+" + Math.round(G.driftPts);
     $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
     $("spdBar").style.width = Math.min(100, (v.vF / v.spec.vmax) * 100) + "%";
-    $("offtrack").hidden = !(v.offTrack && G.mode === "race");
+    const wrong = G.mode === "race" && v.speed > 5 && Math.cos(Math.atan2(v.vx, v.vz) - v.p.h) < -0.3;
+    $("offtrack").hidden = !((v.offTrack || wrong) && G.mode === "race");
+    $("offtrack").textContent = wrong ? "WRONG WAY" : "OFF TRACK";
     minimap.draw([...G.field.map((r) => ({ x: r.veh.x, z: r.veh.z, color: "#" + r.color.toString(16).padStart(6, "0") })), { x: v.x, z: v.z, color: "#f2a65a", me: true }]);
   }
   sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
@@ -575,6 +588,7 @@ G.field = G.rivals;
 gridUp();
 showroom.setCar(G.car);
 show("menu");
+requestAnimationFrame(() => { const l = $("loading"); l.classList.add("gone"); setTimeout(() => l.remove(), 600); });
 camera.position.set(G.player.x + 8, 3, G.player.z + 7);
 addEventListener("resize", () => world.resize());
 // pause when the app goes to the background (phone lock, tab switch)
@@ -606,6 +620,8 @@ if (TEST) {
     get place() { return G.place; },
     get eventOk() { return G.eventOk; },
     get fieldSize() { return G.field.length; },
+    get drawCalls() { return world.renderer.info.render.calls; },
+    get triangles() { return world.renderer.info.render.triangles; },
     get reward() { return G.lastReward; },
     addCoins(n, g = 0) { save.coins += n; save.gems += g; writeSave(); refreshLobby(); },
     get rivals() { return G.rivals.map((r) => ({ totalD: r.veh.totalD, vF: r.veh.vF, lat: r.veh.lat, finished: r.finished })); },
