@@ -264,3 +264,10 @@ button { font-family: inherit; }
 #tags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 #tags .tag { position: absolute; left: 0; top: 0; font: 700 11px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--text);
   background: rgba(11,18,32,.6); border-left: 3px solid; border-radius: 3px; padding: 1px 5px; white-space: nowrap; will-change: transform; }
+
+.zone { position: fixed; top: calc(var(--safe-t) + 120px); bottom: 0; width: 50%; touch-action: none; display: none; }
+#zoneL { left: 0; } #zoneR { right: 0; }
+.halves .zone { display: block; }
+.halves #padL, .halves #padR { display: none; }
+.zone.on { background: linear-gradient(to right, rgba(242,166,90,.08), transparent); }
+#zoneR.on { background: linear-gradient(to left, rgba(242,166,90,.08), transparent); }

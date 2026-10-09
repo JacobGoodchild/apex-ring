@@ -176,6 +176,8 @@ test.describe("Apex Ring", () => {
     await page.click('#soundTabs [data-s="0"]');
     await page.click('#qualityTabs [data-q="low"]');
     await page.click('#diffTabs [data-d="hard"]');
+    await page.click('#steerTabs [data-t="halves"]');
+    await expect(page.locator("#pads")).toHaveClass(/halves/);
     expect((await game(page, () => window.__apex.save)).settings.difficulty).toBe("hard");
     const sv = await game(page, () => window.__apex.save);
     expect(sv.settings.sound).toBe(false);

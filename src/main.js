@@ -396,15 +396,19 @@ function refreshSettings() {
   document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.q === world.qname)));
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
+  document.querySelectorAll("#steerTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === (save.settings.steer || "pads"))));
   document.querySelectorAll("#diffTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === (save.settings.difficulty || "normal"))));
 }
 document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.quality = b.dataset.q; world.applyQuality(b.dataset.q); writeSave(); refreshSettings(); }));
 document.querySelectorAll("#camTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); if (chase.mode !== b.dataset.c) $("camBtn").click(); refreshSettings(); }));
 document.querySelectorAll("#soundTabs .tab").forEach((b) => b.addEventListener("click", () => { if ((b.dataset.s === "1") !== save.settings.sound) $("muteBtn").click(); sfx.click(); refreshSettings(); }));
+document.querySelectorAll("#steerTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.steer = b.dataset.t; writeSave(); applySteer(); refreshSettings(); }));
+function applySteer() { $("pads").classList.toggle("halves", save.settings.steer === "halves"); }
+applySteer();
 document.querySelectorAll("#diffTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.difficulty = b.dataset.d; writeSave(); refreshSettings(); }));
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
-  resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
+  resetSave(); G.garageCar = null; buildPlayer(); applySteer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
 $("menuBtn").addEventListener("click", () => { const ev = G.event; toMenu(); if (ev) show("career"); });
@@ -421,6 +425,7 @@ $("tiltBtn").addEventListener("click", async () => {
   $("tiltBtn").textContent = on ? "Tilt ✓" : "Tilt"; $("tiltBtn").classList.toggle("on", on);
 });
 $("respawnBtn").addEventListener("click", () => { if (G.mode === "race") G.player.respawn(); });
+bindPad($("zoneL"), "left"); bindPad($("zoneR"), "right");
 bindPad($("padL"), "left"); bindPad($("padR"), "right"); bindPad($("padBoost"), "boost"); bindPad($("padDrift"), "drift");
 $("camBtn").addEventListener("click", () => {
   chase.mode = chase.mode === "chase" ? "bonnet" : "chase"; save.settings.camera = chase.mode; writeSave();
