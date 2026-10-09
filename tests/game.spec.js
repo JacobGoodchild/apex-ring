@@ -87,6 +87,30 @@ test.describe("Apex Ring", () => {
     await expect(page.locator("#padDrift")).toHaveCount(0);
   });
 
+  test("tilt: pick Tilt, calibrate, and tilting steers; no sensor falls back to Touch", async ({ page }) => {
+    await openGame(page, "rivals=0");
+    await page.click("#settingsBtn");
+    // no readings arrive: clear message and back to Touch
+    await page.click('#ctrlTabs [data-m="tilt"]');
+    await expect(page.locator("#toast")).toContainText("back on Touch", { timeout: 5_000 });
+    expect(await game(page, () => window.__apex.tiltOn)).toBe(false);
+    // with readings: stays on Tilt
+    await page.click('#ctrlTabs [data-m="tilt"]');
+    for (let k = 0; k < 5; k++) { await page.evaluate(() => window.__apex.tilt(50, 0)); await page.waitForTimeout(100); }
+    await page.waitForTimeout(1300);
+    expect(await game(page, () => window.__apex.tiltOn)).toBe(true);
+    await expect(page.locator("#tiltOpts")).toBeVisible();
+    await page.evaluate(() => window.__apex.tilt(50, 4)); // holding it slightly turned...
+    await page.click("#calBtn"); // ...is now straight ahead
+    expect(await game(page, () => window.__apex.save.settings.tiltZero)).not.toBe(0);
+    await page.click("#settingsBack");
+    await startRace(page);
+    await page.waitForFunction(() => window.__apex.player.vF > 20, null, { timeout: 30_000 });
+    await page.evaluate(() => window.__apex.tilt(50, 30)); // turn the phone right
+    await page.waitForFunction(() => window.__apex.player.hErr < -0.03, null, { timeout: 10_000 });
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
   test("boosting just before GO gives a perfect start", async ({ page }) => {
     await openGame(page, "speed=1&rivals=0");
     await page.click("#raceBtn");

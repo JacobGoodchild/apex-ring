@@ -121,3 +121,10 @@ Feedback from a real Pixel 7: looks great, too hard. Five fixes, one commit each
   fires a burst of up to 2.5 s while the meter has charge, with a blue edge flash and whoosh; first-time hint when the
   meter first charges; "Boost is empty" note if tapped with no charge. Perfect start = boost tap in the last moment
   before GO. Auto-drift helped rivals too, so Easy/Medium pace retuned to 0.69/0.735 (tests still pass).
+- Fix 4 — tilt: Settings > Controls: Touch / Tilt. src/tilt.js turns deviceorientation beta/gamma into the device's
+  "up" vector, rotates it by screen.orientation.angle into screen coordinates and reads the steering-wheel roll, so
+  portrait and both landscape directions work (unit-tested with synthetic sensor readings). Calibrate button (also a
+  "Centre" pill in the race HUD while on Tilt) stores the current roll as straight ahead; sensitivity slider
+  (full lock at 28°/sensitivity); 3° dead zone. Permission is requested where the browser needs it (iOS), and re-asked
+  on the first tap after reopening the app. No sensor / refused / no readings in 1.2 s → clear message, back to Touch.
+  Double two-thumb tap still boosts in Tilt mode. Settings/race/career cards now have a solid panel behind them.

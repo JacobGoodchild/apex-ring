@@ -30,7 +30,7 @@
 <div class="topbtns" id="topbtns" hidden>
   <button class="pill" id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
   <button class="pill" id="muteBtn" type="button" aria-label="Sound">♪ On</button>
-  <button class="pill" id="tiltBtn" type="button" aria-label="Tilt steering">Tilt</button>
+  <button class="pill" id="tiltBtn" type="button" aria-label="Calibrate tilt: set straight ahead" hidden>Centre</button>
   <button class="pill" id="camBtn" type="button" aria-label="Camera">Cam 1</button>
   <button class="pill" id="respawnBtn" type="button" aria-label="Back on track">↺</button>
 </div>
@@ -142,6 +142,14 @@
     </div>
     <div class="label">Camera</div>
     <div class="tabs" id="camTabs"><button class="tab" data-c="chase" type="button">Chase</button><button class="tab" data-c="bonnet" type="button">Bonnet</button></div>
+    <div class="label">Controls</div>
+    <div class="tabs" id="ctrlTabs"><button class="tab" data-m="touch" type="button">Touch</button><button class="tab" data-m="tilt" type="button">Tilt</button></div>
+    <div id="tiltOpts" class="tiltopts" hidden>
+      <button class="btn ghost" id="calBtn" type="button">Calibrate: hold the phone how you'll drive, then tap</button>
+      <label class="label" for="tiltSens">Tilt sensitivity</label>
+      <input type="range" id="tiltSens" min="0.5" max="2" step="0.1" value="1">
+      <div class="hint">Tilt the phone like a steering wheel. Tap both sides of the screen together twice to boost. The ⦿ Centre button in a race recalibrates.</div>
+    </div>
     <div class="label">Rivals</div>
     <div class="tabs" id="diffTabs"><button class="tab" data-d="easy" type="button">Easy</button><button class="tab" data-d="normal" type="button">Medium</button><button class="tab" data-d="hard" type="button">Hard</button></div>
     <div class="label">Steering assist</div>

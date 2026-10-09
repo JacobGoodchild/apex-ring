@@ -16,7 +16,7 @@ import { levelOf, slot, rivalSpec, AUTO_BRAKE, AUTO_ASSIST } from "./race.js";
 import { EVENTS, eventUnlocked, trackUnlocked, judge } from "./career.js";
 import { UPGRADES, MAX_LEVEL, upgradeCost, RIM_COST, raceRewards } from "./economy.js";
 import { Vehicle } from "./vehicle.js";
-import { input, bindZones, readControls, setTilt } from "./input.js";
+import { input, bindZones, readControls, setTilt, calibrateTilt, tiltCfg } from "./input.js";
 import * as sfx from "./audio.js";
 import { ChaseCam } from "./camera.js";
 import { Driver, RIVALS, collide } from "./ai.js";
@@ -405,6 +405,9 @@ function refreshSettings() {
   document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.q === world.qname)));
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
+  const tiltMode = input.tiltOn;
+  document.querySelectorAll("#ctrlTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.m === "tilt") === tiltMode)));
+  $("tiltOpts").hidden = !tiltMode; $("tiltSens").value = tiltCfg.sens;
   document.querySelectorAll("#assistTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.a === (save.settings.assist || "auto"))));
   document.querySelectorAll("#lineTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === (save.settings.line || "auto"))));
   document.querySelectorAll("#diffTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === (save.settings.difficulty || "easy"))));
@@ -430,10 +433,29 @@ $("muteBtn").addEventListener("click", () => {
   save.settings.sound = !save.settings.sound; sfx.setMuted(!save.settings.sound); writeSave();
   $("muteBtn").textContent = save.settings.sound ? "♪ On" : "♪ Off";
 });
-$("tiltBtn").addEventListener("click", async () => {
-  const on = await setTilt(!input.tiltOn, toast);
-  $("tiltBtn").textContent = on ? "Tilt ✓" : "Tilt"; $("tiltBtn").classList.toggle("on", on);
-});
+// ---------- tilt controls ----------
+tiltCfg.zero = save.settings.tiltZero || 0; tiltCfg.sens = save.settings.tiltSens || 1;
+async function useControls(mode) {
+  if (mode === "tilt") {
+    const ok = await setTilt(true, toast);
+    if (!ok) mode = "touch";
+  } else await setTilt(false, toast);
+  save.settings.controls = mode; writeSave();
+  $("tiltBtn").hidden = mode !== "tilt";
+  refreshSettings();
+  return mode;
+}
+function calibrate() {
+  save.settings.tiltZero = calibrateTilt(); writeSave();
+  toast("Straight ahead set. Hold the phone like this to drive straight.", 2200);
+}
+$("tiltBtn").addEventListener("click", calibrate);
+$("calBtn").addEventListener("click", calibrate);
+$("tiltSens").addEventListener("input", (e) => { tiltCfg.sens = Number(e.target.value); save.settings.tiltSens = tiltCfg.sens; writeSave(); });
+document.querySelectorAll("#ctrlTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); useControls(b.dataset.m); }));
+// tilt needs a tap before some browsers allow the sensor, so re-enable it on the first tap after loading
+if (save.settings.controls === "tilt") addEventListener("pointerdown", function once() { removeEventListener("pointerdown", once); useControls("tilt"); });
+
 $("respawnBtn").addEventListener("click", () => { if (G.mode === "race") G.player.respawn(); });
 bindZones($("zoneL"), $("zoneR"));
 $("camBtn").addEventListener("click", () => {
@@ -718,6 +740,8 @@ if (TEST) {
     get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, boosting: v.boosting, drifting: v.drifting, driftAngle: v.driftAngle, lat: v.lat, hErr: wrapA(v.h - v.p.h), bend: Math.abs(G.path.cs[v.p.i]) > 0.004 ? Math.sign(G.path.cs[v.p.i]) : 0 }; },
     get skidCount() { return skids.n; },
     setBoost(b) { G.player.boost = b; },
+    tilt(beta, gamma) { window.dispatchEvent(new DeviceOrientationEvent("deviceorientation", { beta, gamma, alpha: 0 })); },
+    get tiltOn() { return input.tiltOn; },
     setSetting(k, val) { save.settings[k] = val; writeSave(); applyAids(); },
     get laps() { return G.lapTimes.slice(); },
     get place() { return G.place; },

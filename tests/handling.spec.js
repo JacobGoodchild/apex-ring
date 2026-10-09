@@ -51,3 +51,24 @@ test("steering assist alone gets round every Easy track without touching a wall"
     expect(walls, t.id).toBe(0);
   }
 });
+
+// Tilt: build the sensor reading a phone would give when held at screen orientation `a`, tipped back `back` degrees,
+// and turned like a steering wheel by `phi` degrees clockwise. The game should read back phi.
+import { tiltRoll, tiltSteer } from "../src/tilt.js";
+function sensorFor(a, back, phi) {
+  const D = Math.PI / 180, c = Math.cos(back * D);
+  const sx = -Math.sin(phi * D) * c, sy = Math.cos(phi * D) * c, uz = Math.sin(back * D);
+  const ux = sx * Math.cos(-a * D) - sy * Math.sin(-a * D), uy = sx * Math.sin(-a * D) + sy * Math.cos(-a * D);
+  return { beta: Math.asin(uy) / D, gamma: Math.atan2(-ux, uz) / D };
+}
+test("tilt reads the steering-wheel angle in portrait and both landscape directions", () => {
+  for (const a of [0, 90, 270, -90]) for (const back of [10, 35]) for (const phi of [-20, 0, 15]) {
+    const s = sensorFor(a, back, phi);
+    expect(tiltRoll(s.beta, s.gamma, a), `a=${a} back=${back} phi=${phi}`).toBeCloseTo(phi, 0);
+  }
+  const cfg = { zero: 5, sens: 1, dead: 3 };
+  expect(tiltSteer(6, cfg)).toBe(0); // inside the dead zone
+  expect(tiltSteer(25, cfg)).toBeGreaterThan(0.5); // tilt right = steer right
+  expect(tiltSteer(-25, cfg)).toBeLessThan(-0.5);
+  expect(tiltSteer(80, cfg)).toBe(1);
+});

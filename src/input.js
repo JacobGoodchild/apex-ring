@@ -1,3 +1,5 @@
+import { tiltCfg, tiltRoll, tiltSteer } from "./tilt.js";
+
 // Keyboard, touch and optional phone tilt, merged into one control state.
 // Touch: hold the left or right half of the screen to steer. Touch BOTH halves together twice (within ~0.45 s)
 // to fire boost. Keyboard: arrows / A-D steer, Space (or up arrow) boosts.
@@ -61,26 +63,33 @@ export function readControls(consume = true) {
   return { steer: Math.max(-1, Math.min(1, s)), boost };
 }
 
+// ---------- tilt ---------- (maths in tilt.js)
+const screenAngle = () => (screen.orientation && typeof screen.orientation.angle === "number" ? screen.orientation.angle : window.orientation || 0);
 let tiltSeen = false;
 function onOrient(e) {
   if (e.gamma == null && e.beta == null) return;
   tiltSeen = true;
-  const ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
-  const a = ang === 90 ? e.beta : ang === -90 || ang === 270 ? -e.beta : e.gamma;
-  const v = (a || 0) / 20;
-  input.tilt = Math.abs(v) < 0.08 ? 0 : Math.max(-1, Math.min(1, v));
+  tiltCfg.roll = tiltRoll(e.beta, e.gamma, screenAngle());
+  input.tilt = tiltSteer(tiltCfg.roll);
 }
+export function calibrateTilt() { tiltCfg.zero = tiltCfg.roll; input.tilt = 0; return tiltCfg.zero; }
 
-// Turn tilt on or off. Resolves to true when tilt is working.
+// Turn tilt on or off. Resolves to true when the sensor is working; otherwise says why and stays off.
 export async function setTilt(on, toast) {
   if (!on) { input.tiltOn = false; input.tilt = 0; removeEventListener("deviceorientation", onOrient); return false; }
   try {
-    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+    if (typeof DeviceOrientationEvent === "undefined") throw new Error("none");
+    if (typeof DeviceOrientationEvent.requestPermission === "function") {
       const r = await DeviceOrientationEvent.requestPermission(); if (r !== "granted") throw new Error("denied");
     }
-  } catch (err) { toast("Tilt isn't allowed here. Use the pads instead."); return false; }
+  } catch (err) {
+    toast(err.message === "denied" ? "Motion sensor permission was refused, so steering is back on Touch." : "This browser has no motion sensor, so steering is back on Touch.", 4500);
+    return false;
+  }
   tiltSeen = false; addEventListener("deviceorientation", onOrient); input.tiltOn = true;
   return new Promise((res) => setTimeout(() => {
-    if (!tiltSeen) { setTilt(false); toast("This device isn't reporting tilt. Use the pads instead."); res(false); } else res(true);
+    if (!tiltSeen) { setTilt(false); toast("No tilt readings from this device, so steering is back on Touch.", 4500); res(false); } else res(true);
   }, 1200));
 }
+
+export { tiltCfg };
