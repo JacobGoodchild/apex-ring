@@ -11,5 +11,8 @@ for (const [name, size] of [["portrait", { width: 412, height: 915 }], ["landsca
     await startRace(page);
     await page.waitForTimeout(2500);
     await page.screenshot({ path: `screenshots/race-${name}.png` });
+    await page.evaluate(() => window.__apex.warp(window.__apex.bridgeD()));
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: `screenshots/flyover-${name}.png` });
   });
 }

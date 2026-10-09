@@ -69,6 +69,18 @@ test.describe("Apex Ring", () => {
     expect(problems).toEqual([]);
   });
 
+  test("track picker switches tracks and remembers the choice", async ({ page }) => {
+    await openGame(page);
+    const first = await page.textContent("#trackName");
+    await page.click("#trackNext");
+    await expect(page.locator("#trackName")).not.toHaveText(first);
+    const id = await game(page, () => window.__apex.track);
+    await page.reload();
+    await page.waitForFunction(() => window.__apex && window.__apex.ready);
+    expect(await game(page, () => window.__apex.track)).toBe(id);
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
   test("progress is saved and loaded across reloads", async ({ page }) => {
     await openGame(page);
     await page.click("#paint2");

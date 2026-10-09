@@ -13,6 +13,7 @@ import { Vehicle } from "./vehicle.js";
 import { input, bindPad, readControls, setTilt } from "./input.js";
 import * as sfx from "./audio.js";
 import { ChaseCam } from "./camera.js";
+import { Minimap, drawTrack } from "./minimap.js";
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -25,8 +26,9 @@ const { scene, camera } = world;
 const chase = new ChaseCam(camera);
 chase.mode = save.settings.camera === "bonnet" ? "bonnet" : "chase";
 
+const QS = new URLSearchParams(location.search);
 const G = {
-  mode: "menu", track: null, path: null, player: null, car: null, laps: TEST && new URLSearchParams(location.search).get("laps") ? Number(new URLSearchParams(location.search).get("laps")) : 3,
+  mode: "menu", track: null, path: null, player: null, car: null, lapsOverride: TEST && QS.get("laps") ? Number(QS.get("laps")) : 0,
   countT: 0, raceTime: 0, lapStart: 0, lapTimes: [], menuT: 0, doors: 1, paused: false,
 };
 
@@ -38,7 +40,20 @@ function loadTrack(id) {
   const grp = buildTrackMeshes(G.path, theme);
   grp.add(buildScenery(G.path, theme, world.qname === "low" ? 0.45 : world.qname === "medium" ? 0.75 : 1, SEED ^ 0x1234));
   world.setTrack(grp); world.setTheme(theme);
+  if (G.player) { G.player.track = G.path; gridUp(); }
+  save.track = def.id;
+  $("trackName").textContent = def.name; $("trackBlurb").textContent = def.blurb + " " + def.laps + " laps.";
+  drawTrack(previewCtx, G.path, 96, { width: 4 });
 }
+const previewCtx = $("trackPreview").getContext("2d");
+const minimap = new Minimap($("minimap"));
+function pickTrack(dir) {
+  sfx.click();
+  const i = (TRACKS.findIndex((t) => t.id === G.track.id) + dir + TRACKS.length) % TRACKS.length;
+  loadTrack(TRACKS[i].id); writeSave();
+}
+$("trackPrev").addEventListener("click", () => pickTrack(-1));
+$("trackNext").addEventListener("click", () => pickTrack(1));
 
 // ---------- player car ----------
 function buildPlayer() {
@@ -57,10 +72,12 @@ function gridUp() {
   G.raceTime = 0; G.lapStart = 0; G.lapTimes = [];
 }
 
+const laps = () => G.lapsOverride || G.track.laps;
+
 // ---------- UI ----------
 function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), ms); }
 const fmt = (t) => { if (t == null || !isFinite(t)) return "–"; const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); };
-function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns"].forEach((id) => ($(id).hidden = !on)); }
+function setRaceUI(on) { ["hud", "speedo", "pads", "topbtns", "minimap"].forEach((id) => ($(id).hidden = !on)); }
 
 function buildPaints() {
   const el = $("paints"); el.innerHTML = "";
@@ -83,7 +100,7 @@ function startRace() {
   sfx.startAudio(); sfx.click();
   gridUp();
   ["menu", "finish", "pause"].forEach((id) => ($(id).hidden = true));
-  setRaceUI(true); G.paused = false;
+  setRaceUI(true); G.paused = false; minimap.setTrack(G.path);
   $("count").hidden = false; G.mode = "countdown"; G.countT = 0; G.lastBeep = -1;
   $("bestV").textContent = fmt(save.best[G.track.id]);
 }
@@ -122,18 +139,18 @@ $("restartBtn").addEventListener("click", startRace);
 $("quitBtn").addEventListener("click", toMenu);
 $("muteBtn").addEventListener("click", () => {
   save.settings.sound = !save.settings.sound; sfx.setMuted(!save.settings.sound); writeSave();
-  $("muteBtn").textContent = save.settings.sound ? "Sound on" : "Sound off";
+  $("muteBtn").textContent = save.settings.sound ? "♪ On" : "♪ Off";
 });
 $("tiltBtn").addEventListener("click", async () => {
   const on = await setTilt(!input.tiltOn, toast);
-  $("tiltBtn").textContent = on ? "Tilt: on" : "Tilt: off"; $("tiltBtn").classList.toggle("on", on);
+  $("tiltBtn").textContent = on ? "Tilt ✓" : "Tilt"; $("tiltBtn").classList.toggle("on", on);
 });
 bindPad($("padL"), "left"); bindPad($("padR"), "right"); bindPad($("padBoost"), "boost"); bindPad($("padDrift"), "drift");
 $("camBtn").addEventListener("click", () => {
   chase.mode = chase.mode === "chase" ? "bonnet" : "chase"; save.settings.camera = chase.mode; writeSave();
-  $("camBtn").textContent = chase.mode === "chase" ? "Cam: chase" : "Cam: bonnet"; chase.ready = false;
+  $("camBtn").textContent = chase.mode === "chase" ? "Cam 1" : "Cam 2"; chase.ready = false;
 });
-$("camBtn").textContent = chase.mode === "chase" ? "Cam: chase" : "Cam: bonnet";
+$("camBtn").textContent = chase.mode === "chase" ? "Cam 1" : "Cam 2";
 input.onKey = (k) => {
   if (k === "Escape" || k === "p" || k === "P") pause(!G.paused);
   else if ((k === "r" || k === "R") && G.mode === "race") G.player.respawn();
@@ -141,7 +158,7 @@ input.onKey = (k) => {
   else if (k === "c" || k === "C") $("camBtn").click();
 };
 sfx.setMuted(!save.settings.sound);
-$("muteBtn").textContent = save.settings.sound ? "Sound on" : "Sound off";
+$("muteBtn").textContent = save.settings.sound ? "♪ On" : "♪ Off";
 
 // ---------- autopilot (tests and attract mode) ----------
 function autopilot(v) {
@@ -194,8 +211,8 @@ function step(dt) {
     if (v.totalD >= (done + 1) * L) {
       const lap = G.raceTime - G.lapStart; G.lapTimes.push(lap); G.lapStart = G.raceTime;
       const best = save.best[G.track.id];
-      if (best == null || lap < best) { save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < G.laps) toast("New best lap · " + fmt(lap), 1800); }
-      if (G.lapTimes.length >= G.laps) finishRace();
+      if (best == null || lap < best) { save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
+      if (G.lapTimes.length >= laps()) finishRace();
     }
   }
   if (v.wallHit > 4) { chase.shake = Math.min(1, v.wallHit * 0.05); sfx.thud(v.wallHit); }
@@ -227,18 +244,19 @@ function render(dt) {
   world.follow(v.x, v.y, v.z);
 
   if (G.mode !== "menu") {
-    $("lapV").textContent = Math.min(G.lapTimes.length + 1, G.laps) + "/" + G.laps;
+    $("lapV").textContent = Math.min(G.lapTimes.length + 1, laps()) + "/" + laps();
     $("timeV").textContent = fmt(G.mode === "race" ? G.raceTime - G.lapStart : G.lapTimes[G.lapTimes.length - 1] || 0);
     $("bestV").textContent = fmt(save.best[G.track.id]);
     $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
     $("spdBar").style.width = Math.min(100, (v.vF / v.spec.vmax) * 100) + "%";
     $("offtrack").hidden = !(v.offTrack && G.mode === "race");
+    minimap.draw([{ x: v.x, z: v.z, color: "#f2a65a", me: true }]);
   }
   sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
 }
 
 // ---------- boot ----------
-loadTrack(TRACKS[0].id);
+loadTrack(QS.get("track") || save.track || "gp");
 buildPlayer();
 buildPaints();
 camera.position.set(G.player.x + 8, 3, G.player.z + 7);
@@ -267,6 +285,10 @@ if (TEST) {
     get laps() { return G.lapTimes.slice(); },
     get trackLength() { return G.path.length; },
     get save() { return JSON.parse(JSON.stringify(save)); },
+    get track() { return G.track.id; },
+    // jump the player to a distance along the track (used for screenshots of specific corners)
+    warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
+    bridgeD() { const i = G.path.bridge.findIndex((b) => b); return i < 0 ? -1 : (i - 30) * G.path.ds; },
     errors,
     ready: true,
   };

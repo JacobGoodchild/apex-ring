@@ -16,6 +16,14 @@ function circle(r, n) {
 export const TRACKS = [
   { id: "oval", name: "Dusk Oval", theme: "dusk", laps: 3, width: 16, runoff: 4, banking: 0.05, points: circle(120, 16),
     blurb: "A floodlit oval. Flat out all the way round." },
+  { id: "gp", name: "Apex Ring GP", theme: "dusk", laps: 3, width: 15, runoff: 4, banking: 0.1,
+    blurb: "The home circuit: a long straight, a flyover, a tight hairpin and a quick chicane.",
+    points: [
+      [0, 200, 0], [0, 0, 0], [0, -200, 0], [25, -285, 1], [100, -325, 2], [190, -300, 3], [235, -235, 5], [225, -150, 8],
+      [160, -100, 10], [60, -95, 11], [-60, -105, 11], [-170, -120, 9], [-255, -70, 6], [-260, 40, 3], [-240, 140, 1],
+      [-200, 175, 0], [-160, 145, 0], [-150, 60, 0], [-110, 25, 0], [-70, 60, 0], [-80, 150, 0], [-55, 195, 0], [-75, 250, 0],
+      [-55, 320, 0], [-15, 330, 0], [5, 290, 0],
+    ] },
 ];
 
 export const trackById = (id) => TRACKS.find((t) => t.id === id) || TRACKS[0];

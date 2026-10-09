@@ -22,11 +22,12 @@
 </div>
 <div class="topbtns" id="topbtns" hidden>
   <button class="pill" id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
-  <button class="pill" id="muteBtn" type="button">Sound on</button>
-  <button class="pill" id="tiltBtn" type="button">Tilt: off</button>
-  <button class="pill" id="camBtn" type="button">Cam: chase</button>
+  <button class="pill" id="muteBtn" type="button" aria-label="Sound">♪ On</button>
+  <button class="pill" id="tiltBtn" type="button" aria-label="Tilt steering">Tilt</button>
+  <button class="pill" id="camBtn" type="button" aria-label="Camera">Cam 1</button>
 </div>
 
+<canvas id="minimap" hidden aria-hidden="true"></canvas>
 <div id="speedo" hidden>
   <div class="num" id="spdV">0</div>
   <div class="unit">KM/H</div>
@@ -52,7 +53,13 @@
 <div class="overlay" id="menu">
   <div class="card">
     <div class="brand">APEX<span>RING</span></div>
-    <div class="sub">Three laps in the Vanta S1. The car accelerates by itself and lifts for tight corners. You steer, drift and boost.</div>
+    <div class="sub">The car accelerates by itself and lifts for tight corners. You steer, drift and boost.</div>
+    <div class="trackpick">
+      <button class="arrow" id="trackPrev" type="button" aria-label="Previous track">‹</button>
+      <canvas id="trackPreview" width="96" height="96"></canvas>
+      <div class="trackinfo"><div class="label">Track</div><div class="trackName" id="trackName"></div><div class="hint" id="trackBlurb"></div></div>
+      <button class="arrow" id="trackNext" type="button" aria-label="Next track">›</button>
+    </div>
     <div>
       <div class="label">Paint</div>
       <div class="row">
