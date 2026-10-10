@@ -165,6 +165,14 @@ test.describe("Apex Ring", () => {
     await page.reload();
     await page.waitForFunction(() => window.__apex && window.__apex.ready);
     expect(await game(page, () => window.__apex.track)).toBe(id);
+    // the race screen opens on the mode used last
+    await page.click("#raceBtn");
+    await page.click("#modeTrial");
+    await page.reload();
+    await page.waitForFunction(() => window.__apex && window.__apex.ready);
+    await page.click("#raceBtn");
+    await expect(page.locator("#modeTrial")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#medalLine")).toBeVisible();
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });
 

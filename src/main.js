@@ -725,6 +725,8 @@ function startEvent(ev) {
 ["setupBack", "garageBack", "settingsBack"].forEach((id) => $(id).addEventListener("click", () => show("menu")));
 function setMode(trial, cup = false) {
   G.trial = trial; G.cupMode = cup;
+  const m = cup ? "cup" : trial ? "trial" : "race";
+  if (save.settings.raceMode !== m) { save.settings.raceMode = m; writeSave(); } // the race screen opens on the mode you used last
   $("modeRace").setAttribute("aria-pressed", String(!trial && !cup)); $("modeTrial").setAttribute("aria-pressed", String(trial)); $("modeCup").setAttribute("aria-pressed", String(cup));
   $("cupPick").hidden = !cup; $("trackPick").hidden = cup; ["layoutTabs", "board"].forEach((id) => ($(id).hidden = cup));
   if (cup) refreshCup();
@@ -764,6 +766,7 @@ function cupResult(order) {
 }
 $("modeRace").addEventListener("click", () => { sfx.click(); setMode(false); });
 $("modeTrial").addEventListener("click", () => { sfx.click(); setMode(true); });
+{ const m = save.settings.raceMode; if (m === "trial" || m === "cup") setMode(m === "trial", m === "cup"); }
 
 // ---------- settings ----------
 function refreshSettings() {

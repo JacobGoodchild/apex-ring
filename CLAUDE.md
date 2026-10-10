@@ -281,6 +281,7 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   still glow on it), smoother (roughness 0.14 by day) with flatter normals, and reflects the sky more (envMap x2).
   rainy() marks night rain with `dark` so it gets the night values.
 - Part 16: the time-trial track picker shows the medal you've won on that layout next to its name.
+- Part 17: the race screen opens on the mode you used last (Quick race / Time trial / Cup; save.settings.raceMode).
 
 ### Overnight summary (2026-10-09 19:05 → 2026-10-10 ~04:00 UTC), v2.0
 16 tested parts, each pushed to `main` and deployed by CI. Every item on the R1–R10 plan is done.
@@ -300,7 +301,6 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   - **Real-device tuning:** handling, AI pace and frame rate are tuned headless. The FPS readout (Settings) exists so a
     real Pixel 7 run can confirm 60 fps. Medium is ~220-265 draw calls / 145-195k triangles on every track.
 - **Ideas next:**
-  - remember the last race mode;
   - more split-path islands (they work on any layout via `hazards`);
   - a second Compact car;
   - a 2-worker CI if the runner gets faster (the suite is ~19 min on one worker).
