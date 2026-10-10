@@ -264,3 +264,6 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
 - Part 11: Settings > Speed mph / km/h (defaults to mph for en-GB / en-US browsers, km/h elsewhere and in test mode;
   speedo, split-screen boxes, garage top speed with 0-60 mph, stats), lap-by-lap times on the results with the best
   one in green.
+- Part 12: weather sound (audio.js setWeatherSound: rain hiss + spray that grows with speed, spray only on wet-look
+  roads, a low wind in the snow), career event a3 "Black Ice" (drift attack on Frostbite Ridge, 22 events now),
+  How to play covers ice, splits, ramps, rocks and medals.

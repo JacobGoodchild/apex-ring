@@ -2,7 +2,7 @@
 // rival engines placed left/right of you with a Doppler shift as they pass, and the procedural soundtrack.
 import { initMusic } from "./music.js";
 let rivalsV = [];
-let ctx = null, master = null, eng = null, squeal = null, wind = null, muted = false, lastGear = 0, shiftT = 0;
+let ctx = null, master = null, eng = null, squeal = null, wind = null, weather = null, weatherKind = "", muted = false, lastGear = 0, shiftT = 0;
 
 // Each car has its own engine character: pitch, harmonic mix, filter brightness and gearbox.
 // electric: one long whine with no gear changes.
@@ -42,6 +42,10 @@ export function startAudio() {
     // wind / boost rush
     const wn = ctx.createBufferSource(); wn.buffer = nb; wn.loop = true; const wf = ctx.createBiquadFilter(); wf.type = "lowpass"; wf.frequency.value = 600;
     const wg = ctx.createGain(); wg.gain.value = 0; wn.connect(wf); wf.connect(wg); wg.connect(comp); wn.start(); wind = { g: wg, f: wf };
+    // weather bed: rain hiss (high-passed noise) or a low snowy wind, plus tyre spray on a wet road
+    const rn = ctx.createBufferSource(); rn.buffer = nb; rn.loop = true; const rf = ctx.createBiquadFilter(); rf.type = "highpass"; rf.frequency.value = 2500;
+    const rg = ctx.createGain(); rg.gain.value = 0; rn.connect(rf); rf.connect(rg); rg.connect(comp); rn.start(0, 0.37);
+    weather = { g: rg, f: rf };
     // three pooled voices for the nearest rival cars: saw + sub through a low-pass, panned left/right
     rivalsV = [0, 1, 2].map(() => {
       const o = ctx.createOscillator(); o.type = "sawtooth"; const s = ctx.createOscillator(); s.type = "square";
@@ -54,6 +58,9 @@ export function startAudio() {
     initMusic(ctx, master);
   } catch (e) { ctx = null; }
 }
+
+// "rain" (falling rain + spray), "wet" (spray off a wet road only), "snow" (soft wind) or "" for nothing
+export function setWeatherSound(kind) { weatherKind = kind || ""; }
 
 export function setMuted(m) { muted = m; if (master) master.gain.setTargetAtTime(m ? 0 : 0.8, ctx.currentTime, 0.05); }
 export const isMuted = () => muted;
@@ -85,6 +92,12 @@ export function updateAudio(v, vmax, on, slip, boost) {
   squeal.g.gain.setTargetAtTime(on ? Math.min(0.13, sq * sq * 0.16 + sq * 0.03) : 0, t, 0.05);
   squeal.bp.frequency.setTargetAtTime(1250 + slip * 900, t, 0.1);
   wind.g.gain.setTargetAtTime(on ? f * 0.05 + (boost ? 0.12 : 0) : 0, t, 0.12);
+  if (weather) {
+    const k = weatherKind, wet = k === "rain" || k === "wet";
+    weather.f.type = k === "snow" ? "lowpass" : "highpass";
+    weather.f.frequency.setTargetAtTime(k === "snow" ? 380 : wet ? 2200 - f * 900 : 2500, t, 0.2);
+    weather.g.gain.setTargetAtTime(!on ? 0 : k === "rain" ? 0.03 + f * 0.05 : k === "wet" ? f * 0.05 : k === "snow" ? 0.05 : 0, t, 0.3);
+  }
   wind.f.frequency.setTargetAtTime(boost ? 2400 : 500 + f * 900, t, 0.1);
 }
 

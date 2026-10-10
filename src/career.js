@@ -19,6 +19,7 @@ export const EVENTS = [
   { id: "c13", name: "Xtreme Jump", type: "race", track: "xtreme", laps: 2, target: 3, reward: { coins: 2000, gems: 1 }, unlock: { track: "coastal" }, desc: "Fly off the cliffs and finish in the top three." },
   { id: "c14", name: "Storm Run", type: "race", track: "coastal", laps: 2, target: 3, reward: { coins: 2200, gems: 1 }, unlock: { track: "frost" }, desc: "Rain, puddles and cliffs: finish in the top three on the wet." },
   { id: "c15", name: "Frostbite", type: "race", track: "frost", laps: 2, target: 3, reward: { coins: 2400, gems: 1 }, desc: "Snow, ice patches and a white valley: finish in the top three." },
+  { id: "a3", name: "Black Ice", type: "attack", track: "frost", laps: 99, time: 60, target: 1800, reward: { coins: 1600 }, desc: "60 seconds on the snow. Mind the ice and score 1,800 drift points." },
   { id: "b2", name: "Boss: The Surgeon", type: "boss", track: "coastal", laps: 2, rival: "Kenji Arata", car: "razor", reward: { coins: 2500, gems: 1 }, unlock: { car: "razor" }, desc: "Kenji 'The Surgeon' Arata clips every apex in a Razor LM. Beat him on the wet to win it." },
   { id: "c9", name: "Neon Nights", type: "race", track: "neon", laps: 2, target: 3, reward: { coins: 1500 }, unlock: { track: "alpine" }, desc: "Finish in the top three." },
   { id: "a2", name: "Neon Drift Attack", type: "attack", track: "neon", laps: 99, time: 75, target: 2500, reward: { coins: 2000, gems: 1 }, desc: "75 seconds in the neon streets. Score 2,500 drift points." },

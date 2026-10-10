@@ -80,6 +80,7 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
   if (G.rain) G.rain.lines.visible = !!theme.rain;
   if (theme.snowfall && !G.snow) G.snow = new Rain(scene, 900, true);
   if (G.snow) G.snow.lines.visible = !!theme.snowfall && !theme.rain;
+  sfx.setWeatherSound(theme.rain ? "rain" : theme.snowfall ? "snow" : theme.wetRoad ? "wet" : "");
   if (G.car && G.car.beams) G.car.beams.visible = G.night;
   for (const r of G.rivals || []) if (r.model.beams) r.model.beams.visible = G.night;
   if (G.player) { G.player.track = G.path; gridUp(); }
