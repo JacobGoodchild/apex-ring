@@ -94,6 +94,23 @@
   </div>
 </div>
 
+<!-- what's new (shown once after a big update) -->
+<div class="overlay center" id="whatsNew" hidden>
+  <div class="card">
+    <div class="brand small">WHAT'S NEW · 2.0</div>
+    <ul class="newlist">
+      <li><b>Looks real now:</b> photo-real roads, grass and rock, mountains and hills, clouds, sky reflections, tree shadows.</li>
+      <li><b>Weather and time:</b> race any track in the rain or at night, plus the new rainy <b>Coastal Highway</b>.</li>
+      <li><b>Reverse and Mirror</b> versions of every track, oil slicks, puddles and rockfalls.</li>
+      <li><b>Pro driving</b> with pedals and handbrake, gamepads, and <b>2-player split-screen</b>.</li>
+      <li><b>Career map</b> with bosses who give you their car, a <b>Daily Challenge</b>, <b>Cups</b> and <b>Trophies</b>.</li>
+      <li>Two new cars (Pico RS, Ironhide 427), car classes, paint finishes, flame colours and liveries.</li>
+      <li>A synthwave soundtrack, slipstream slingshots, drift combos, replays, ghost codes and photo mode.</li>
+    </ul>
+    <button class="btn" id="whatsNewOk" type="button">Let's race</button>
+  </div>
+</div>
+
 <!-- how to play -->
 <div class="overlay screen" id="help" hidden>
   <div class="card">
@@ -142,11 +159,13 @@
     <div class="ghostbar" id="ghostBar" hidden><button class="chipbtn" id="ghostShare" type="button">Share my ghost</button><button class="chipbtn" id="ghostImport" type="button">Race a friend's ghost</button><button class="chipbtn" id="replayBtn" type="button">Watch best lap</button></div>
     <div class="ghostpanel" id="ghostPanel" hidden><textarea id="ghostCode" rows="3" spellcheck="false" aria-label="Ghost code"></textarea>
       <div class="row"><button class="chipbtn" id="ghostCopy" type="button">Copy</button><button class="chipbtn" id="ghostLoad" type="button">Load code</button><span class="hint" id="ghostMsg"></span></div></div>
+    <div class="opts">
     <div class="tabs" id="playersTabs"><button class="tab" data-n="1" type="button">1 player</button><button class="tab" data-n="2" type="button">2 players</button></div>
     <div class="hint" id="playersHint" hidden>Split-screen: player 1 steers with A/D and boosts with W, player 2 uses ← → and ↑. Two gamepads work too.</div>
     <div class="tabs" id="timeTabs"><button class="tab" data-t="day" type="button">Day</button><button class="tab" data-t="night" type="button">Night</button></div>
     <div class="tabs" id="weatherTabs"><button class="tab" data-w="dry" type="button">Dry</button><button class="tab" data-w="rain" type="button">Rain</button></div>
     <div class="tabs" id="layoutTabs"><button class="tab" data-l="" type="button">Normal</button><button class="tab" data-l="r" type="button">Reverse</button><button class="tab" data-l="m" type="button">Mirror</button></div>
+    </div>
     <button class="btn" id="startBtn" type="button">Start race</button>
     <button class="btn ghost" id="setupBack" type="button">Back</button>
   </div>
@@ -161,6 +180,7 @@
       <button class="arrow" id="carNext" type="button" aria-label="Next car">›</button>
     </div>
     <div class="stats" id="stats"></div>
+    <div class="hint perf" id="perfLine"></div>
     <div class="tabs" role="tablist">
       <button class="tab" id="tabPaint" type="button" aria-pressed="true">Paint</button>
       <button class="tab" id="tabRims" type="button" aria-pressed="false">Rims</button>
@@ -198,7 +218,7 @@
       <button class="tab" data-q="low" type="button">Low</button><button class="tab" data-q="medium" type="button">Medium</button><button class="tab" data-q="high" type="button">High</button>
     </div>
     <div class="label">Camera</div>
-    <div class="tabs" id="camTabs"><button class="tab" data-c="chase" type="button">Chase</button><button class="tab" data-c="bonnet" type="button">Bonnet</button></div>
+    <div class="tabs" id="camTabs"><button class="tab" data-c="chase" type="button">Chase</button><button class="tab" data-c="low" type="button">Low</button><button class="tab" data-c="bonnet" type="button">Bonnet</button></div>
     <div class="label">Camera shake and speed lines</div>
     <div class="tabs" id="fxTabs"><button class="tab" data-f="on" type="button">On</button><button class="tab" data-f="off" type="button">Off</button></div>
     <div class="label">Driving</div>
@@ -239,6 +259,7 @@
     <div class="results" id="results"></div>
     <button class="btn" id="nextBtn" type="button" hidden>Next event</button>
     <button class="btn" id="againBtn" type="button">Race again</button>
+    <button class="btn ghost" id="shareBtn" type="button">Share result</button>
     <button class="btn ghost" id="menuBtn" type="button">Menu</button>
   </div>
 </div>

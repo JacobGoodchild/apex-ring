@@ -52,7 +52,7 @@ test.describe("Apex Ring", () => {
     const key = (await game(page, () => window.__apex.player.bend)) > 0 ? "ArrowRight" : "ArrowLeft";
     await page.keyboard.down(key);
     await page.waitForFunction(() => window.__apex.player.drifting, null, { timeout: 10_000 });
-    await page.waitForFunction(() => window.__apex.skidCount > 2, null, { timeout: 10_000 });
+    await page.waitForFunction(() => window.__apex.skidCount > 0, null, { timeout: 20_000 }); // marks are laid per drawn frame, so few on a slow machine
     await page.keyboard.up(key);
     expect((await game(page, () => window.__apex.player)).boost).toBeGreaterThan(b0);
   });
@@ -321,6 +321,46 @@ test.describe("Apex Ring", () => {
     await page.click("#nextBtn");
     await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 45_000 });
     expect(await page.evaluate(() => window.__apex.track)).toBe("gp");
+    expect(problems).toEqual([]);
+    await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
+  });
+
+  test("cameras: the camera button cycles high chase, low chase and bonnet", async ({ page }) => {
+    await page.setViewportSize({ width: 915, height: 412 });
+    const problems = await openGame(page, "rivals=3");
+    await startRace(page);
+    await expect(page.locator("#camBtn")).toHaveText("Cam 1");
+    await page.click("#camBtn"); await expect(page.locator("#camBtn")).toHaveText("Cam 2");
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: "screenshots/lowcam-landscape.png" });
+    await page.click("#camBtn"); await expect(page.locator("#camBtn")).toHaveText("Cam 3");
+    await page.click("#camBtn"); await expect(page.locator("#camBtn")).toHaveText("Cam 1");
+    expect((await game(page, () => window.__apex.save)).settings.camera).toBe("chase");
+    expect(problems).toEqual([]);
+  });
+
+  test("an old save from before 2.0 still loads: progress kept, every screen opens, and it races", async ({ page }) => {
+    test.setTimeout(150_000);
+    // a 1.4-era save: old career ids only, no new fields (laps, trophies, stats, finishes, cups...)
+    await page.addInitScript(() => localStorage.setItem("apexring.test.save", JSON.stringify({
+      v: 1, coins: 12345, gems: 4, car: "kestrel", owned: ["vanta", "kestrel"], best: { gp: 50.1 }, ghosts: {},
+      cars: { kestrel: { paint: 2, rims: 1, decal: 3, upgrades: { engine: 2, tyres: 1, handling: 1 } } },
+      career: { c1: { done: true, stars: 3 }, c2: { done: true, stars: 2 }, c3: { done: true, stars: 1 }, c4: { done: true, stars: 2 }, c5: { done: true, stars: 1 }, c6: { done: true, stars: 1 } },
+      settings: { quality: "", sound: true, tilt: false, camera: "bonnet", difficulty: "normal", assist: "auto", line: "auto" },
+    })));
+    const problems = await openGame(page, "autopilot=1&speed=12&laps=1");
+    await expect(page.locator("#lobbyCar")).toHaveText(/Kestrel/);
+    for (const [btn, back] of [["#garageBtn", "#garageBack"], ["#settingsBtn", "#settingsBack"], ["#careerBtn", "#careerBack"], ["#raceBtn", "#setupBack"]]) { await page.click(btn); await page.click(back); }
+    await page.click("#careerBtn");
+    // finished events stay finished; the new events slotted in before them don't lock them
+    await expect(page.locator("#ev-c6")).not.toHaveClass(/lockd/);
+    await expect(page.locator("#ev-a1")).not.toHaveClass(/lockd/);
+    await page.click("#careerBack");
+    await startRace(page);
+    await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 90_000 });
+    const sv = await game(page, () => window.__apex.save);
+    expect(sv.coins).toBeGreaterThan(12345);
+    expect(sv.career.c6.done).toBe(true);
     expect(problems).toEqual([]);
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });

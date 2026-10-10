@@ -47,7 +47,8 @@ scene.add(camera);
 const showroom = new Showroom(world);
 showroom.bindDrag($("menu")); showroom.bindDrag($("garage"));
 const skids = new Skids(scene), smoke = new Smoke(scene), speedLines = new SpeedLines(camera);
-chase.mode = save.settings.camera === "bonnet" ? "bonnet" : "chase";
+const CAMS = ["chase", "low", "bonnet"];
+chase.mode = CAMS.includes(save.settings.camera) ? save.settings.camera : "chase";
 
 const QS = new URLSearchParams(location.search);
 const G = {
@@ -114,7 +115,7 @@ function refreshBoard() {
   const list = ((save.laps || {})[G.track.id] || []).filter((e) => e.d >= from).slice(0, 5);
   $("boardList").innerHTML = list.length ? list.map((e) => `<li><b>${fmt(e.t)}</b><span>${carById(e.c).name} · ${new Date(e.d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span></li>`).join("") : `<li class="empty">No laps here yet${p !== "all" ? " this " + p : ""}.</li>`;
   $("ghostBar").hidden = !G.trial; if (!G.trial) $("ghostPanel").hidden = true;
-  $("playersTabs").hidden = !!G.trial; applyPlayers(); applyWeather();
+  $("playersTabs").hidden = !!G.trial || !canSplit(); applyPlayers(); applyWeather();
 }
 document.querySelectorAll("#boardTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.boardPeriod = b.dataset.p; refreshBoard(); }));
 $("ghostShare").addEventListener("click", async () => {
@@ -134,6 +135,9 @@ $("replayBtn").addEventListener("click", () => {
   if (G.car.def && G.car.def !== save.car) buildPlayer();
   scene.add(G.car.group); setDoors(G.car, 0);
   for (const r of G.rivals) r.model.group.visible = false;
+  if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
+  if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
+  G.splitRace = false; input.split = false;
   G.field = []; setMusicMode("race", 1);
   $("replayTag").hidden = false; chase.snap(G.player); chase.ready = false;
   setTimeout(() => { G.replayArmed = true; }, 400);
@@ -169,13 +173,16 @@ function pickTrack(dir) {
 function applyWeather() {
   document.querySelectorAll("#timeTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.t === (G.night ? "night" : "day"))); b.disabled = !!THEMES[G.track.theme].stars && b.dataset.t === "day"; });
   const always = !!THEMES[G.track.theme].rain;
-  document.querySelectorAll("#timeTabs .tab").forEach((b) => b.addEventListener("click", () => { if (b.dataset.t === (G.night ? "night" : "day")) return; sfx.click(); G.wantTime = b.dataset.t; loadTrack(G.track.id); writeSave(); }));
-document.querySelectorAll("#weatherTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.w === G.weather)); b.disabled = always && b.dataset.w === "dry"; });
+  document.querySelectorAll("#weatherTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.w === G.weather)); b.disabled = always && b.dataset.w === "dry"; });
 }
+document.querySelectorAll("#timeTabs .tab").forEach((b) => b.addEventListener("click", () => { if (b.dataset.t === (G.night ? "night" : "day")) return; sfx.click(); G.wantTime = b.dataset.t; loadTrack(G.track.id); writeSave(); }));
 document.querySelectorAll("#weatherTabs .tab").forEach((b) => b.addEventListener("click", () => { if (b.dataset.w === G.weather) return; sfx.click(); G.wantWeather = b.dataset.w; loadTrack(G.track.id); writeSave(); }));
+// split-screen needs two sets of controls: a keyboard, or two gamepads (a phone alone has only one touch screen)
+const canSplit = () => TEST || !matchMedia("(pointer: coarse)").matches || [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean).length >= 2;
 function applyPlayers() {
+  if (!canSplit()) G.split = false;
   document.querySelectorAll("#playersTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.n === "2") === !!G.split)));
-  $("playersHint").hidden = !G.split; input.split = !!G.split;
+  $("playersHint").hidden = !G.split;
 }
 document.querySelectorAll("#playersTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.split = b.dataset.n === "2"; applyPlayers(); }));
 document.querySelectorAll("#layoutTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); loadTrack(baseId(G.track.id) + (b.dataset.l ? ":" + b.dataset.l : "")); writeSave(); }));
@@ -312,6 +319,14 @@ function refreshLobby() {
 // ---------- garage ----------
 const STAT_KEYS = [["Top speed", (s) => s.vmax / 95], ["Acceleration", (s) => s.accel / 21], ["Handling", (s) => (s.grip / 42) * 0.6 + (s.response / 11) * 0.4],
   ["Drift grip", (s) => (s.driftGrip - 0.75) / 0.5], ["Boost duration", (s) => s.boostDur / 1.5]];
+// real-feeling numbers for the garage: top speed and 0-100 km/h from the same acceleration and drag formula the
+// physics uses (accel x (1 - (v/vmax)^2) minus air drag), integrated on a flat straight
+function perfNumbers(def, up) {
+  const s = carSpec(def, up || {});
+  let v = 0, t = 0, t100 = 0;
+  for (let k = 0; k < 60 * 60; k++) { const a = s.accel * Math.max(0, 1 - (v / s.vmax) ** 2) - 0.0009 * v * v; v += a / 60; t += 1 / 60; if (!t100 && v >= 100 / 3.6) t100 = t; }
+  return { top: Math.round(v * 3.6), t100 };
+}
 function statsHTML(def, up) {
   const base = carSpec(def, {}), cur = carSpec(def, up || {});
   return STAT_KEYS.map(([n, f]) => `<span>${n}</span><span class="sbar"><b style="width:${Math.min(100, f(cur) * 100)}%"></b><i style="width:${Math.min(100, f(base) * 100)}%"></i></span>`).join("");
@@ -323,6 +338,8 @@ function refreshGarage() {
   const prize = EVENTS.find((e) => e.unlock && e.unlock.car === def.id);
   $("carBlurb").textContent = def.blurb + (prize && !owned ? ` Or win it free in Career: ${prize.name}.` : "");
   $("stats").innerHTML = statsHTML(def, cs.upgrades);
+  const pn = perfNumbers(def, cs.upgrades);
+  $("perfLine").textContent = `Top speed ${pn.top} km/h · 0-100 km/h ${pn.t100.toFixed(1)} s · ${def.engine === "electric" ? "electric" : def.engine.toUpperCase().replace("FLAT6", "flat-6")}`;
   const act = $("carAction");
   if (!owned) {
     const gems = def.gems || 0, cost = gems ? gems + " gems" : def.price.toLocaleString("en-GB") + " coins";
@@ -455,8 +472,9 @@ function startRace() {
   const ev = G.event, solo = ev ? ev.type === "trial" || ev.type === "drift" || ev.type === "attack" : G.trial;
   if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
   if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
-  G.splitRace = !!G.split && !ev && !G.trial;
+  G.splitRace = !!G.split && !ev && !G.trial && canSplit(); input.split = G.splitRace;
   G.field = solo ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
+  G.realRace = !trialMode() && G.field.length > 0;
   for (const r of G.rivals) r.model.group.visible = G.field.includes(r);
   G.elimDone = 0; G.eliminated = false; G.attackShown = -1;
   if (ev && ev.type === "boss") setTimeout(() => toast("BOSS BATTLE · " + ev.desc.split(".")[0], 3200), 300);
@@ -483,6 +501,10 @@ function startRace() {
 
 function toMenu() {
   G.mode = "menu"; G.paused = false;
+  // leave no special racers or split-screen behind (replays and the next race start clean)
+  if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
+  if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
+  G.splitRace = false; input.split = false; G.field = G.rivals;
   ["finish", "pause", "count"].forEach((id) => ($(id).hidden = true));
   setRaceUI(false); showroom.setCar(G.car);
   show("menu");
@@ -491,6 +513,7 @@ function toMenu() {
 
 function finishRace() {
   G.mode = "done";
+  if (G.rocks && G.rocks.length) { G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock"); G.rocks = []; }
   G.playerFinish = G.raceTime;
   const order = standings(), place = order.findIndex((e) => e.me) + 1;
   sfx.fanfare(place <= 3 && !G.eliminated);
@@ -724,28 +747,36 @@ function refreshSettings() {
   document.querySelectorAll("#diffTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === (save.settings.difficulty || "easy"))));
 }
 document.querySelectorAll("#qualityTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.quality = b.dataset.q; world.applyQuality(b.dataset.q); writeSave(); refreshSettings(); }));
-document.querySelectorAll("#camTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); if (chase.mode !== b.dataset.c) $("camBtn").click(); refreshSettings(); }));
+document.querySelectorAll("#camTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); setCam(b.dataset.c); refreshSettings(); }));
 document.querySelectorAll("#soundTabs .tab").forEach((b) => b.addEventListener("click", () => { if ((b.dataset.s === "1") !== save.settings.sound) $("muteBtn").click(); sfx.click(); refreshSettings(); }));
 document.querySelectorAll("#diffTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.difficulty = b.dataset.d; writeSave(); applyAids(); refreshSettings(); }));
 document.querySelectorAll("#assistTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.assist = b.dataset.a; writeSave(); refreshSettings(); }));
 document.querySelectorAll("#lineTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.line = b.dataset.l; writeSave(); applyAids(); refreshSettings(); }));
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
-  resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On"; toast("Progress reset."); show("menu");
+  resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On";
+  applyDrive(); setCam("chase"); setMusicVolume(save.settings.music ?? 0.6); toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
 $("nextBtn").addEventListener("click", () => { if (G.cup) { G.cup.i++; startCupRace(); return; } const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
 $("menuBtn").addEventListener("click", () => { const ev = G.event; G.cup = null; $("againBtn").hidden = false; toMenu(); if (ev) show("career"); });
+// share a one-line result through the phone's share sheet, or copy it (nothing is sent anywhere by the game)
+$("shareBtn").addEventListener("click", async () => {
+  const best = Math.min(...G.lapTimes);
+  const text = `${G.event ? G.event.name + ": " : ""}I finished ${ordinal(G.place || 1)} at ${G.track.name}${G.weather === "rain" ? " in the rain" : ""}${G.night ? " at night" : ""} in Apex Ring` + (isFinite(best) ? `, best lap ${fmt(best)}` : "") + `, driving the ${carById(save.car).name}.`;
+  try { if (navigator.share) { await navigator.share({ text }); return; } } catch (_) { return; }
+  try { await navigator.clipboard.writeText(text); toast("Result copied: paste it anywhere", 2000); } catch (_) { toast(text, 4000); }
+});
 $("pauseBtn").addEventListener("click", () => pause(true));
 $("resumeBtn").addEventListener("click", () => { sfx.click(); pause(false); });
 $("restartBtn").addEventListener("click", startRace);
 $("quitBtn").addEventListener("click", () => { G.cup = null; $("againBtn").hidden = false; toMenu(); });
 $("muteBtn").addEventListener("click", () => {
-  save.settings.sound = !save.settings.sound; sfx.setMuted(!save.settings.sound);
-setMusicVolume(save.settings.music ?? 0.6);
-$("musicVol").addEventListener("input", (e) => { save.settings.music = Number(e.target.value); setMusicVolume(save.settings.music); writeSave(); }); writeSave();
+  save.settings.sound = !save.settings.sound; sfx.setMuted(!save.settings.sound); writeSave();
   $("muteBtn").textContent = save.settings.sound ? "♪ On" : "♪ Off";
 });
+setMusicVolume(save.settings.music ?? 0.6);
+$("musicVol").addEventListener("input", (e) => { save.settings.music = Number(e.target.value); setMusicVolume(save.settings.music); writeSave(); });
 // ---------- tilt controls ----------
 tiltCfg.zero = save.settings.tiltZero || 0; tiltCfg.sens = save.settings.tiltSens || 1;
 async function useControls(mode) {
@@ -787,11 +818,10 @@ function applyBand() { document.querySelectorAll("#bandTabs .tab").forEach((b) =
 document.querySelectorAll("#bandTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.catchup = b.dataset.b; writeSave(); applyBand(); }));
 applyBand();
 applyDrive();
-$("camBtn").addEventListener("click", () => {
-  chase.mode = chase.mode === "chase" ? "bonnet" : "chase"; save.settings.camera = chase.mode; writeSave();
-  $("camBtn").textContent = chase.mode === "chase" ? "Cam 1" : "Cam 2"; chase.ready = false;
-});
-$("camBtn").textContent = chase.mode === "chase" ? "Cam 1" : "Cam 2";
+// cameras: high chase, low chase (cinematic, close behind), bonnet
+function setCam(m) { chase.mode = m; save.settings.camera = m; writeSave(); $("camBtn").textContent = "Cam " + (CAMS.indexOf(m) + 1); chase.ready = false; }
+$("camBtn").addEventListener("click", () => setCam(CAMS[(CAMS.indexOf(chase.mode) + 1) % CAMS.length]));
+$("camBtn").textContent = "Cam " + (CAMS.indexOf(chase.mode) + 1);
 input.onKey = (k) => {
   if (k === "Escape" || k === "p" || k === "P") pause(!G.paused);
   else if ((k === "r" || k === "R") && G.mode === "race") G.player.respawn();
@@ -867,7 +897,8 @@ function popDrift(n, label = "DRIFT +") {
 const lookAt = new THREE.Vector3(), camPos = new THREE.Vector3();
 
 function step(dt) {
-  if (G.paused || G.mode === "replay") return;
+  if (G.paused) { readControls(false); return; } // still read the gamepad, so its Start button can unpause
+  if (G.mode === "replay") return;
   const ctl = readControls();
 
   if (G.mode === "countdown") {
@@ -1072,7 +1103,6 @@ function render(dt) {
     camera.position.set(v.x + Math.sin(P.a) * P.d * c, v.y + 0.6 + Math.sin(P.e) * P.d, v.z + Math.cos(P.a) * P.d * c);
     camera.lookAt(v.x, v.y + 0.7, v.z);
   } else chase.update(v, dt, v.boosting ? 1 : 0);
-  if (G.mode === "replay") sfx.updateAudio(v.vF, v.spec.vmax, true, 0, false);
   if (G.splitRace && G.p2 && G.mode !== "menu") {
     chase2.update(G.p2.veh, dt, G.p2.veh.boosting ? 1 : 0);
     const order = standings(), L = G.path.length, n = laps();
@@ -1113,7 +1143,7 @@ function render(dt) {
     drawTags();
     minimap.draw([...G.field.map((r) => ({ x: r.veh.x, z: r.veh.z, color: "#" + r.color.toString(16).padStart(6, "0") })), { x: v.x, z: v.z, color: "#f2a65a", me: true }]);
   }
-  sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
+  sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown" || G.mode === "replay", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
   // the three nearest rivals: left/right from the camera, distance, engine speed and how fast they close in
   if (G.mode === "race" || G.mode === "done") {
     const cx = camera.position.x, cz = camera.position.z, rx = Math.cos(chase.yaw ?? v.h), rz = -Math.sin(chase.yaw ?? v.h);
@@ -1139,7 +1169,10 @@ const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, 12); rockMesh.count =
 const rockO = new THREE.Object3D();
 function stepRocks(dt) {
   const theme = THEMES[G.track.theme];
-  if (!theme.rockfall || G.mode !== "race" || (G.event && G.event.type === "trial") || G.trial) { G.rocks = []; return; }
+  if (!theme.rockfall || G.mode !== "race" || (G.event && G.event.type === "trial") || G.trial) {
+    if (G.rocks && G.rocks.length) G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock");
+    G.rocks = []; return;
+  }
   G.rocks = G.rocks || [];
   if (!G.rockRnd) G.rockRnd = makeRng((SEED ^ 0x5eed) >>> 0);
   if (G.raceTime >= (G.nextRock ?? 18)) {
@@ -1181,19 +1214,29 @@ function drawRocks() {
 // trophies: award once, pay out, and say so
 function trophy(id) { const t = award(save, id); if (t) { writeSave(); setTimeout(() => toast(`Trophy: ${t.name} · +${TROPHY_COINS}`, 2600), 300); sfx.chime(); } }
 // lifetime stats shown on the career map
+// a "real" race has someone to beat (solo time trials and drift runs always finish "1st")
+const realRace = () => !!G.realRace;
 function logStats(place) {
   const st = (save.stats = save.stats || { races: 0, wins: 0, podiums: 0, km: 0, top: 0, drift: 0 });
-  st.races++; if (place === 1 && !G.eliminated) st.wins++; if (place <= 3 && !G.eliminated) st.podiums++;
+  st.races++; if (realRace() && place === 1 && !G.eliminated) st.wins++; if (realRace() && place <= 3 && !G.eliminated) st.podiums++;
   st.km += Math.max(0, G.player.totalD) / 1000; st.top = Math.max(st.top, G.topSpeed || 0); st.drift = Math.max(st.drift, G.bestDrift || 0);
 }
 function raceTrophies(place) {
   logStats(place);
-  if (G.event && G.event.type === "trial") return;
+  if (!realRace()) return;
   if (place === 1 && !G.eliminated) { trophy("win"); if (G.weather === "rain") trophy("rainwin"); }
   if (place <= 3 && !G.eliminated) { save.podiums = (save.podiums || 0) + 1; if (save.podiums >= 10) trophy("podium10"); }
   if (layoutOf(G.track.id) === "m") trophy("mirror");
   if (G.lapTimes.length >= laps() && G.cleanLaps >= laps()) trophy("clean");
 }
+
+// "What's new" card, once per big version (never in test mode, where it would cover the menu)
+// only for players coming back from an older version; brand-new players just start playing
+if (save.seenNews !== "2.0") {
+  const returning = Object.keys(save.career || {}).length > 0 || save.coins > 0 || (save.owned || []).length > 1;
+  if (returning && !TEST) $("whatsNew").hidden = false; else { save.seenNews = "2.0"; writeSave(); }
+}
+$("whatsNewOk").addEventListener("click", () => { sfx.click(); $("whatsNew").hidden = true; save.seenNews = "2.0"; writeSave(); });
 
 // ---------- boot ----------
 loadTrack(QS.get("track") || save.track || "gp");

@@ -29,12 +29,13 @@ export class ChaseCam {
       cam.position.copy(pos);
       fov = (portrait ? 78 : 62) + speedF * 8 + this.kick * 10;
     } else {
-      const back = (portrait ? 7.4 : 5.9) + speedF * 0.9 - this.kick * 0.6;
-      const up = (portrait ? 2.75 : 2.1) + speedF * 0.15;
+      const low = this.mode === "low"; // low chase: closer and nearer the road, like a racing-game TV cam
+      const back = (low ? (portrait ? 6.2 : 5.0) : portrait ? 7.4 : 5.9) + speedF * 0.9 - this.kick * 0.6;
+      const up = (low ? (portrait ? 1.85 : 1.35) : portrait ? 2.75 : 2.1) + speedF * 0.15;
       pos.set(v.x - fx * back, this.y + up, v.z - fz * back);
       if (!this.ready) { cam.position.copy(pos); this.ready = true; }
       cam.position.lerp(pos, 1 - Math.exp(-dt * 12));
-      look.set(v.x + fx * 5, this.y + (portrait ? 0.7 : 0.95), v.z + fz * 5);
+      look.set(v.x + fx * 5, this.y + (low ? (portrait ? 0.9 : 0.8) : portrait ? 0.7 : 0.95), v.z + fz * 5);
       fov = (portrait ? 72 : 58) + speedF * 10 + this.kick * 12;
     }
     if (this.shake > 0) {

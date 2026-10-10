@@ -370,3 +370,13 @@ body.photo #hud, body.photo #speedo, body.photo #topbtns, body.photo #minimap, b
 .statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .statgrid div { background: rgba(255,255,255,.04); border-radius: 8px; padding: 6px; text-align: center; display: flex; flex-direction: column; }
 .statgrid b { font: 800 16px var(--display); color: var(--text); } .statgrid span { font: 600 10px var(--display); color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+
+.newlist { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column; gap: 5px; max-height: 58vh; overflow-y: auto; }
+.newlist b { color: var(--amber); }
+#whatsNew .card { background: rgba(9, 14, 25, .94); border: 1px solid rgba(242, 166, 90, .25); border-radius: 14px; padding: 16px; box-sizing: border-box; }
+
+/* race options: players / time / weather / layout side by side */
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.opts .tabs .tab { padding: 7px 4px; font-size: 12px; }
+.opts .hint { grid-column: 1 / -1; }
+.opts #layoutTabs { grid-column: 1 / -1; }

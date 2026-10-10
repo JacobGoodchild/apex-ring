@@ -13,13 +13,13 @@ r.toneMapping = THREE.ACESFilmicToneMapping; r.setScissorTest(true);
 const s = new THREE.Scene(); s.background = new THREE.Color(0x3a4050);
 s.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
 s.add(new THREE.HemisphereLight(0xffffff, 0x333333, 1)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(3, 6, 4); s.add(d);
-const cols = [0x0f8b8d, 0xe8590c, 0xf5c400, 0xb3121d, 0x5b2bbf, 0xe9edf2, 0x16181d];
+const cols = [0x0f8b8d, 0xe8590c, 0xf5c400, 0xb3121d, 0x5b2bbf, 0xe9edf2, 0x16181d, 0x8fd400, 0x4a5160];
 CARS.forEach((c, i) => { const m = makeCar(c, cols[i]); m.group.position.x = i * 20; s.add(m.group); });
 const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
 CARS.forEach((c, i) => {
   for (const [row, p] of [[0, [14, 1.0, 0.01]], [1, [8, 4.5, 10]]]) {
     cam.position.set(i * 20 + p[0], p[1], p[2]); cam.lookAt(i * 20, 0.6, 0);
-    const x = i * 200, y = 200 + row * 200; r.setViewport(x, y, 200, 200); r.setScissor(x, y, 200, 200); r.render(s, cam);
+    const cw = W / CARS.length, x = i * cw, y = 200 + row * 200; r.setViewport(x, y, cw, 200); r.setScissor(x, y, cw, 200); cam.aspect = cw / 200; cam.updateProjectionMatrix(); r.render(s, cam);
   }
 });
 window.done = true;

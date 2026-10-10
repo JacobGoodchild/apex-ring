@@ -24,7 +24,7 @@ export const THEMES = {
   neon: {
     sky: [0x05010f, 0x1c0838, 0x5a1a6e], sunDir: [0, 0.2, -1], sunColor: 0xff4fd8, sunIntensity: 0.4, stars: 0.5,
     hemi: [0x7a4dff, 0x10051c, 0.6], fog: 0x1a0830, fogNear: 100, fogFar: 750, ground: 0x0d0b14, exposure: 1.2,
-    runoff: "#1b1726", asphalt: "#24222c", lines: "#7df9ff", embankment: 0x1a1426, scenery: "neon", label: "Neon city · Night", clouds: 0.25, cloudColor: 0x2a1240, groundTex: "concrete", groundTint: 0x4a4258, runTex: "concrete", runTint: 0x5a5068, embTex: "concrete", asphaltTint: 0.55,
+    runoff: "#1b1726", asphalt: "#24222c", lines: "#7df9ff", embankment: 0x1a1426, scenery: "neon", label: "Neon city · Night", wetRoad: true, clouds: 0.25, cloudColor: 0x2a1240, groundTex: "concrete", groundTint: 0x4a4258, runTex: "concrete", runTint: 0x5a5068, embTex: "concrete", asphaltTint: 0.55,
     wallA: "#14121c", wallB: "#ff2bd6", wallGlow: 0x7a1066, lampColor: 0x7df9ff, envIntensity: 0.5, bloom: 1.0, sign: "NEON DISTRICT",
   },
   forest: {

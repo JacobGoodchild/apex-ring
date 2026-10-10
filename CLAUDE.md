@@ -236,5 +236,15 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   Camera shake and speed lines On/Off (Off by default with prefers-reduced-motion), Rockfall on mountain and canyon
   tracks (boulders drop ~200 m ahead with a warning every 22-36 s, seeded so physics stays deterministic; a hit costs
   45% of your speed; AI steers round them), boss intro message, slimmer/fainter braking-zone stripe.
+- Part 7 (v2.0.0): garage shows top speed and 0-100 km/h (integrated from the physics' accel/drag formula), Share
+  result button (Web Share sheet or clipboard; the game itself sends nothing), Low chase camera (Cam 1/2/3 = chase,
+  low, bonnet), wet-look streets on Neon District, compact race options grid, version 2.0.0 and a one-time
+  "What's new in 2.0" card (hidden in test mode).
+- Review pass (a subagent read the whole overnight diff): fixed the Music slider (its listener had been pasted inside
+  the mute handler), Day/Night listeners piling up on every track load, split-screen / P2 / boss cars leaking into
+  replays and later races (cleared in toMenu), arrow keys staying with P2 after leaving split mode, 2-player offered on
+  phones without two gamepads, solo runs counting as wins for trophies/stats, gamepad Start couldn't unpause, Reset
+  progress leaving Pro keys and camera behind, silent replay engine, leftover rock hazards after a race, and "What's
+  new" showing to brand-new players. Test added: an old 1.4-era save loads, keeps progress and races.
 - Tests run on a frozen copy (scratchpad snaptest.sh, PW_PORT=4175) so edits during a 15-min run don't leak in.
   Don't run other heavy Playwright tests at the same time: CPU contention made a countdown time out once.
