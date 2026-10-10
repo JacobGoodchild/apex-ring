@@ -69,8 +69,9 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
   const solid = (i) => !path.cliff[i]; // no road surface across a cliff drop
   const rep = [(2 * W) / 6, 2]; // one asphalt photo tile is ~6 m across
   // wet roads are darker and much smoother, so they mirror the sky and the lights
-  const roadMat = new THREE.MeshStandardMaterial({ map: photo("asphalt"), normalMap: photo("asphalt_n", { repeat: rep, srgb: false }), normalScale: new THREE.Vector2(0.6, 0.6), roughness: theme.wetRoad ? 0.22 : 0.82, metalness: theme.wetRoad ? 0.15 : 0, envMapIntensity: theme.wetRoad ? 1.6 : 1 });
-  roadMat.color.setScalar(theme.asphaltTint || 0.8);
+  const roadMat = new THREE.MeshStandardMaterial({ map: photo("asphalt"), normalMap: photo("asphalt_n", { repeat: rep, srgb: false }), normalScale: new THREE.Vector2(theme.wetRoad ? 0.3 : 0.6, theme.wetRoad ? 0.3 : 0.6), roughness: theme.wetRoad ? (theme.stars || theme.dark ? 0.22 : 0.14) : 0.82, metalness: theme.wetRoad ? 0.15 : 0, envMapIntensity: theme.wetRoad ? 2 : 1 });
+  // water fills the texture (flatter normals) and soaks the asphalt darker, which lets the sky's reflection show
+  roadMat.color.setScalar((theme.asphaltTint || 0.8) * (theme.wetRoad ? (theme.stars || theme.dark ? 0.9 : 0.75) : 1)); // at night keep some of the glow
   overlayMarkings(roadMat, roadMarkings(theme), rep);
   const road = new THREE.Mesh(strip(path, -W, W, { vScale: 12, mask: solid }), roadMat);
   road.receiveShadow = true; road.name = "road"; group.add(road);

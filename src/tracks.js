@@ -177,7 +177,7 @@ const mixHex = (a, b, t) => { const ar = (a >> 16) & 255, ag = (a >> 8) & 255, a
 export function rainy(theme) {
   if (theme.rain) return theme;
   const night = !!theme.stars, grey = night ? 0x1c222c : 0x8a939c;
-  return { ...theme, rain: true, wetRoad: true, stars: 0, clouds: 0.95, cloudColor: night ? 0x262c36 : 0x9aa2aa,
+  return { ...theme, rain: true, wetRoad: true, stars: 0, dark: night, clouds: 0.95, cloudColor: night ? 0x262c36 : 0x9aa2aa,
     sky: theme.sky.map((c) => mixHex(c, grey, night ? 0.35 : 0.7)), fog: mixHex(theme.fog, grey, 0.7), fogNear: (theme.fogNear || 160) * 0.5, fogFar: (theme.fogFar || 1100) * 0.7,
     sunIntensity: theme.sunIntensity * 0.55, sunColor: mixHex(theme.sunColor, 0xd0d6dc, 0.6), hemi: [mixHex(theme.hemi[0], 0xc0c8d0, 0.5), theme.hemi[1], theme.hemi[2] * 1.05],
     asphaltTint: (theme.asphaltTint || 0.8) * 0.78, label: (theme.label || "").split(" · ")[0] + (night ? " · Night rain" : " · Rain") };

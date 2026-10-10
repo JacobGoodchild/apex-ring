@@ -277,3 +277,6 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   for checking performance on a real phone.
 - Part 14: tenth car, Stormcrow 350 (Muscle, V8, scissor doors, 3,800 coins): a lighter, cheaper fastback that holds
   a slide better than the Ironhide. Appended to CARS so rival slots and old saves are unchanged.
+- Part 15: wetter-looking wet roads: soaked asphalt is darker (x0.75 by day, x0.9 at night so neon and headlights
+  still glow on it), smoother (roughness 0.14 by day) with flatter normals, and reflects the sky more (envMap x2).
+  rainy() marks night rain with `dark` so it gets the night values.
