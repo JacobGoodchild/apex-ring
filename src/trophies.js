@@ -15,6 +15,8 @@ export const TROPHIES = [
   { id: "daily3", name: "Daily driver", desc: "Complete 3 daily challenges." },
   { id: "champ", name: "Apex champion", desc: "Win the career final." },
   { id: "cup", name: "Silverware", desc: "Win a cup." },
+  { id: "gold", name: "Gold standard", desc: "Win a time-trial gold medal." },
+  { id: "gold5", name: "Gold rush", desc: "Win gold medals on 5 different layouts." },
 ];
 export const TROPHY_COINS = 300;
 

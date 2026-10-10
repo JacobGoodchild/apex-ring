@@ -119,3 +119,10 @@ test("trophies pay out once", async () => {
   expect(save.coins).toBe(TROPHY_COINS);
   expect(new Set(TROPHIES.map((t) => t.id)).size).toBe(TROPHIES.length);
 });
+
+test("time-trial medal times still match the tracks", async () => {
+  const { TIDY } = await import("../src/medals.js");
+  const { tidyLap } = await import("../scripts/dev/medals.mjs");
+  const { trackById } = await import("../src/tracks.js");
+  for (const [id, t] of Object.entries(TIDY)) expect(Math.abs(tidyLap(trackById(id)) - t), id).toBeLessThan(t * 0.03);
+});

@@ -225,7 +225,7 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
 - Part 4: Daily Challenge (career.js dailyEvent: seeded by the date, so everyone gets the same one with no server;
   race / drift attack / knockout on a random track, layout and weather; 900 coins + a gem once a day), Photo mode
   (pause > Photo mode: HUD hidden, drag/pinch/scroll to orbit, Save photo downloads a PNG from the canvas), Trophies
-  (src/trophies.js, 14 one-off achievements worth 300 coins each, listed at the bottom of the career map), near trees
+  (src/trophies.js, 14 (now 17) one-off achievements worth 300 coins each, listed at the bottom of the career map), near trees
   cast shadows on High quality.
 - Part 5: Day/Night for every track (nightly(theme): dark sky with stars, cool moonlight, the player's spotlight
   headlight; combines with Rain as "Night rain"; career and cup races use their own time of day), Cup mode in race
@@ -254,3 +254,8 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   sign; tapered noses, TrackPath.islandHalf). Cars glance off it like a wall (Vehicle.hitWall), rivals pick a lane
   before the nose and keep it, the line steer and assist keep you in your lane, respawn never lands on it.
   First one on Red Canyon round the 60 m bend at 0.625.
+- Part 9: time-trial medals (src/medals.js): gold = the flying lap of a tidy autopilot in the stock Vanta S1 with no
+  boost (scripts/dev/medals.mjs, table per layout, a test checks it still matches the tracks), silver +8%, bronze +18%;
+  150/300/600 coins the first time you reach each one (save.medals), medal times on the trial setup screen, medal card
+  on the results. More split-path islands (Frostbite Ridge, Xtreme). Billboards were facing away from the road (you
+  read them mirrored through the double-sided plane); they now face the road with a plain back panel.

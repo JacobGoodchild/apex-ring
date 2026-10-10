@@ -380,3 +380,13 @@ body.photo #hud, body.photo #speedo, body.photo #topbtns, body.photo #minimap, b
 .opts .tabs .tab { padding: 7px 4px; font-size: 12px; }
 .opts .hint { grid-column: 1 / -1; }
 .opts #layoutTabs { grid-column: 1 / -1; }
+
+/* time-trial medals */
+.medals { display: flex; gap: 8px; justify-content: center; margin: 6px 0 2px; font: 700 13px var(--display); color: var(--dim, #9aa4b2); }
+.medals .md { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--edge); opacity: .75; }
+.medals .md.won { opacity: 1; color: #fff; }
+.medals i, .medalres i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--m); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+.md.gold, .medalres.gold { --m: #f2c230; } .md.silver, .medalres.silver { --m: #c9d1db; } .md.bronze, .medalres.bronze { --m: #c98a4b; } .medalres.none { --m: #3a4250; }
+.medalres { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.05); border: 1px solid var(--edge); font: 600 15px var(--display); }
+.medalres i { width: 30px; height: 30px; flex: none; }
+.medalres .coin { color: #ffd479; font-weight: 800; }

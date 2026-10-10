@@ -12,6 +12,7 @@ import { CARS, PAINTS, carById, carSpec, GARAGE_ORDER } from "./cars.js";
 import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
+import { medalTimes, medalFor, MEDAL_RANK } from "./medals.js";
 import { encodeGhost, decodeGhost } from "./ghostcode.js";
 import { VERSION, BUILD } from "./version.js";
 import { assistSteer, cornerSpeed, smoothSteer } from "./assist.js";
@@ -117,6 +118,10 @@ function refreshBoard() {
   const list = ((save.laps || {})[G.track.id] || []).filter((e) => e.d >= from).slice(0, 5);
   $("boardList").innerHTML = list.length ? list.map((e) => `<li><b>${fmt(e.t)}</b><span>${carById(e.c).name} · ${new Date(e.d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span></li>`).join("") : `<li class="empty">No laps here yet${p !== "all" ? " this " + p : ""}.</li>`;
   $("ghostBar").hidden = !G.trial; if (!G.trial) $("ghostPanel").hidden = true;
+  // medal targets for this layout, and the best one you've won here
+  const mt = medalTimes(G.track.id), got = (save.medals || {})[G.track.id];
+  $("medalLine").hidden = !G.trial || !mt.length;
+  $("medalLine").innerHTML = mt.map((m) => `<span class="md ${m.name}${got && MEDAL_RANK[got] >= MEDAL_RANK[m.name] ? " won" : ""}"><i></i>${fmt(m.t)}</span>`).join("");
   $("playersTabs").hidden = !!G.trial || !canSplit(); applyPlayers(); applyWeather();
 }
 document.querySelectorAll("#boardTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.boardPeriod = b.dataset.p; refreshBoard(); }));
@@ -541,6 +546,7 @@ function finishRace() {
   html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
   if (G.event) html = eventResult(place, fastest) + html;
   if (G.cup) html = cupResult(order) + html;
+  if (G.trial && !G.event) html = medalResult(fastest) + html;
   const rw = raceRewards({ place, field: order.length, drift: G.totalDrift, cleanLaps: G.cleanLaps, record: G.newRecord, trial: G.trial, mult: G.track.mult || 1 });
   save.coins += rw.coins; save.gems += rw.gems; G.lastReward = rw;
   html += `<div class="reward">${rw.lines.map(([n, c]) => `<span>${n}</span><b>+${c}</b>`).join("")}<span class="tot">Total</span><b class="tot coin">+${rw.coins}</b>${rw.gems ? `<span>Gems</span><b class="gem">+${rw.gems}</b>` : ""}</div>`;
@@ -556,6 +562,18 @@ function finishRace() {
   $("againBtn").classList.toggle("ghost", !!next);
   if (G.event && G.eventOk && ni === EVENTS.length) setTimeout(() => toast("Career complete. You're the Apex champion!", 5000), 1600);
   setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; } }, TEST ? 200 : 1400);
+}
+
+// Time-trial medals: coins for each medal you reach for the first time on this layout
+function medalResult(fastest) {
+  const id = G.track.id, won = medalFor(id, fastest), meds = (save.medals = save.medals || {}), prev = MEDAL_RANK[meds[id]] || 0;
+  const mt = medalTimes(id);
+  if (!mt.length) return "";
+  let coins = 0;
+  if (won && MEDAL_RANK[won] > prev) { for (const m of mt) if (MEDAL_RANK[m.name] > prev && MEDAL_RANK[m.name] <= MEDAL_RANK[won]) coins += m.coins; meds[id] = won; save.coins += coins; if (won === "gold") { trophy("gold"); if (Object.values(meds).filter((m) => m === "gold").length >= 5) trophy("gold5"); } }
+  const next = mt.slice().reverse().find((m) => MEDAL_RANK[m.name] > (MEDAL_RANK[won] || 0));
+  const name = (n) => n[0].toUpperCase() + n.slice(1);
+  return `<div class="medalres ${won || "none"}"><i></i><div><b>${won ? name(won) + " medal" : "No medal yet"}</b>${coins ? ` <span class="coin">+${coins}</span>` : ""}<div class="hint">${next ? `${name(next.name)} at ${fmt(next.t)}` : "Top of the board. Can you go faster?"}</div></div></div>`;
 }
 
 function eventResult(place, fastest) {

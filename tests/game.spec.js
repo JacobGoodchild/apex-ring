@@ -261,7 +261,7 @@ test.describe("Apex Ring", () => {
     const problems = await openGame(page, "autopilot=1&speed=12");
     await page.click("#careerBtn");
     await expect(page.locator(".chapter:not(.daily):not(.trophies):not(.stats)")).toHaveCount(4);
-    await expect(page.locator(".chapter.trophies li")).toHaveCount(15);
+    await expect(page.locator(".chapter.trophies li")).toHaveCount(17);
     await page.click("#ev-a1");
     await expect(page.locator("#evDDesc")).toContainText("60 s");
     await page.click("#evGo");
@@ -415,9 +415,11 @@ test.describe("Apex Ring", () => {
     await page.screenshot({ path: "screenshots/ghost-landscape.png" });
     // the lap is on the local leaderboard, and the ghost can be shared as a code and loaded back as a friend's ghost
     await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 60_000 });
+    await expect(page.locator("#results .medalres")).toBeVisible(); // medal (or the next one to aim for)
     await page.click("#menuBtn");
     await page.click("#raceBtn");
     await page.click("#modeTrial");
+    await expect(page.locator("#medalLine .md")).toHaveCount(3);
     await expect(page.locator("#boardList li").first()).toContainText(/\d:\d\d\.\d\d/);
     await page.click("#ghostShare");
     await expect(page.locator("#ghostCode")).toHaveValue(/^APXG1/);

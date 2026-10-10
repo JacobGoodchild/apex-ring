@@ -193,14 +193,16 @@ export function buildScenery(path, theme, density, seed) {
       if ((k++ % 4) !== 0) continue;
       const side = k % 8 < 4 ? 1 : -1;
       path.pointAt(d, side * (edge + 3.5), tmp);
-      boards[k % 4].push({ x: tmp.x, y: tmp.y + 3.6, z: tmp.z, r: tmp.h + (side > 0 ? -Math.PI / 2 : Math.PI / 2) });
+      boards[k % 4].push({ x: tmp.x, y: tmp.y + 3.6, z: tmp.z, r: tmp.h + (side > 0 ? Math.PI / 2 : -Math.PI / 2) }); // front faces the road
     }
     boards.forEach((list, a) => {
       const geo = new THREE.PlaneGeometry(9, 4.5), uv = geo.attributes.uv;
       for (let q = 0; q < uv.count; q++) uv.setXY(q, (a % 2) * 0.5 + uv.getX(q) * 0.5, (1 - Math.floor(a / 2)) * 0.5 + uv.getY(q) * 0.5 - 0.5 + 0.5);
-      add(instanced(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: theme.stars ? 0.6 : 0.15, side: THREE.DoubleSide }), list));
+      add(instanced(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: theme.stars ? 0.6 : 0.15 }), list));
     });
     const legs = boards.flat();
+    // a plain back panel, so the boards don't show mirror-writing from behind
+    add(instanced(new THREE.BoxGeometry(9.2, 4.7, 0.16), new THREE.MeshStandardMaterial({ color: 0x2a303c, roughness: 0.8 }), legs.map((b) => ({ x: b.x - Math.sin(b.r) * 0.1, y: b.y, z: b.z - Math.cos(b.r) * 0.1, r: b.r }))));
     const lg = new THREE.BoxGeometry(0.25, 1.5, 0.25);
     add(instanced(lg, new THREE.MeshStandardMaterial({ color: 0x30384a }), legs.flatMap((b) => [-3, 3].map((o) => ({ x: b.x + Math.cos(b.r) * o, y: b.y - 3.6 + 0.7, z: b.z - Math.sin(b.r) * o, r: b.r })))));
   }

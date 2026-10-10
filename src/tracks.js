@@ -128,7 +128,7 @@ export const TRACKS = [
     blurb: "Switchback hairpins up the mountain, a tunnel at the top, then a long run down." },
     [[0, -350, 60, 2], [300, -450, 70, 10], [520, -420, 35, 16], [260, -280, 35, 22], [540, -160, 45, 28], [560, 200, 80, 32], [300, 420, 70, 24], [0, 420, 60, 10]],
     { tunnel: [4] }),
-  track({ id: "xtreme", hazards: [{ type: "oil", at: 0.5, lat: 4, len: 12, w: 4 }],  name: "Xtreme", theme: "xtreme", difficulty: 2, laps: 2, width: 24, runoff: 8, banking: 0.08, mult: 1.3,
+  track({ id: "xtreme", hazards: [{ type: "oil", at: 0.5, lat: 4, len: 12, w: 4 }, { type: "split", at: 0.3, lat: 0, len: 130, w: 4 }],  name: "Xtreme", theme: "xtreme", difficulty: 2, laps: 2, width: 24, runoff: 8, banking: 0.08, mult: 1.3,
     blurb: "A quarry built for stunts: big ramps, and cliffs where the road drops away and you fly down to the next level.",
     heights: [[0, 0], [0.15, 0], [0.34, 22], [0.4, 22], [0.4, 10], [0.62, 8], [0.74, 18], [0.76, 18], [0.76, 4], [0.85, 0], [1, 0]],
     ramps: [{ at: 0.09, h: 2.2, len: 18 }, { at: 0.255, h: 1.8, len: 16 }, { at: 0.93, lat: 6, half: 5, h: 1.4, len: 14 }] },
@@ -138,7 +138,7 @@ export const TRACKS = [
     blurb: "A rain-soaked road between black-sand beaches and towering cliffs. Wet tarmac, puddles, less grip." },
     [[0, -700, 90, 2], [180, -760, 110, 4], [270, -540, 110, 6], [200, -300, 140, 8], [260, -60, 120, 6], [210, 240, 130, 4], [280, 520, 110, 2], [150, 760, 100, 0], [-60, 720, 120, 6], [-120, 450, 140, 12], [-60, 200, 130, 16], [-140, -60, 120, 18], [-80, -330, 140, 14], [-150, -560, 110, 8]]),
   track({ id: "frost", name: "Frostbite Ridge", theme: "winter", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.08, mult: 1.25,
-    hazards: [{ type: "ice", at: 0.18, lat: 2, len: 22, w: 8 }, { type: "ice", at: 0.52, lat: -3, len: 18, w: 7 }, { type: "ice", at: 0.83, lat: 0, len: 20, w: 9 }],
+    hazards: [{ type: "ice", at: 0.18, lat: 2, len: 22, w: 8 }, { type: "ice", at: 0.52, lat: -3, len: 18, w: 7 }, { type: "ice", at: 0.83, lat: 0, len: 20, w: 9 }, { type: "split", at: 0.44, lat: 0, len: 120, w: 4 }],
     blurb: "A snowy valley loop under white peaks. Falling snow, and glassy ice patches with almost no grip." },
     [[0, -450, 90, 0], [300, -520, 110, 4], [480, -300, 90, 10], [350, -50, 80, 14], [480, 200, 100, 12], [300, 420, 90, 8], [0, 480, 100, 4], [-250, 350, 90, 6], [-300, 50, 110, 10], [-200, -250, 100, 4]]),
 ];

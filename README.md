@@ -27,12 +27,12 @@ player 2: ← → + ↑) or with two gamepads.
 ## Modes and content
 - **Quick race** against 7 rule-based rivals with personalities (aggressive, careful, wild card, blocker, apex hunter),
   **time trial** with ghosts (your best lap, plus a friend's lap shared as a code), and a local leaderboard of your
-  best laps this week / month / ever.
+  best laps this week / month / ever. Time trials have bronze, silver and gold medal times for every layout.
 - **Career:** 21 events on a map: races, time trials, drift challenges, timed Drift Attacks, eliminations, timed
   Knockouts, head-to-heads and Boss battles that win you the boss's car.
 - **Weather and time:** race any track Dry or in the Rain, by Day or at Night.
 - **Cups:** three short championships with points after every race and a prize for the winner.
-- **Hazards:** oil slicks, puddles, ice, a split in the road on Red Canyon (pick a lane), and rockfalls on the mountain and canyon tracks.
+- **Hazards:** oil slicks, puddles, ice, splits in the road on Red Canyon, Xtreme and Frostbite Ridge (pick a lane), and rockfalls on the mountain and canyon tracks.
 - **Replays:** watch your best time-trial lap back from the chase camera.
 - **Daily Challenge** (a new event every day), **Trophies** to collect, and **Photo mode** in the pause menu.
 - **10 tracks**, each also raceable Reversed or Mirrored: Dusk Oval, Apex Ring GP, Greenwood, Red Canyon,
