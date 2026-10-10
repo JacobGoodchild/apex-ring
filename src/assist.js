@@ -6,13 +6,14 @@ const tp = {};
 
 // Steering that would follow the racing line (what a tidy driver would do right now).
 export function lineSteer(v, t, lineScale = 0.85) {
-  const look = Math.max(12, v.vF * 0.6);
+  let look = Math.max(12, v.vF * 0.6);
+  const isl = t.islandNear(v.p.d, look + 10);
+  if (isl) look = Math.min(look, 18); // look closer round a split-path island so the aim doesn't cut across it
   const i = Math.floor(t.wrapD(v.p.d + look) / t.ds) % t.N;
   let lat = t.line[i] * lineScale;
-  // a split-path island ahead: the tidy line runs down the lane the car is already in
-  for (const h of t.hazards) {
-    if (h.type !== "split" || t.islandHalf(h, v.p.d + look) <= 0) continue;
-    const side = Math.sign(v.lat - h.lat || 1), edge = h.lat + side * (h.w / 2 + 2.5);
+  // the tidy line runs down the lane the car is already in
+  if (isl) {
+    const side = Math.sign(v.lat - isl.lat || 1), edge = t.laneEdge(isl, side, v.p.d, look, 2.3);
     lat = side > 0 ? Math.max(lat, edge) : Math.min(lat, edge);
   }
   t.pointAt(v.p.d + look, lat, tp);
@@ -25,6 +26,8 @@ export function cornerSpeed(v, t, margin = 1.06, guard = 0) {
   const prof = t.speedProfile(v.spec.grip * 1.1);
   let vt = Infinity; for (let k = 2; k < 30; k += 3) vt = Math.min(vt, prof[(v.p.i + k) % t.N]);
   vt *= margin;
+  // round a split-path island you can't use the whole road, so the corner is tighter than the racing line's
+  if (t.islandNear(v.p.d, 60)) vt *= 0.86;
   if (guard) {
     const trx = -Math.cos(v.p.h), trz = Math.sin(v.p.h), latV = v.vx * trx + v.vz * trz;
     const room = t.width / 2 + t.runoff - 2 - Math.abs(v.lat);

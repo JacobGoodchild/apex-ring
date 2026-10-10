@@ -16,6 +16,7 @@ export const game = (page, expr) => page.evaluate(expr);
 export async function startRace(page) {
   await page.click("#raceBtn");
   await page.click("#startBtn");
-  await expect(page.locator("#count")).toBeVisible();
+  // the countdown shows once the track has loaded (slow on a busy machine); at test speed it can be over between polls
+  await page.waitForFunction(() => !document.getElementById("count").hidden || window.__apex.mode === "race", null, { timeout: 30_000 });
   await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 45_000 }); // slow CI machines can take a while to get past the countdown
 }

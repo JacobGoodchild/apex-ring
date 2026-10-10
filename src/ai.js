@@ -68,7 +68,9 @@ export class Driver {
     if (!ahead && behind && behind.o.vF > v.vF - 2 && this.rnd() < P.defend) defend = P.block ? clamp(behind.dl, -3, 3) * 0.9 : clamp(behind.dl, -2, 2) * 0.5;
 
     // steering toward a point on the chosen line
-    const look = Math.max(9, v.vF * 0.5);
+    const isl = t.islandNear(v.p.d, 60);
+    if (!isl) this.lane = null;
+    const look = isl ? Math.min(16, Math.max(9, v.vF * 0.5)) : Math.max(9, v.vF * 0.5); // closer aim round an island
     const i = Math.floor(t.wrapD(v.p.d + look) / t.ds) % t.N;
     let lat = t.line[i] * (P.line || 0.85) + this.lineBias + this.passOff + defend + Math.sin(this.phase * 0.7) * P.wobble * 0.5;
     if (this.mistake === "wide") lat -= Math.sign(t.cs[i] || 1) * 3.5;
@@ -79,12 +81,9 @@ export class Driver {
       if (ahead2 < 70 && Math.abs(lat - h.lat) < h.w / 2 + 1.6) lat = h.lat + Math.sign(lat - h.lat || 1) * (h.w / 2 + 1.8);
     }
     // split-path islands: pick a lane before the nose and keep it to the end
-    for (const h of t.hazards) {
-      if (h.type !== "split") continue;
-      let to = h.d - h.len / 2 - v.p.d; if (to < -t.length / 2) to += t.length; if (to > t.length / 2) to -= t.length;
-      if (to > 60 || to < -h.len) { if (this.lane && this.lane.h === h) this.lane = null; continue; }
-      if (!this.lane || this.lane.h !== h) this.lane = { h, s: Math.sign(lat - h.lat || (this.rnd() < 0.5 ? -1 : 1)) };
-      const edge = h.lat + this.lane.s * (h.w / 2 + 2.2);
+    if (isl) {
+      if (!this.lane || this.lane.h !== isl) this.lane = { h: isl, s: Math.sign(lat - isl.lat || (this.rnd() < 0.5 ? -1 : 1)) };
+      const edge = t.laneEdge(isl, this.lane.s, v.p.d, look, 2.1);
       lat = this.lane.s > 0 ? Math.max(lat, edge) : Math.min(lat, edge);
     }
     lat = clamp(lat, -half, half);
@@ -104,7 +103,7 @@ export class Driver {
     if (gapToPlayer > 120) pace *= 1 - 0.03 * band; else if (gapToPlayer < -120) pace *= 1 + 0.03 * band;
     // catch-up help: when you're well behind, the rivals ahead of you ease off (only on the easier levels)
     if (Lv.catchUp && gapToPlayer > 40) pace *= 1 - Lv.catchUp * band * Math.min(0.12, (gapToPlayer - 40) / 800);
-    v.ctl.targetSpeed = vt * Math.min(1.02, pace);
+    v.ctl.targetSpeed = vt * Math.min(1.02, pace) * (isl ? 0.86 : 1); // a lane round an island is tighter than the racing line
     // easy rivals also don't carry full speed on the straights
     if (Lv.pace < 0.9) v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, v.spec.vmax * (Lv.pace + 0.06));
     // don't drive into the back of someone: follow until there's a gap to pass

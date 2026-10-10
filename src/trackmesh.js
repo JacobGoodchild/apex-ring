@@ -170,7 +170,7 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
     const wet = new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.04, metalness: 0.2, transparent: true, opacity: 0.65, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
     const ice = new THREE.MeshStandardMaterial({ color: 0xcfe6f5, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.55, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
     for (const h of path.hazards) {
-      if (h.all) continue;
+      if (h.all || h.type === "split") continue;
       const blobs = h.type === "oil" ? 3 : 4;
       for (let k = 0; k < blobs; k++) {
         const g = new THREE.CircleGeometry(1, 20); g.rotateX(-Math.PI / 2);
@@ -206,7 +206,7 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
           tp.push(L.x, L.y + H, L.z, R.x, R.y + H, R.z); tu.push(0, d / 6, hw / 3, d / 6);
           if (k < n) {
             const a = k * 4, b = a + 4; si.push(a, b, a + 1, a + 1, b, b + 1, a + 2, a + 3, b + 2, a + 3, b + 3, b + 2);
-            const c = k * 2, e = c + 2; ti.push(c, e, c + 1, c + 1, e, e + 1);
+            const c = k * 2, e = c + 2; ti.push(c, c + 1, e, c + 1, e + 1, e);
           }
         }
         const mk = (p, u, i) => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(u, 2)); g.setIndex(i); g.computeVertexNormals(); return g; };

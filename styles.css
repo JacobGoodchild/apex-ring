@@ -392,3 +392,4 @@ body.photo #hud, body.photo #speedo, body.photo #topbtns, body.photo #minimap, b
 .medalres .coin { color: #ffd479; font-weight: 800; }
 .laplist { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: center; margin: -2px 0 8px; font: 600 12px var(--display); color: #9aa4b2; }
 .laplist .best { color: #7ee2a8; }
+.fpsv { position: fixed; left: 50%; bottom: calc(4px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; pointer-events: none; font: 600 11px ui-monospace, monospace; color: #cfe8d8; background: rgba(0,0,0,.55); padding: 2px 8px; border-radius: 6px; }

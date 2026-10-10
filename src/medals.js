@@ -2,7 +2,7 @@
 // (scripts/dev/medals.mjs prints it; a test checks it still matches the tracks). Mirror layouts use the normal time.
 import { baseId, layoutOf } from "./tracks.js";
 
-export const TIDY = {"oval":22.3,"oval:r":22.3,"gp":44.8,"gp:r":44.2,"forest":36.7,"forest:r":36.8,"canyon":56.3,"canyon:r":56,"harbour":48.8,"harbour:r":49.3,"neon":62.8,"neon:r":61.2,"alpine":50.6,"alpine:r":50.4,"xtreme":51.1,"coastal":54,"coastal:r":54.5,"frost":44,"frost:r":44};
+export const TIDY = {"oval":22.3,"oval:r":22.3,"gp":44.8,"gp:r":44.2,"forest":36.7,"forest:r":36.8,"canyon":57.8,"canyon:r":56,"harbour":48.8,"harbour:r":49.3,"neon":62.8,"neon:r":61.2,"alpine":50.6,"alpine:r":50.4,"xtreme":51.3,"coastal":54,"coastal:r":54.5,"frost":44.3,"frost:r":44.3};
 // [name, factor on the tidy lap, coins the first time you reach it]
 export const MEDALS = [["gold", 1.0, 600], ["silver", 1.08, 300], ["bronze", 1.18, 150]];
 export const MEDAL_RANK = { bronze: 1, silver: 2, gold: 3 };

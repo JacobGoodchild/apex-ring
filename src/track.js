@@ -136,6 +136,22 @@ export class TrackPath {
     return (h.w / 2) * Math.min(1, x / 9, (h.len - x) / 9);
   }
 
+  // The split-path island a car at distance d is approaching (nose within `ahead` m) or driving beside, else null
+  islandNear(d, ahead = 40) {
+    for (const h of this.hazards) {
+      if (h.type !== "split") continue;
+      let to = h.d - h.len / 2 - d; if (to < -this.length / 2) to += this.length; if (to > this.length / 2) to -= this.length;
+      if (to <= ahead && to >= -h.len) return h;
+    }
+    return null;
+  }
+  // Lateral edge of the lane on `side` of island h for steering at a point `look` m ahead: the island, a margin, and
+  // how far a straight line that long cuts across the inside of the bend (its sagitta), so the car doesn't clip the island
+  laneEdge(h, side, d, look, margin) {
+    const i = Math.floor(this.wrapD(d + look / 2) / this.ds) % this.N, cut = (look * look * Math.abs(this.cs[i])) / 8;
+    return h.lat + side * (h.w / 2 + margin + Math.min(3, cut * 1.4));
+  }
+
   wrapD(d) { const L = this.length; return ((d % L) + L) % L; }
 
   // Position of the point at distance d along the track and lateral offset lat.

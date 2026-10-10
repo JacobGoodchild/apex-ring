@@ -345,6 +345,7 @@ function applyUnits() {
 }
 document.querySelectorAll("#unitTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.units = b.dataset.u; writeSave(); applyUnits(); }));
 applyUnits();
+setTimeout(() => applyFps(), 0);
 function statsHTML(def, up) {
   const base = carSpec(def, {}), cur = carSpec(def, up || {});
   return STAT_KEYS.map(([n, f]) => `<span>${n}</span><span class="sbar"><b style="width:${Math.min(100, f(cur) * 100)}%"></b><i style="width:${Math.min(100, f(base) * 100)}%"></i></span>`).join("");
@@ -770,7 +771,7 @@ function refreshSettings() {
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
   $("musicVol").value = save.settings.music ?? 0.6;
-  applyDrive(); applyBand(); applyFx(); applyUnits();
+  applyDrive(); applyBand(); applyFx(); applyUnits(); applyFps();
   const tiltMode = input.tiltOn;
   document.querySelectorAll("#ctrlTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.m === "tilt") === tiltMode)));
   $("tiltOpts").hidden = !tiltMode; $("tiltSens").value = tiltCfg.sens;
@@ -787,7 +788,7 @@ document.querySelectorAll("#lineTabs .tab").forEach((b) => b.addEventListener("c
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
   resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On";
-  applyDrive(); applyUnits(); setCam("chase"); setMusicVolume(save.settings.music ?? 0.6); toast("Progress reset."); show("menu");
+  applyDrive(); applyUnits(); applyFps(); setCam("chase"); setMusicVolume(save.settings.music ?? 0.6); toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
 $("nextBtn").addEventListener("click", () => { if (G.cup) { G.cup.i++; startCupRace(); return; } const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
@@ -844,6 +845,8 @@ function applyDrive() {
 document.querySelectorAll("#driveTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.drive = b.dataset.d; writeSave(); applyDrive(); }));
 // comfort: camera shake and speed lines can be turned off (off by default if the phone asks for reduced motion)
 function fxOn() { const f = save.settings.fx || (matchMedia("(prefers-reduced-motion: reduce)").matches ? "off" : "on"); return f === "on"; }
+function applyFps() { $("fpsV").hidden = !save.settings.fps; document.querySelectorAll("#fpsTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.v === "on") === !!save.settings.fps))); }
+document.querySelectorAll("#fpsTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.fps = b.dataset.v === "on"; writeSave(); applyFps(); }));
 function applyFx() { document.querySelectorAll("#fxTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.f === "on") === fxOn()))); }
 document.querySelectorAll("#fxTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.fx = b.dataset.f; writeSave(); applyFx(); }));
 function applyBand() { document.querySelectorAll("#bandTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.b === (save.settings.catchup || "normal")))); }
@@ -1325,6 +1328,11 @@ function frame(now) {
     v.x = v.px + (v.x - v.px) * a; v.y = v.py + (v.y - v.py) * a; v.z = v.pz + (v.z - v.pz) * a; v.h = v.ph + wrapA(v.h - v.ph) * a;
   }
   render(real);
+  if (save.settings.fps) {
+    // Settings > Show FPS: frames per second (averaged over half a second), render resolution and draw calls
+    const F = (G.fpsMeter = G.fpsMeter || { n: 0, t: 0 }); F.n++; F.t += raw;
+    if (F.t >= 500) { $("fpsV").textContent = `${Math.round((F.n * 1000) / F.t)} fps · ${Math.round((world.prScale || 1) * 100)}% res · ${world.renderer.info.render.calls} draws`; F.n = 0; F.t = 0; }
+  }
   if (G.splitRace && G.p2 && G.mode !== "menu") { world.renderSplit([camera, camera2]); G.wasSplit = true; }
   else { if (G.wasSplit) { G.wasSplit = false; world.resize(); } world.render(G.mode === "menu" ? showroom.scene : null); }
   for (const [v, x, y, z, h] of saved) { v.x = x; v.y = y; v.z = z; v.h = h; }

@@ -391,8 +391,11 @@ test.describe("Apex Ring", () => {
     await page.click('#unitTabs [data-u="mph"]');
     await expect(page.locator("#unitV")).toHaveText("MPH");
     expect((await game(page, () => window.__apex.save)).settings.units).toBe("mph");
+    await page.click('#fpsTabs [data-v="on"]');
+    await expect(page.locator("#fpsV")).toContainText("fps");
     await page.click("#resetBtn");
     await expect(page.locator("#unitV")).toHaveText("KM/H");
+    await expect(page.locator("#fpsV")).toBeHidden();
     expect((await game(page, () => window.__apex.save)).settings.sound).toBe(true);
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });

@@ -267,3 +267,11 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
 - Part 12: weather sound (audio.js setWeatherSound: rain hiss + spray that grows with speed, spray only on wet-look
   roads, a low wind in the snow), career event a3 "Black Ice" (drift attack on Frostbite Ridge, 22 events now),
   How to play covers ice, splits, ramps, rocks and medals.
+- Part 13 (second review pass, a subagent read parts 8-12): islands were also drawn as huge "wet" puddle blobs, the
+  island's top faced down (invisible), and the tidy autopilot / rivals scraped along islands on bends. Fixes: skip
+  split hazards in the puddle loop, flip the top's winding, TrackPath.islandNear/laneEdge (lane edge includes the
+  chord's cut across the bend), a shorter aim near islands, and the auto-brake / AI take ~14% off near an island
+  (a lane is tighter than the racing line). scripts/dev/islandhits.mjs counts island contacts: the autopilot is clean on
+  every layout; rivals only brush it (<5 m/s) when side by side. Medal table regenerated.
+- Part 14: Settings > Show FPS: a small readout at the bottom (fps over half a second, render resolution %, draw calls)
+  for checking performance on a real phone.
