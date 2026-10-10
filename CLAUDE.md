@@ -280,3 +280,4 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
 - Part 15: wetter-looking wet roads: soaked asphalt is darker (x0.75 by day, x0.9 at night so neon and headlights
   still glow on it), smoother (roughness 0.14 by day) with flatter normals, and reflects the sky more (envMap x2).
   rainy() marks night rain with `dark` so it gets the night values.
+- Part 16: the time-trial track picker shows the medal you've won on that layout next to its name.

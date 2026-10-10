@@ -393,3 +393,5 @@ body.photo #hud, body.photo #speedo, body.photo #topbtns, body.photo #minimap, b
 .laplist { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: center; margin: -2px 0 8px; font: 600 12px var(--display); color: #9aa4b2; }
 .laplist .best { color: #7ee2a8; }
 .fpsv { position: fixed; left: 50%; bottom: calc(4px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; pointer-events: none; font: 600 11px ui-monospace, monospace; color: #cfe8d8; background: rgba(0,0,0,.55); padding: 2px 8px; border-radius: 6px; }
+.mdot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: 2px; background: var(--m); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+.mdot.gold { --m: #f2c230; } .mdot.silver { --m: #c9d1db; } .mdot.bronze { --m: #c98a4b; }

@@ -122,6 +122,7 @@ function refreshBoard() {
   // medal targets for this layout, and the best one you've won here
   const mt = medalTimes(G.track.id), got = (save.medals || {})[G.track.id];
   $("medalLine").hidden = !G.trial || !mt.length;
+  $("trackName").innerHTML = G.track.name + (G.trial && got ? ` <i class="mdot ${got}" title="${got} medal"></i>` : "");
   $("medalLine").innerHTML = mt.map((m) => `<span class="md ${m.name}${got && MEDAL_RANK[got] >= MEDAL_RANK[m.name] ? " won" : ""}"><i></i>${fmt(m.t)}</span>`).join("");
   $("playersTabs").hidden = !!G.trial || !canSplit(); applyPlayers(); applyWeather();
 }
