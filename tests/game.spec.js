@@ -320,6 +320,7 @@ test.describe("Apex Ring", () => {
     const problems = await openGame(page, "autopilot=1&speed=12&laps=1&rivals=3");
     await page.click("#raceBtn");
     await page.click("#modeCup");
+    await expect(page.locator("#weatherTabs")).toBeHidden(); // cups always race by day, dry
     await expect(page.locator("#cupName")).toContainText("Sunset Cup");
     await expect(page.locator("#startBtn")).toHaveText("Start cup");
     await page.click("#startBtn");

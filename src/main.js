@@ -728,7 +728,7 @@ function setMode(trial, cup = false) {
   const m = cup ? "cup" : trial ? "trial" : "race";
   if (save.settings.raceMode !== m) { save.settings.raceMode = m; writeSave(); } // the race screen opens on the mode you used last
   $("modeRace").setAttribute("aria-pressed", String(!trial && !cup)); $("modeTrial").setAttribute("aria-pressed", String(trial)); $("modeCup").setAttribute("aria-pressed", String(cup));
-  $("cupPick").hidden = !cup; $("trackPick").hidden = cup; ["layoutTabs", "board"].forEach((id) => ($(id).hidden = cup));
+  $("cupPick").hidden = !cup; $("trackPick").hidden = cup; ["layoutTabs", "board", "timeTabs", "weatherTabs"].forEach((id) => ($(id).hidden = cup)); // cups always race by day, dry
   if (cup) refreshCup();
   refreshLock();
 }

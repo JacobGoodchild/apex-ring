@@ -282,6 +282,7 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   rainy() marks night rain with `dark` so it gets the night values.
 - Part 16: the time-trial track picker shows the medal you've won on that layout next to its name.
 - Part 17: the race screen opens on the mode you used last (Quick race / Time trial / Cup; save.settings.raceMode).
+  Day/Night and Dry/Rain are hidden in Cup mode (cups always race by day, dry; the buttons did nothing there).
 
 ### Overnight summary (2026-10-09 19:05 → 2026-10-10 ~04:00 UTC), v2.0
 16 tested parts, each pushed to `main` and deployed by CI. Every item on the R1–R10 plan is done.
