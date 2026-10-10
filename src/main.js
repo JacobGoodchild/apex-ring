@@ -77,6 +77,8 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
   const sea = grp.getObjectByName("sea"); G.water = sea ? sea.material.normalMap : null;
   if (theme.rain && !G.rain) G.rain = new Rain(scene);
   if (G.rain) G.rain.lines.visible = !!theme.rain;
+  if (theme.snowfall && !G.snow) G.snow = new Rain(scene, 700, true);
+  if (G.snow) G.snow.lines.visible = !!theme.snowfall && !theme.rain;
   if (G.car && G.car.beams) G.car.beams.visible = G.night;
   for (const r of G.rivals || []) if (r.model.beams) r.model.beams.visible = G.night;
   if (G.player) { G.player.track = G.path; gridUp(); }
@@ -1084,6 +1086,7 @@ function render(dt) {
   drawRocks();
   if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
   if (G.rain) G.rain.update(Math.min(dt, 0.05), camera.position, G.mode === "menu" ? 0 : v.vx, G.mode === "menu" ? 0 : v.vz);
+  if (G.snow) G.snow.update(Math.min(dt, 0.05), camera.position, G.mode === "menu" ? 0 : v.vx, G.mode === "menu" ? 0 : v.vz);
   speedLines.update(dt, v.vF, G.mode === "race" && fxOn() ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
   if (!fxOn()) chase.shake = 0;
 

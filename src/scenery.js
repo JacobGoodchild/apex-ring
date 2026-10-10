@@ -80,7 +80,7 @@ export function buildScenery(path, theme, density, seed) {
   }
 
   // rocks and boulders
-  if (kind === "mountain" || kind === "desert" || kind === "coastal") {
+  if (kind === "mountain" || kind === "desert" || kind === "coastal" || kind === "winter") {
     const rocks = scatter(path, grid, rnd, Math.round(220 * density), edge + 6, 160, (x, z) => ({ x, z, y: ground(x, z) - 0.5, s: 1 + rnd() * 4, r: rnd() * 6 }));
     add(instanced(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: kind === "desert" ? 0xe0906a : 0xb0b2b8, map: photo("rock"), roughness: 1, flatShading: true }), rocks));
   }
@@ -134,8 +134,8 @@ export function buildScenery(path, theme, density, seed) {
   }
 
   // trees: layered pines and round broadleaf trees, scattered near the track and out across the hills
-  if (kind === "parkland" || kind === "forest" || kind === "mountain" || kind === "coastal") {
-    const n = Math.round((kind === "forest" ? 1100 : kind === "mountain" ? 420 : kind === "coastal" ? 220 : 560) * density);
+  if (kind === "parkland" || kind === "forest" || kind === "mountain" || kind === "coastal" || kind === "winter") {
+    const n = Math.round((kind === "forest" ? 1100 : kind === "mountain" ? 420 : kind === "coastal" ? 220 : kind === "winter" ? 700 : 560) * density);
     const jitter = (geo, amt, k) => { const p = geo.attributes.position; for (let v = 0; v < p.count; v++) { const h = Math.sin(v * 12.9898 + k * 78.233) * 43758.5453; const r = (h - Math.floor(h)) - 0.5; p.setXYZ(v, p.getX(v) * (1 + r * amt), p.getY(v) + r * amt * 0.6, p.getZ(v) * (1 + r * amt)); } return geo; };
     const tiers = [[2.6, 4.2, 3.2], [2.1, 3.8, 5.4], [1.6, 3.4, 7.4], [1.0, 2.8, 9.2]];
     const pine = mergeGeometries(tiers.map(([r, h, y], k) => jitter(new THREE.ConeGeometry(r, h, 7, 1, true).translate(0, y, 0), 0.18, k)));
@@ -144,7 +144,7 @@ export function buildScenery(path, theme, density, seed) {
     const trunk = new THREE.CylinderGeometry(0.22, 0.38, 4.2, 5, 1, true); trunk.translate(0, 2.1, 0); // no caps: never seen
     const leafTex = canvasTex(64, 64, (c, w, h) => { c.fillStyle = "#8a8a8a"; c.fillRect(0, 0, w, h); for (let k = 0; k < 700; k++) { const l = 30 + Math.random() * 70; c.fillStyle = `rgb(${l},${l},${l})`; c.fillRect(Math.random() * w, Math.random() * h, 2, 2); } }, { repeat: [2, 2] });
     const leaves = new THREE.MeshStandardMaterial({ color: 0xffffff, map: leafTex, roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
-    const pick = kind === "mountain" || kind === "coastal" ? 1 : kind === "forest" ? 0.72 : 0.35; // share of pines
+    const pick = kind === "mountain" || kind === "coastal" || kind === "winter" ? 1 : kind === "forest" ? 0.72 : 0.35; // share of pines
     const base = new THREE.Color(theme.tree || 0x1f4a32);
     const make = (x, z) => (theme.sea && theme.seaY != null && x > bounds.maxX + 20 ? null : { x, z, y: ground(x, z) - 0.3, s: 0.9 + rnd() * 0.9, r: rnd() * 6, pine: rnd() < pick, c: base.clone().offsetHSL((rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.08) });
     const trees = scatter(path, grid, rnd, n, edge + 8, 260, make);

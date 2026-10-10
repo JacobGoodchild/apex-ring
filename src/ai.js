@@ -74,9 +74,18 @@ export class Driver {
     if (this.mistake === "wide") lat -= Math.sign(t.cs[i] || 1) * 3.5;
     // steer around oil slicks seen up ahead
     for (const h of t.hazards) {
-      if (h.type !== "oil" && h.type !== "rock") continue;
+      if (h.type !== "oil" && h.type !== "rock" && h.type !== "ice") continue;
       let ahead2 = h.d - v.p.d; if (ahead2 < 0) ahead2 += t.length;
       if (ahead2 < 70 && Math.abs(lat - h.lat) < h.w / 2 + 1.6) lat = h.lat + Math.sign(lat - h.lat || 1) * (h.w / 2 + 1.8);
+    }
+    // split-path islands: pick a lane before the nose and keep it to the end
+    for (const h of t.hazards) {
+      if (h.type !== "split") continue;
+      let to = h.d - h.len / 2 - v.p.d; if (to < -t.length / 2) to += t.length; if (to > t.length / 2) to -= t.length;
+      if (to > 60 || to < -h.len) { if (this.lane && this.lane.h === h) this.lane = null; continue; }
+      if (!this.lane || this.lane.h !== h) this.lane = { h, s: Math.sign(lat - h.lat || (this.rnd() < 0.5 ? -1 : 1)) };
+      const edge = h.lat + this.lane.s * (h.w / 2 + 2.2);
+      lat = this.lane.s > 0 ? Math.max(lat, edge) : Math.min(lat, edge);
     }
     lat = clamp(lat, -half, half);
     const tp = t.pointAt(v.p.d + look, lat, this._tp || (this._tp = {}));

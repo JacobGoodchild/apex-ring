@@ -122,11 +122,18 @@ export class TrackPath {
     let g = 1;
     for (const h of this.hazards) {
       if (h.all) { g = Math.min(g, 0.86); continue; }
-      if (h.type === "rock") continue; // rocks are obstacles (handled in main.js), not a surface
+      if (h.type === "rock" || h.type === "split") continue; // rocks and islands are obstacles, not a surface
       let x = d - h.d; if (x > this.length / 2) x -= this.length; if (x < -this.length / 2) x += this.length;
-      if (Math.abs(x) < h.len / 2 && Math.abs(lat - h.lat) < h.w / 2) g = Math.min(g, h.type === "oil" ? 0.35 : 0.72);
+      if (Math.abs(x) < h.len / 2 && Math.abs(lat - h.lat) < h.w / 2) g = Math.min(g, h.type === "oil" ? 0.35 : h.type === "ice" ? 0.45 : 0.72);
     }
     return g;
+  }
+
+  // Split-path island (a hazard of type "split", centred at h.d): its half-width at distance d, with tapered noses; 0 if not beside it
+  islandHalf(h, d) {
+    let x = d - (h.d - h.len / 2); x = ((x % this.length) + this.length) % this.length;
+    if (x > h.len) return 0;
+    return (h.w / 2) * Math.min(1, x / 9, (h.len - x) / 9);
   }
 
   wrapD(d) { const L = this.length; return ((d % L) + L) % L; }

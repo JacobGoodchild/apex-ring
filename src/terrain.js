@@ -10,6 +10,7 @@ const STYLE = {
   forest: { near: 7, far: 110, ridged: false, snow: 1e9, rock: 0x8a8a80 },
   mountain: { near: 9, far: 420, ridged: true, snow: 150, rock: 0xa8a8ac },
   desert: { near: 3, far: 110, ridged: true, snow: 1e9, rock: 0xd88a60 },
+  winter: { near: 8, far: 340, ridged: true, snow: -60, rock: 0x8c949e },
   // the sea on the east (+x) side, cliffs and mountains rising steeply inland to the west
   coastal: { near: 7, far: 360, ridged: true, snow: 1e9, rock: 0x7a7e84, coast: true },
 };

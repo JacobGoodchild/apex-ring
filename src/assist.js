@@ -8,7 +8,14 @@ const tp = {};
 export function lineSteer(v, t, lineScale = 0.85) {
   const look = Math.max(12, v.vF * 0.6);
   const i = Math.floor(t.wrapD(v.p.d + look) / t.ds) % t.N;
-  t.pointAt(v.p.d + look, t.line[i] * lineScale, tp);
+  let lat = t.line[i] * lineScale;
+  // a split-path island ahead: the tidy line runs down the lane the car is already in
+  for (const h of t.hazards) {
+    if (h.type !== "split" || t.islandHalf(h, v.p.d + look) <= 0) continue;
+    const side = Math.sign(v.lat - h.lat || 1), edge = h.lat + side * (h.w / 2 + 2.5);
+    lat = side > 0 ? Math.max(lat, edge) : Math.min(lat, edge);
+  }
+  t.pointAt(v.p.d + look, lat, tp);
   return clamp(wrapA(v.h - Math.atan2(tp.x - v.x, tp.z - v.z)) * 2.2, -1, 1);
 }
 
@@ -48,6 +55,14 @@ export function assistSteer(v, t, input, strength) {
   if (Math.abs(ahead) > lim && Math.sign(latV) === Math.sign(v.lat)) {
     const push = clamp((Math.abs(ahead) - lim) / 4, 0, 1) * strength * 1.6;
     out -= Math.sign(v.lat) * push; // positive lateral is the right-hand side, so steer left (negative)
+  }
+  // same for a split-path island ahead: keep to the lane you're already in
+  for (const h of t.hazards) {
+    if (h.type !== "split") continue;
+    const d = v.p.d + Math.max(8, v.vF * 0.7), hw = t.islandHalf(h, d);
+    if (hw <= 0) continue;
+    const side = Math.sign(v.lat - h.lat || 1), gap = (v.lat + latV * 0.7 - h.lat) * side - (hw + 1.6);
+    if (gap < 0) out += side * clamp(-gap / 3, 0, 1) * strength * 1.6;
   }
   return clamp(out, -1, 1);
 }

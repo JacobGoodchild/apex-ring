@@ -106,24 +106,27 @@ export function updateFlames(model, on, t) {
 // Rain: streaks in a box that travels with the camera. Each drop falls, and the streak leans with the car's
 // motion so it rushes at you at speed. One draw call.
 export class Rain {
-  constructor(scene, n = 900) {
-    this.n = n; this.p = new Float32Array(n * 3); this.box = 28;
+  constructor(scene, n = 900, snow = false) {
+    this.n = n; this.p = new Float32Array(n * 3); this.box = 28; this.snow = snow; this.t = 0;
     for (let i = 0; i < n; i++) { this.p[i * 3] = (Math.random() * 2 - 1) * this.box; this.p[i * 3 + 1] = Math.random() * 22; this.p[i * 3 + 2] = (Math.random() * 2 - 1) * this.box; }
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 6), 3).setUsage(THREE.DynamicDrawUsage));
-    this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xc4ced6, transparent: true, opacity: 0.2, depthWrite: false }));
+    this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: snow ? 0xffffff : 0xc4ced6, transparent: true, opacity: snow ? 0.75 : 0.2, depthWrite: false }));
     this.lines.frustumCulled = false; this.lines.visible = false; scene.add(this.lines); this.geo = g;
   }
   update(dt, cam, vx, vz) {
     if (!this.lines.visible) return;
-    const P = this.p, out = this.geo.attributes.position.array, B = this.box, fall = 24;
+    const P = this.p, out = this.geo.attributes.position.array, B = this.box, fall = this.snow ? 3.2 : 24;
+    this.t += dt;
     for (let i = 0; i < this.n; i++) {
       let x = P[i * 3], y = P[i * 3 + 1] - fall * dt, z = P[i * 3 + 2];
       x -= vx * dt; z -= vz * dt; // the car drives through the rain
+      if (this.snow) x += Math.sin(this.t * 0.9 + i) * dt * 0.8; // flakes drift
       if (y < -2) y += 24; if (x < -B) x += 2 * B; else if (x > B) x -= 2 * B; if (z < -B) z += 2 * B; else if (z > B) z -= 2 * B;
       P[i * 3] = x; P[i * 3 + 1] = y; P[i * 3 + 2] = z;
       const k = i * 6, wx = cam.x + x, wy = cam.y + y - 6, wz = cam.z + z;
       out[k] = wx; out[k + 1] = wy; out[k + 2] = wz;
-      out[k + 3] = wx + vx * 0.02 + 0.05; out[k + 4] = wy + 0.7; out[k + 5] = wz + vz * 0.02;
+      if (this.snow) { out[k + 3] = wx + vx * 0.006 + 0.04; out[k + 4] = wy + 0.08; out[k + 5] = wz + vz * 0.006; }
+      else { out[k + 3] = wx + vx * 0.02 + 0.05; out[k + 4] = wy + 0.7; out[k + 5] = wz + vz * 0.02; }
     }
     this.geo.attributes.position.needsUpdate = true;
   }

@@ -168,6 +168,7 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
   {
     const oil = new THREE.MeshPhysicalMaterial({ color: 0x07080a, roughness: 0.06, metalness: 0.4, iridescence: 1, iridescenceIOR: 1.3, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
     const wet = new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.04, metalness: 0.2, transparent: true, opacity: 0.65, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
+    const ice = new THREE.MeshStandardMaterial({ color: 0xcfe6f5, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.55, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
     for (const h of path.hazards) {
       if (h.all) continue;
       const blobs = h.type === "oil" ? 3 : 4;
@@ -175,10 +176,58 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
         const g = new THREE.CircleGeometry(1, 20); g.rotateX(-Math.PI / 2);
         const off = (k - (blobs - 1) / 2) * h.len * 0.22, side = (k % 2 ? 1 : -1) * h.w * 0.12;
         path.pointAt(h.d + off, h.lat + side, tmp);
-        const m = new THREE.Mesh(g, h.type === "oil" ? oil : wet);
+        const m = new THREE.Mesh(g, h.type === "oil" ? oil : h.type === "ice" ? ice : wet);
         m.position.set(tmp.x, tmp.y + 0.035, tmp.z); m.rotation.y = tmp.h + k * 0.7;
         m.scale.set(h.w * (0.32 + 0.1 * (k % 2)), 1, h.len * (0.26 + 0.06 * k));
         m.receiveShadow = true; group.add(m);
+      }
+    }
+  }
+
+  // split-path islands: a raised verge down the middle of the road with chevron-painted sides and a keep-left/right sign
+  {
+    const islands = path.hazards.filter((h) => h.type === "split");
+    if (islands.length) {
+      const chev = canvasTex(64, 32, (g, w, h) => {
+        g.fillStyle = "#f2c230"; g.fillRect(0, 0, w, h); g.fillStyle = "#16181c";
+        for (let k = -1; k < 3; k++) { g.beginPath(); g.moveTo(k * 32, 0); g.lineTo(k * 32 + 16, 0); g.lineTo(k * 32 + 32, h); g.lineTo(k * 32 + 16, h); g.fill(); }
+      }, { repeat: [1, 1] });
+      const sideMat = new THREE.MeshStandardMaterial({ map: chev, roughness: 0.7 });
+      const topMat = surface(theme.groundTex || "grass", theme.groundTint || 0xd8d8d8, [1, 1]);
+      const H = 0.7, sides = [], tops = [];
+      for (const h of islands) {
+        const n = Math.max(8, Math.round(h.len / 1.5)), sp = [], su = [], si = [], tp = [], tu = [], ti = [];
+        for (let k = 0; k <= n; k++) {
+          const d = h.d - h.len / 2 + (k / n) * h.len, hw = Math.max(0.15, path.islandHalf(h, d + 1e-3 * (k === 0 ? 1 : k === n ? -1 : 0)));
+          const L = path.pointAt(d, h.lat - hw, { ...tmp }), R = path.pointAt(d, h.lat + hw, { ...tmp });
+          const v = d / 1.4;
+          // side walls (left then right), each a bottom/top pair per slice
+          sp.push(L.x, L.y, L.z, L.x, L.y + H, L.z, R.x, R.y, R.z, R.x, R.y + H, R.z); su.push(v, 0, v, 1, v, 0, v, 1);
+          tp.push(L.x, L.y + H, L.z, R.x, R.y + H, R.z); tu.push(0, d / 6, hw / 3, d / 6);
+          if (k < n) {
+            const a = k * 4, b = a + 4; si.push(a, b, a + 1, a + 1, b, b + 1, a + 2, a + 3, b + 2, a + 3, b + 3, b + 2);
+            const c = k * 2, e = c + 2; ti.push(c, e, c + 1, c + 1, e, e + 1);
+          }
+        }
+        const mk = (p, u, i) => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(u, 2)); g.setIndex(i); g.computeVertexNormals(); return g; };
+        sides.push(mk(sp, su, si)); tops.push(mk(tp, tu, ti));
+      }
+      const sm = new THREE.Mesh(merge(sides), sideMat), tm = new THREE.Mesh(merge(tops), topMat);
+      sideMat.side = THREE.DoubleSide; sm.castShadow = sm.receiveShadow = tm.receiveShadow = true; group.add(sm, tm);
+      // a round blue sign with two arrows on a post at each nose, facing the oncoming cars
+      const signTex = canvasTex(64, 64, (g, w) => {
+        g.fillStyle = "#1d5fd0"; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 2, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = "#fff"; g.lineWidth = 4; g.stroke();
+        g.fillStyle = "#fff";
+        for (const s of [-1, 1]) { g.beginPath(); g.moveTo(w / 2 + s * 6, 20); g.lineTo(w / 2 + s * 22, 34); g.lineTo(w / 2 + s * 6, 48); g.fill(); }
+      });
+      for (const h of islands) {
+        const nose = path.pointAt(h.d - h.len / 2 + 3, h.lat, { ...tmp });
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 6), new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.6, roughness: 0.4 }));
+        post.position.set(nose.x, nose.y + H + 0.8, nose.z);
+        const sign = new THREE.Mesh(new THREE.CircleGeometry(0.6, 20), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+        sign.position.set(nose.x - Math.sin(nose.h) * 0.08, nose.y + H + 1.75, nose.z - Math.cos(nose.h) * 0.08); sign.rotation.y = nose.h + Math.PI;
+        group.add(post, sign);
       }
     }
   }

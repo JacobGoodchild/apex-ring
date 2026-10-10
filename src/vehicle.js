@@ -30,7 +30,10 @@ export class Vehicle {
   respawn() {
     const t = this.track, d = this.p.d, i = this.p.i;
     const keepTotal = this.totalD, keepBoost = this.boost;
-    this.reset(d, t.line[i] * 0.5);
+    let lat = t.line[i] * 0.5;
+    // never drop the car onto a split-path island: pick the nearer lane beside it
+    for (const h of t.hazards) if (h.type === "split" && t.islandHalf(h, d) > 0 && Math.abs(lat - h.lat) < h.w / 2 + 2) lat = h.lat + Math.sign(lat - h.lat || 1) * (h.w / 2 + 3);
+    this.reset(d, lat);
     this.totalD = keepTotal; this.lastD = this.p.d; this.boost = keepBoost;
     this.vF = 18; this.vx = Math.sin(this.h) * 18; this.vz = Math.cos(this.h) * 18;
     this.respawnFlash = 1.2;
@@ -128,23 +131,13 @@ export class Vehicle {
     const q = t.project(this.x, this.z, this.hint, this.p); this.hint = q.i;
     const lim = halfW + t.runoff - 1.05;
     this.wallHit = 0;
-    if (Math.abs(q.lat) > lim) {
-      const sg = Math.sign(q.lat), over = Math.abs(q.lat) - lim;
-      const trx = -Math.cos(q.h), trz = Math.sin(q.h);
-      this.x -= trx * sg * over; this.z -= trz * sg * over;
-      const vn = (this.vx * trx + this.vz * trz) * sg;
-      if (vn > 0) {
-        // glance off: lose the part of the velocity going into the wall (plus a small bounce), keep the rest
-        this.vx -= trx * sg * vn * 1.15; this.vz -= trz * sg * vn * 1.15;
-        const scrub = 1 - Math.min(0.1, vn * 0.006);
-        this.vx *= scrub; this.vz *= scrub; this.wallHit = vn;
-        // swing the nose back along the wall so the car carries on rather than grinding
-        const hf = Math.abs(wrapA(q.h - this.h)) < Math.PI / 2 ? q.h : q.h + Math.PI;
-        this.h = wrapA(this.h + wrapA(hf - this.h) * Math.min(0.75, 0.35 + vn * 0.03));
-        this.yawRate *= 0.3;
-        this.drifting = false;
-      }
-      q.lat = sg * lim;
+    if (Math.abs(q.lat) > lim) { const sg = Math.sign(q.lat); this.hitWall(q, -sg * (Math.abs(q.lat) - lim)); q.lat = sg * lim; }
+    // split-path islands: a wall on both sides of a strip down the middle of the road
+    for (const h of t.hazards) {
+      if (h.type !== "split") continue;
+      const hw = t.islandHalf(h, q.d); if (hw <= 0) continue;
+      const dl = q.lat - h.lat, lim2 = hw + 1.05;
+      if (Math.abs(dl) < lim2) { const sg = Math.sign(dl || 1); this.hitWall(q, sg * (lim2 - Math.abs(dl))); q.lat = h.lat + sg * lim2; }
     }
     this.lat = q.lat;
     // vertical: gravity, sitting exactly on the road, flying off ramp lips, crests and cliffs
@@ -176,4 +169,22 @@ export class Vehicle {
   }
 
   get speed() { return Math.hypot(this.vx, this.vz); }
+
+  // Push the car sideways by `push` metres (+ = toward positive lateral) off a wall running along the track at q,
+  // and glance off it: lose the part of the velocity going into the wall (plus a small bounce), keep the rest.
+  hitWall(q, push) {
+    const sg = Math.sign(push), trx = -Math.cos(q.h), trz = Math.sin(q.h);
+    this.x += trx * push; this.z += trz * push;
+    const vn = -(this.vx * trx + this.vz * trz) * sg;
+    if (vn > 0) {
+      this.vx += trx * sg * vn * 1.15; this.vz += trz * sg * vn * 1.15;
+      const scrub = 1 - Math.min(0.1, vn * 0.006);
+      this.vx *= scrub; this.vz *= scrub; this.wallHit = Math.max(this.wallHit, vn);
+      // swing the nose back along the wall so the car carries on rather than grinding
+      const hf = Math.abs(wrapA(q.h - this.h)) < Math.PI / 2 ? q.h : q.h + Math.PI;
+      this.h = wrapA(this.h + wrapA(hf - this.h) * Math.min(0.75, 0.35 + vn * 0.03));
+      this.yawRate *= 0.3;
+      this.drifting = false;
+    }
+  }
 }

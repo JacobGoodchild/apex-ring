@@ -39,6 +39,12 @@ export const THEMES = {
     asphaltTint: 0.62, wetRoad: true, rain: true, centreLine: "#d8b23a", lines: "#e2e4e6", sea: true, seaColor: 0x2f3d44, seaY: -0.8, poles: true,
     wallA: "#d8dadc", wallB: "#2b2f36", tree: 0x2a3a2e, scenery: "coastal", label: "Coastal highway · Rain", envIntensity: 0.7, bloom: 0.4, sign: "COASTAL HIGHWAY",
   },
+  winter: {
+    sky: [0x8fa3ba, 0xc4cfdb, 0xe4e9ef], sunDir: [-0.5, 0.35, 0.5], sunColor: 0xfff4e6, sunIntensity: 1.3,
+    hemi: [0xdfe8f2, 0x8a96a4, 1.0], fog: 0xd6dde5, fogNear: 90, fogFar: 760, ground: 0xe8edf2, exposure: 0.95,
+    clouds: 0.8, cloudColor: 0xe8ecf0, groundTex: "snow", groundTint: 0xf2f4f7, runTex: "snow", runTint: 0xe8ecf0, embTex: "snow",
+    asphaltTint: 0.7, snowfall: true, tree: 0x4f6a5e, wallA: "#e6ebf0", wallB: "#2a6fd6", scenery: "winter", label: "Winter valley · Snow", sign: "FROSTBITE RIDGE",
+  },
   xtreme: {
     sky: [0x1b1030, 0x6b3a5a, 0xff9a4a], sunDir: [0.7, 0.18, -0.6], sunColor: 0xffa860, sunIntensity: 1.7,
     hemi: [0xffc8a0, 0x3a2a30, 0.7], fog: 0x7a4a52, fogNear: 220, fogFar: 1400, ground: 0x5a4436, rock: 0x6e5a4a,
@@ -108,7 +114,7 @@ export const TRACKS = [
   track({ id: "forest", ramps: [{ at: 0.09, lat: 7, half: 5, h: 1.2, len: 14 }],  name: "Greenwood Circuit", theme: "forest", difficulty: 1, laps: 2, width: 26, runoff: 9, banking: 0.1, mult: 1.1,
     blurb: "A flowing woodland lap over rolling hills. Fast, wide and friendly." },
     [[0, -400, 160, 4], [300, -500, 180, 8], [550, -250, 140, 6], [450, 50, 200, 3], [550, 350, 150, 5], [250, 500, 160, 2], [0, 400, 130, 0]]),
-  track({ id: "canyon", hazards: [{ type: "oil", at: 0.3, lat: 3, len: 12, w: 4 }, { type: "oil", at: 0.72, lat: -4, len: 10, w: 3.5 }],  ramps: [{ at: 0.45, lat: -5, half: 5, h: 1.4, len: 14 }],  name: "Red Canyon", theme: "desert", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.1, mult: 1.2,
+  track({ id: "canyon", hazards: [{ type: "oil", at: 0.3, lat: 3, len: 12, w: 4 }, { type: "oil", at: 0.72, lat: -4, len: 10, w: 3.5 }, { type: "split", at: 0.625, lat: 0, len: 120, w: 4 }],  ramps: [{ at: 0.45, lat: -5, half: 5, h: 1.4, len: 14 }],  name: "Red Canyon", theme: "desert", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.1, mult: 1.2,
     blurb: "Long dusty straights between the mesas, a flyover and a few tighter bends." },
     [[0, -500, 70, 0], [300, -500, 90, 4], [450, -250, 80, 10], [-300, -250, 70, 10], [-350, 100, 60, 4], [-100, 150, 70, 0], [-200, 450, 80, 0], [0, 500, 90, 0]]),
   track({ id: "harbour", hazards: [{ type: "wet", at: 0.22, lat: -3, len: 18, w: 6 }, { type: "wet", at: 0.55, lat: 4, len: 16, w: 5 }, { type: "oil", at: 0.8, lat: 2, len: 10, w: 3.5 }],  ramps: [{ at: 0.1, lat: 5, half: 5, h: 1.2, len: 14 }],  name: "Harbour Lights", theme: "coast", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.06, mult: 1.15,
@@ -131,6 +137,10 @@ export const TRACKS = [
     hazards: [{ type: "wet", at: 0.33, lat: 0, len: 26, w: 10 }, { type: "wet", at: 0.81, lat: -2, len: 22, w: 9 }],
     blurb: "A rain-soaked road between black-sand beaches and towering cliffs. Wet tarmac, puddles, less grip." },
     [[0, -700, 90, 2], [180, -760, 110, 4], [270, -540, 110, 6], [200, -300, 140, 8], [260, -60, 120, 6], [210, 240, 130, 4], [280, 520, 110, 2], [150, 760, 100, 0], [-60, 720, 120, 6], [-120, 450, 140, 12], [-60, 200, 130, 16], [-140, -60, 120, 18], [-80, -330, 140, 14], [-150, -560, 110, 8]]),
+  track({ id: "frost", name: "Frostbite Ridge", theme: "winter", difficulty: 2, laps: 2, width: 22, runoff: 8, banking: 0.08, mult: 1.25,
+    hazards: [{ type: "ice", at: 0.18, lat: 2, len: 22, w: 8 }, { type: "ice", at: 0.52, lat: -3, len: 18, w: 7 }, { type: "ice", at: 0.83, lat: 0, len: 20, w: 9 }],
+    blurb: "A snowy valley loop under white peaks. Falling snow, and glassy ice patches with almost no grip." },
+    [[0, -450, 90, 0], [300, -520, 110, 4], [480, -300, 90, 10], [350, -50, 80, 14], [480, 200, 100, 12], [300, 420, 90, 8], [0, 480, 100, 4], [-250, 350, 90, 6], [-300, 50, 110, 10], [-200, -250, 100, 4]]),
 ];
 
 // Layouts: every circuit can also be raced Reversed (the other way round) or Mirrored (flipped left-right).

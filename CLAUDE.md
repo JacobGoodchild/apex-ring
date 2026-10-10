@@ -248,3 +248,9 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   new" showing to brand-new players. Test added: an old 1.4-era save loads, keeps progress and races.
 - Tests run on a frozen copy (scratchpad snaptest.sh, PW_PORT=4175) so edits during a 15-min run don't leak in.
   Don't run other heavy Playwright tests at the same time: CPU contention made a countdown time out once.
+- Part 8: Frostbite Ridge (id frost, Medium, 2.9 km): winter valley theme with snow terrain, pines, falling snow
+  (Rain with snow=true), three ice patches (grip x0.45, AI steers round), career event c15 "Frostbite" unlocked by Storm Run.
+  Split-path road: hazards of type "split" (an island down the middle with chevron walls and a keep-left/right
+  sign; tapered noses, TrackPath.islandHalf). Cars glance off it like a wall (Vehicle.hitWall), rivals pick a lane
+  before the nose and keep it, the line steer and assist keep you in your lane, respawn never lands on it.
+  First one on Red Canyon round the 60 m bend at 0.625.
