@@ -13,7 +13,7 @@ r.toneMapping = THREE.ACESFilmicToneMapping; r.setScissorTest(true);
 const s = new THREE.Scene(); s.background = new THREE.Color(0x3a4050);
 s.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
 s.add(new THREE.HemisphereLight(0xffffff, 0x333333, 1)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(3, 6, 4); s.add(d);
-const cols = [0x0f8b8d, 0xe8590c, 0xf5c400, 0xb3121d, 0x5b2bbf, 0xe9edf2, 0x16181d, 0x8fd400, 0x4a5160];
+const cols = [0x0f8b8d, 0xe8590c, 0xf5c400, 0xb3121d, 0x5b2bbf, 0xe9edf2, 0x16181d, 0x8fd400, 0x4a5160, 0x1d4fa8];
 CARS.forEach((c, i) => { const m = makeCar(c, cols[i]); m.group.position.x = i * 20; s.add(m.group); });
 const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
 CARS.forEach((c, i) => {

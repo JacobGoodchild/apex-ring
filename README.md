@@ -39,7 +39,7 @@ player 2: ← → + ↑) or with two gamepads.
 - **10 tracks**, each also raceable Reversed or Mirrored: Dusk Oval, Apex Ring GP, Greenwood, Red Canyon,
   Harbour Lights, Neon District, Alpine Pass, Xtreme (cliffs and ramps), Coastal Highway (rain, wet road)
   and Frostbite Ridge (snowfall, ice patches).
-- **9 cars** in four classes (Compact, Muscle, Supercar, Prototype), upgrades (Engine, Tyres, ECU, Turbo, Weight),
+- **10 cars** in four classes (Compact, Muscle, Supercar, Prototype), upgrades (Engine, Tyres, ECU, Turbo, Weight),
   paints, finishes (matte, metallic, pearl, neon), rims, decals with your choice of livery colour, and boost flame colours.
 - Procedural synthwave soundtrack and engine sounds, all made in code.
 

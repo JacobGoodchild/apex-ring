@@ -33,6 +33,8 @@ export const CARS = [
     shape: { lights: 1, len: 3.95, wid: 0.96, n: 3.6, tumble: 0.82, bulge: 0.06, nose: 0.6, hood: 0.8, deck: 1.16, tail: 1.08, cabinZ: -0.15, cabinLen: 2.25, cabinH: 1.42, cabinW: 0.74, wing: "duck", wheelR: 0.33, splitter: false }, blurb: "A tiny turbo hot hatch. Slow in a straight line, but it darts into corners and drifts for days." },
   { id: "brute", cls: "Muscle", driftGrip: 0.86, boostDur: 1.35, engine: "v8", name: "Ironhide 427", doors: "butterfly", price: 6000, vmax: 83, accel: 17, grip: 30.5, boostPower: 14, boostFill: 0.95, response: 7.2, steerFalloff: 0.038,
     shape: { lights: 0, len: 4.95, wid: 1.03, n: 4.6, tumble: 0.86, bulge: 0.05, waist: 0.98, nose: 0.62, hood: 0.84, deck: 0.98, tail: 0.98, cabinZ: -0.6, cabinLen: 2.1, cabinH: 1.3, cabinW: 0.74, wing: "duck", intake: false }, blurb: "Big-block muscle. Huge straight-line punch and the longest boost, but the tail is always looking for a way out." },
+  { id: "stormcrow", cls: "Muscle", driftGrip: 0.92, boostDur: 1.22, engine: "v8", name: "Stormcrow 350", doors: "scissor", price: 3800, vmax: 80, accel: 16.5, grip: 32, boostPower: 13, boostFill: 1.05, response: 7.8, steerFalloff: 0.036,
+    shape: { lights: 1, len: 4.8, wid: 1.0, n: 4.4, tumble: 0.86, bulge: 0.06, waist: 0.96, nose: 0.62, hood: 0.86, deck: 1.02, tail: 0.98, cabinZ: -0.55, cabinLen: 2.0, cabinH: 1.24, cabinW: 0.72, wing: "high" }, blurb: "A lighter fastback muscle car with a big wing. Easier to hold in a slide than the Ironhide, and cheaper." },
 ];
 
 // garage order: by class, then price

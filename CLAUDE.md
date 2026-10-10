@@ -273,5 +273,7 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   chord's cut across the bend), a shorter aim near islands, and the auto-brake / AI take ~14% off near an island
   (a lane is tighter than the racing line). scripts/dev/islandhits.mjs counts island contacts: the autopilot is clean on
   every layout; rivals only brush it (<5 m/s) when side by side. Medal table regenerated.
-- Part 14: Settings > Show FPS: a small readout at the bottom (fps over half a second, render resolution %, draw calls)
+- Settings > Show FPS: a small readout at the bottom (fps over half a second, render resolution %, draw calls)
   for checking performance on a real phone.
+- Part 14: tenth car, Stormcrow 350 (Muscle, V8, scissor doors, 3,800 coins): a lighter, cheaper fastback that holds
+  a slide better than the Ironhide. Appended to CARS so rival slots and old saves are unchanged.
