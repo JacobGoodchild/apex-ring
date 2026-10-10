@@ -386,7 +386,13 @@ test.describe("Apex Ring", () => {
     const sv = await game(page, () => window.__apex.save);
     expect(sv.settings.sound).toBe(false);
     expect(sv.settings.quality).toBe("low");
+    // speed units: km/h in test mode by default, mph on request
+    await expect(page.locator("#unitV")).toHaveText("KM/H");
+    await page.click('#unitTabs [data-u="mph"]');
+    await expect(page.locator("#unitV")).toHaveText("MPH");
+    expect((await game(page, () => window.__apex.save)).settings.units).toBe("mph");
     await page.click("#resetBtn");
+    await expect(page.locator("#unitV")).toHaveText("KM/H");
     expect((await game(page, () => window.__apex.save)).settings.sound).toBe(true);
     await page.evaluate(() => localStorage.removeItem("apexring.test.save"));
   });

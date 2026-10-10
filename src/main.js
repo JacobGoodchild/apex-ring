@@ -330,10 +330,20 @@ const STAT_KEYS = [["Top speed", (s) => s.vmax / 95], ["Acceleration", (s) => s.
 // physics uses (accel x (1 - (v/vmax)^2) minus air drag), integrated on a flat straight
 function perfNumbers(def, up) {
   const s = carSpec(def, up || {});
-  let v = 0, t = 0, t100 = 0;
-  for (let k = 0; k < 60 * 60; k++) { const a = s.accel * Math.max(0, 1 - (v / s.vmax) ** 2) - 0.0009 * v * v; v += a / 60; t += 1 / 60; if (!t100 && v >= 100 / 3.6) t100 = t; }
-  return { top: Math.round(v * 3.6), t100 };
+  let v = 0, t = 0, t100 = 0, t60 = 0;
+  for (let k = 0; k < 60 * 60; k++) { const a = s.accel * Math.max(0, 1 - (v / s.vmax) ** 2) - 0.0009 * v * v; v += a / 60; t += 1 / 60; if (!t100 && v >= 100 / 3.6) t100 = t; if (!t60 && v >= 60 / 2.237) t60 = t; }
+  return { top: Math.round(v * 3.6), topMph: Math.round(v * 2.237), t100, t60 };
 }
+// Speed units: mph or km/h (Settings). Defaults to mph where the roads use it, km/h everywhere else.
+function mph() { const u = save.settings.units || (!TEST && /^en-(GB|US)\b/i.test(navigator.language || "") ? "mph" : "kmh"); return u === "mph"; }
+const speedOf = (ms) => Math.round(Math.max(0, ms) * (mph() ? 2.237 : 3.6));
+const unitName = () => (mph() ? "mph" : "km/h");
+function applyUnits() {
+  document.querySelectorAll("#unitTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.u === "mph") === mph())));
+  $("unitV").textContent = mph() ? "MPH" : "KM/H";
+}
+document.querySelectorAll("#unitTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.units = b.dataset.u; writeSave(); applyUnits(); }));
+applyUnits();
 function statsHTML(def, up) {
   const base = carSpec(def, {}), cur = carSpec(def, up || {});
   return STAT_KEYS.map(([n, f]) => `<span>${n}</span><span class="sbar"><b style="width:${Math.min(100, f(cur) * 100)}%"></b><i style="width:${Math.min(100, f(base) * 100)}%"></i></span>`).join("");
@@ -346,7 +356,7 @@ function refreshGarage() {
   $("carBlurb").textContent = def.blurb + (prize && !owned ? ` Or win it free in Career: ${prize.name}.` : "");
   $("stats").innerHTML = statsHTML(def, cs.upgrades);
   const pn = perfNumbers(def, cs.upgrades);
-  $("perfLine").textContent = `Top speed ${pn.top} km/h · 0-100 km/h ${pn.t100.toFixed(1)} s · ${def.engine === "electric" ? "electric" : def.engine.toUpperCase().replace("FLAT6", "flat-6")}`;
+  $("perfLine").textContent = `Top speed ${mph() ? pn.topMph + " mph · 0-60 mph " + pn.t60.toFixed(1) : pn.top + " km/h · 0-100 km/h " + pn.t100.toFixed(1)} s · ${def.engine === "electric" ? "electric" : def.engine.toUpperCase().replace("FLAT6", "flat-6")}`;
   const act = $("carAction");
   if (!owned) {
     const gems = def.gems || 0, cost = gems ? gems + " gems" : def.price.toLocaleString("en-GB") + " coins";
@@ -544,6 +554,7 @@ function finishRace() {
     html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${e.name}${e.boss ? ' <small class="sty boss">Boss</small>' : e.driver ? ` <small class="sty">${STYLE_NAMES[e.driver.style] || ""}</small>` : ""}</span><span class="tm">${gap}</span></li>`;
   });
   html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
+  if (G.lapTimes.length > 1) html += `<div class="laplist">${G.lapTimes.map((t, i) => `<span class="${t === fastest ? "best" : ""}">L${i + 1} ${fmt(t)}</span>`).join("")}</div>`;
   if (G.event) html = eventResult(place, fastest) + html;
   if (G.cup) html = cupResult(order) + html;
   if (G.trial && !G.event) html = medalResult(fastest) + html;
@@ -683,7 +694,7 @@ function buildCareer() {
   tsec.innerHTML = `<div class="chh">Trophies · ${TROPHIES.filter((t) => got[t.id]).length} / ${TROPHIES.length}</div><ul class="tlist">${TROPHIES.map((t) => `<li class="${got[t.id] ? "got" : ""}"><b>${got[t.id] ? "🏆" : "·"} ${t.name}</b><span>${t.desc}</span></li>`).join("")}</ul>`;
   el.appendChild(tsec);
   const st = save.stats || { races: 0, wins: 0, podiums: 0, km: 0, top: 0, drift: 0 }, ssec = document.createElement("div"); ssec.className = "chapter stats";
-  ssec.innerHTML = `<div class="chh">Your stats</div><div class="statgrid">${[["Races", st.races], ["Wins", st.wins], ["Podiums", st.podiums], ["Distance", st.km.toFixed(1) + " km"], ["Top speed", Math.round(st.top) + " km/h"], ["Best drift", Math.round(st.drift).toLocaleString("en-GB")]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("")}</div>`;
+  ssec.innerHTML = `<div class="chh">Your stats</div><div class="statgrid">${[["Races", st.races], ["Wins", st.wins], ["Podiums", st.podiums], ["Distance", st.km.toFixed(1) + " km"], ["Top speed", Math.round(st.top / (mph() ? 1.609 : 1)) + " " + unitName()], ["Best drift", Math.round(st.drift).toLocaleString("en-GB")]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("")}</div>`;
   el.appendChild(ssec);
   selectEvent(G.selEvent && (G.selEvent.daily || TEST || eventUnlocked(save, EVENTS.indexOf(G.selEvent))) ? G.selEvent : next || EVENTS[0], true);
 }
@@ -758,7 +769,7 @@ function refreshSettings() {
   document.querySelectorAll("#camTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === chase.mode)));
   document.querySelectorAll("#soundTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.s === "1") === save.settings.sound)));
   $("musicVol").value = save.settings.music ?? 0.6;
-  applyDrive(); applyBand(); applyFx();
+  applyDrive(); applyBand(); applyFx(); applyUnits();
   const tiltMode = input.tiltOn;
   document.querySelectorAll("#ctrlTabs .tab").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.m === "tilt") === tiltMode)));
   $("tiltOpts").hidden = !tiltMode; $("tiltSens").value = tiltCfg.sens;
@@ -775,7 +786,7 @@ document.querySelectorAll("#lineTabs .tab").forEach((b) => b.addEventListener("c
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
   resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On";
-  applyDrive(); setCam("chase"); setMusicVolume(save.settings.music ?? 0.6); toast("Progress reset."); show("menu");
+  applyDrive(); applyUnits(); setCam("chase"); setMusicVolume(save.settings.music ?? 0.6); toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
 $("nextBtn").addEventListener("click", () => { if (G.cup) { G.cup.i++; startCupRace(); return; } const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
@@ -1135,7 +1146,7 @@ function render(dt) {
   if (G.splitRace && G.p2 && G.mode !== "menu") {
     chase2.update(G.p2.veh, dt, G.p2.veh.boosting ? 1 : 0);
     const order = standings(), L = G.path.length, n = laps();
-    const box = (e, veh, who) => `<span class="p">${who}</span><b>${ordinal(order.indexOf(e) + 1)}</b> · Lap ${Math.min(n, Math.floor(Math.max(0, veh.totalD) / L) + 1)}/${n} · ${Math.round(Math.max(0, veh.vF) * 3.6)} km/h`;
+    const box = (e, veh, who) => `<span class="p">${who}</span><b>${ordinal(order.indexOf(e) + 1)}</b> · Lap ${Math.min(n, Math.floor(Math.max(0, veh.totalD) / L) + 1)}/${n} · ${speedOf(veh.vF)} ${unitName()}`;
     $("shud1").innerHTML = box(order.find((e) => e.me), G.player, "P1"); $("shud2").innerHTML = box(G.p2, G.p2.veh, "P2");
   }
   // rain and snow sit in a box around the camera, so place them after the camera has moved this frame
@@ -1163,7 +1174,7 @@ function render(dt) {
     $("drift").hidden = !(G.driftPts > 5);
     if (G.driftPts > 5) { $("driftV").textContent = "+" + Math.round(G.driftPts); $("driftX").textContent = G.mult > 1 ? "x" + G.mult : ""; }
     $("draft").classList.toggle("on", (G.draftM || 0) > 0.02); $("draftFill").style.width = Math.round((G.draftM || 0) * 100) + "%";
-    $("spdV").textContent = Math.round(Math.max(0, v.vF) * 3.6);
+    $("spdV").textContent = speedOf(v.vF);
     if (G.mode === "race") G.topSpeed = Math.max(G.topSpeed || 0, v.vF * 3.6);
     const gb = sfx.gearbox(Math.max(0, v.vF), v.spec.vmax);
     $("tachArc").style.strokeDasharray = `${Math.round(gb.rpm * 100)} 100`; $("tachArc").style.stroke = gb.rpm > 0.86 ? "#ff4d4d" : "";

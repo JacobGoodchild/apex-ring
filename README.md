@@ -8,6 +8,7 @@ no servers: everything (saves, leaderboards, ghosts) stays on your device.
 
 ## How to play
 **Casual driving** (default): the car speeds up, brakes and drifts by itself. You steer and boost.
+- **Speed** shows in mph or km/h (Settings > Speed).
 - **Steer:** hold the left or right half of the screen, tilt the phone (Settings > Controls), or ← → / A D.
 - **Drift:** steer hard into a fast bend and the car slides. Drifting fills the blue boost bar; linking drifts
   quickly builds a multiplier (up to x5).

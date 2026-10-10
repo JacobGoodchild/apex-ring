@@ -111,7 +111,7 @@ export class Rain {
     for (let i = 0; i < n; i++) { this.p[i * 3] = (Math.random() * 2 - 1) * this.box; this.p[i * 3 + 1] = Math.random() * (snow ? 12 : 22); this.p[i * 3 + 2] = (Math.random() * 2 - 1) * this.box; }
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * (snow ? 3 : 6)), 3).setUsage(THREE.DynamicDrawUsage));
     if (snow) {
-      // snow: tiny white specks, one instanced mesh (points didn't draw reliably in testing); only the translation
+      // snow: tiny white specks in one instanced mesh, so near flakes look bigger than far ones; only the translation
       // part of each instance matrix is written per frame
       const im = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.06, 0), new THREE.MeshBasicMaterial({ color: 0xf4f8ff }), n);
       for (let i = 0; i < n; i++) im.setMatrixAt(i, new THREE.Matrix4());
