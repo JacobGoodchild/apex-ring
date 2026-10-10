@@ -78,7 +78,7 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
   const sea = grp.getObjectByName("sea"); G.water = sea ? sea.material.normalMap : null;
   if (theme.rain && !G.rain) G.rain = new Rain(scene);
   if (G.rain) G.rain.lines.visible = !!theme.rain;
-  if (theme.snowfall && !G.snow) G.snow = new Rain(scene, 700, true);
+  if (theme.snowfall && !G.snow) G.snow = new Rain(scene, 900, true);
   if (G.snow) G.snow.lines.visible = !!theme.snowfall && !theme.rain;
   if (G.car && G.car.beams) G.car.beams.visible = G.night;
   for (const r of G.rivals || []) if (r.model.beams) r.model.beams.visible = G.night;
@@ -895,7 +895,8 @@ const tagPos = new THREE.Vector3();
 function drawTags() {
   const tags = $("tags"); if (!G.tagEls) G.tagEls = [];
   tags.hidden = !!G.splitRace || G.mode !== "race" && G.mode !== "done"; if (G.splitRace) return;
-  const v = G.player, near = G.field.filter((r) => { const dd = r.veh.totalD - v.totalD; return dd > 4 && dd < 70; }).slice(0, 3);
+  const v = G.player, near = G.field.filter((r) => { const dd = r.veh.totalD - v.totalD; return dd > 4 && dd < 70; }).sort((a, b) => a.veh.totalD - b.veh.totalD).slice(0, 3);
+  const placed = []; // nearest car's tag goes first; a tag that would sit on top of another is lifted above it
   while (G.tagEls.length < near.length) { const e = document.createElement("div"); e.className = "tag"; tags.appendChild(e); G.tagEls.push(e); }
   G.tagEls.forEach((e, i) => {
     const r = near[i];
@@ -903,8 +904,17 @@ function drawTags() {
     tagPos.set(r.veh.x, r.veh.y + 1.8, r.veh.z).project(camera);
     if (tagPos.z > 1) { e.hidden = true; return; }
     e.hidden = false;
-    e.style.transform = `translate(${(tagPos.x * 0.5 + 0.5) * innerWidth}px, ${(-tagPos.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`;
-    if (e._n !== r.name) { e._n = r.name; e.textContent = r.name.split(" ")[0]; e.style.borderColor = "#" + r.color.toString(16).padStart(6, "0"); }
+    if (e._n !== r.name) { e._n = r.name; e.textContent = r.name.split(" ")[0]; e.style.borderColor = "#" + r.color.toString(16).padStart(6, "0"); e._w = 0; }
+    if (!e._w) { e._w = e.offsetWidth || 56; e._h = e.offsetHeight || 18; }
+    const x = (tagPos.x * 0.5 + 0.5) * innerWidth;
+    let y = (-tagPos.y * 0.5 + 0.5) * innerHeight;
+    for (let k = 0; k < 3; k++) {
+      const hit = placed.find((p) => Math.abs(p.x - x) < (p.w + e._w) / 2 + 2 && Math.abs(p.y - y) < e._h + 2);
+      if (!hit) break;
+      y = hit.y - e._h - 3;
+    }
+    placed.push({ x, y, w: e._w });
+    e.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
   });
 }
 
@@ -1103,8 +1113,6 @@ function render(dt) {
   smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight);
   drawRocks();
   if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
-  if (G.rain) G.rain.update(Math.min(dt, 0.05), camera.position, G.mode === "menu" ? 0 : v.vx, G.mode === "menu" ? 0 : v.vz);
-  if (G.snow) G.snow.update(Math.min(dt, 0.05), camera.position, G.mode === "menu" ? 0 : v.vx, G.mode === "menu" ? 0 : v.vz);
   speedLines.update(dt, v.vF, G.mode === "race" && fxOn() ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
   if (!fxOn()) chase.shake = 0;
 
@@ -1130,6 +1138,9 @@ function render(dt) {
     const box = (e, veh, who) => `<span class="p">${who}</span><b>${ordinal(order.indexOf(e) + 1)}</b> · Lap ${Math.min(n, Math.floor(Math.max(0, veh.totalD) / L) + 1)}/${n} · ${Math.round(Math.max(0, veh.vF) * 3.6)} km/h`;
     $("shud1").innerHTML = box(order.find((e) => e.me), G.player, "P1"); $("shud2").innerHTML = box(G.p2, G.p2.veh, "P2");
   }
+  // rain and snow sit in a box around the camera, so place them after the camera has moved this frame
+  if (G.rain) G.rain.update(Math.min(dt, 0.05), camera.position, G.mode === "menu" ? 0 : v.vx, G.mode === "menu" ? 0 : v.vz);
+  if (G.snow) G.snow.update(Math.min(dt, 0.05), camera.position, G.mode === "menu" ? 0 : v.vx, G.mode === "menu" ? 0 : v.vz);
   car.body.visible = chase.mode !== "bonnet" || G.mode === "menu";
   world.follow(v.x, v.y, v.z);
 

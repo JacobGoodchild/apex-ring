@@ -259,3 +259,6 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   150/300/600 coins the first time you reach each one (save.medals), medal times on the trial setup screen, medal card
   on the results. More split-path islands (Frostbite Ridge, Xtreme). Billboards were facing away from the road (you
   read them mirrored through the double-sided plane); they now face the road with a plain back panel.
+- Part 10: snow actually shows now: flakes are one instanced mesh of tiny specks (Points didn't draw reliably), and
+  rain/snow are placed after the camera moves each frame (they were a frame behind, which on a slow frame left the
+  whole box behind the car). Rival name tags no longer sit on top of each other (nearest first, others lifted above).
