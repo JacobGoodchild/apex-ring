@@ -251,7 +251,7 @@ export class Sparks {
     this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     this.lines.frustumCulled = false; scene.add(this.lines); this.geo = g;
     const hg = new THREE.BufferGeometry(); hg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
-    hg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    hg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage)); // rgba: sparks fade out by alpha, not to black
     const dot = document.createElement("canvas"); dot.width = dot.height = 32;
     const c = dot.getContext("2d"), gr = c.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.35, "rgba(255,220,150,.8)"); gr.addColorStop(1, "rgba(255,120,30,0)");
     c.fillStyle = gr; c.fillRect(0, 0, 32, 32);
@@ -297,13 +297,13 @@ export class Fireworks {
   constructor(scene, max = 900) {
     this.max = max; this.i = 0; this.p = new Float32Array(max * 3); this.v = new Float32Array(max * 3); this.life = new Float32Array(max); this.c = new Float32Array(max * 3);
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage)); // rgba: sparks fade out by alpha, not to black
     const dot = document.createElement("canvas"); dot.width = dot.height = 32;
     const x = dot.getContext("2d"), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, "#fff"); gr.addColorStop(0.4, "rgba(255,255,255,.6)"); gr.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = gr; x.fillRect(0, 0, 32, 32);
-    this.pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 3.2, map: new THREE.CanvasTexture(dot), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    this.pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 4, map: new THREE.CanvasTexture(dot), vertexColors: true, transparent: true, depthWrite: false, fog: false, toneMapped: false }));
     this.pts.frustumCulled = false; scene.add(this.pts); this.geo = g; this.rockets = []; this.t = 0;
   }
-  show(x, y, z, seconds = 6) { this.at = [x, y, z]; this.t = seconds; this.next = 0; }
+  show(where, seconds = 6) { this.where = where; this.t = seconds; this.next = 0; } // where() -> [x, y, z], asked at each launch so the show follows the camera
   stop() { this.t = 0; this.rockets = []; this.life.fill(0); this.live = 1; } // one more update clears the buffers
   burst(x, y, z) {
     const hue = Math.random(), col = new THREE.Color().setHSL(hue, 0.9, 0.62), col2 = new THREE.Color().setHSL((hue + 0.12) % 1, 0.9, 0.7);
@@ -318,7 +318,7 @@ export class Fireworks {
     this.pts.visible = true;
     if (this.t > 0) {
       this.t -= dt; this.next -= dt;
-      if (this.next <= 0) { this.next = 0.35 + Math.random() * 0.45; const [x, y, z] = this.at; this.rockets.push({ x: x + (Math.random() - 0.5) * 60, y, z: z + (Math.random() - 0.5) * 60, vy: 38 + Math.random() * 10, t: 0.9 + Math.random() * 0.4 }); }
+      if (this.next <= 0) { this.next = 0.35 + Math.random() * 0.45; const [x, y, z] = this.where(); this.rockets.push({ x: x + (Math.random() - 0.5) * 60, y, z: z + (Math.random() - 0.5) * 60, vy: 38 + Math.random() * 10, t: 0.9 + Math.random() * 0.4 }); }
     }
     const pos = this.geo.attributes.position.array, col = this.geo.attributes.color.array;
     for (const r of this.rockets) { r.t -= dt; r.y += r.vy * dt; if (r.t <= 0) this.burst(r.x, r.y, r.z); }
@@ -326,11 +326,11 @@ export class Fireworks {
     this.live = 0;
     for (let i = 0; i < this.max; i++) {
       const q = i * 3;
-      if (this.life[i] <= 0) { pos[q] = pos[q + 1] = pos[q + 2] = 0; col[q] = col[q + 1] = col[q + 2] = 0; continue; }
+      if (this.life[i] <= 0) { pos[q] = pos[q + 1] = pos[q + 2] = 0; col[i * 4 + 3] = 0; continue; }
       this.live++; this.life[i] -= dt; this.v[q] *= 1 - dt * 1.2; this.v[q + 1] = this.v[q + 1] * (1 - dt * 1.2) - 9 * dt; this.v[q + 2] *= 1 - dt * 1.2;
       this.p[q] += this.v[q] * dt; this.p[q + 1] += this.v[q + 1] * dt; this.p[q + 2] += this.v[q + 2] * dt;
       const f = Math.min(1, this.life[i]) * (0.75 + 0.25 * Math.random());
-      pos[q] = this.p[q]; pos[q + 1] = this.p[q + 1]; pos[q + 2] = this.p[q + 2]; col[q] = this.c[q] * f; col[q + 1] = this.c[q + 1] * f; col[q + 2] = this.c[q + 2] * f;
+      pos[q] = this.p[q]; pos[q + 1] = this.p[q + 1]; pos[q + 2] = this.p[q + 2]; col[i * 4] = this.c[q]; col[i * 4 + 1] = this.c[q + 1]; col[i * 4 + 2] = this.c[q + 2]; col[i * 4 + 3] = f;
     }
     this.geo.attributes.position.needsUpdate = true; this.geo.attributes.color.needsUpdate = true;
   }

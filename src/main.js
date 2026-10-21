@@ -658,7 +658,7 @@ function finishRace() {
   if (G.event && G.event.id === "sky" && !G.eliminated) badge("sky");
   if (G.tut) { $("tutBox").hidden = true; if (!save.tutDone) { save.tutDone = true; save.coins += 200; (G.trophyQ = G.trophyQ || []).push("Tutorial complete (+200 coins)"); } }
   // a win: fireworks over the start/finish gantry and the crowd roars
-  if (place === 1 && G.realRace && !G.eliminated) { const d = camera.getWorldDirection(new THREE.Vector3()), k = 170 / Math.max(0.2, Math.hypot(d.x, d.z)); fireworks.show(camera.position.x + d.x * k, camera.position.y - 4, camera.position.z + d.z * k, 7); sfx.cheer(); } // far ahead of the camera, so they burst in view
+  if (place === 1 && G.realRace && !G.eliminated) { fireworks.show(() => { const d = camera.getWorldDirection(new THREE.Vector3()), k = 150 / Math.max(0.2, Math.hypot(d.x, d.z)); return [camera.position.x + d.x * k, camera.position.y - 4, camera.position.z + d.z * k]; }, 7); sfx.cheer(); } // ahead of wherever the camera is when each rocket goes up
   // photo finish: you won by less than a tenth of a second
   if (place === 1 && order[1] && order[1].finished != null && order[1].finished - G.playerFinish < 0.1) { badge("photo"); hlEvent(6); }
   $("clipBtn").hidden = !hlWindow() || typeof MediaRecorder === "undefined"; $("clipBtn").textContent = "🎬 Share replay"; G.clipFile = null;
@@ -2195,7 +2195,6 @@ if ("serviceWorker" in navigator && location.protocol !== "file:" && (!TEST || Q
 addEventListener("error", (e) => errors.push(String(e.message)));
 if (TEST) {
   window.__apex = {
-    fw: () => ({ t: fireworks.t, live: fireworks.live, rockets: fireworks.rockets.length, at: fireworks.at, vis: fireworks.pts.visible }),
     get mode() { return G.mode; },
     get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, boosting: v.boosting, drifting: v.drifting, driftAngle: v.driftAngle, lat: v.lat, hErr: wrapA(v.h - v.p.h), bend: Math.abs(G.path.cs[v.p.i]) > 0.004 ? Math.sign(G.path.cs[v.p.i]) : 0 }; },
     get skidCount() { return skids.n; },
