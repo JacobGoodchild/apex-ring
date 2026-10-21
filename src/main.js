@@ -890,7 +890,7 @@ document.querySelectorAll("#assistTabs .tab").forEach((b) => b.addEventListener(
 document.querySelectorAll("#lineTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); save.settings.line = b.dataset.l; writeSave(); applyAids(); refreshSettings(); }));
 $("resetBtn").addEventListener("click", () => {
   if (!TEST && !confirm("Reset all progress? Coins, cars, upgrades and records will be wiped.")) return;
-  resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "♪ On";
+  resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "Sound: On";
   applyDrive(); applyUnits(); applyFps(); setCam("chase"); setMusicVolume(save.settings.music ?? 0.6); toast("Progress reset."); show("menu");
 });
 $("againBtn").addEventListener("click", startRace);
@@ -909,7 +909,7 @@ $("restartBtn").addEventListener("click", startRace);
 $("quitBtn").addEventListener("click", () => { G.cup = null; $("againBtn").hidden = false; toMenu(); });
 $("muteBtn").addEventListener("click", () => {
   save.settings.sound = !save.settings.sound; sfx.setMuted(!save.settings.sound); writeSave();
-  $("muteBtn").textContent = save.settings.sound ? "♪ On" : "♪ Off";
+  $("muteBtn").textContent = save.settings.sound ? "Sound: On" : "Sound: Off";
 });
 setMusicVolume(save.settings.music ?? 0.6);
 $("musicVol").addEventListener("input", (e) => { save.settings.music = Number(e.target.value); setMusicVolume(save.settings.music); writeSave(); });
@@ -957,9 +957,10 @@ document.querySelectorAll("#bandTabs .tab").forEach((b) => b.addEventListener("c
 applyBand();
 applyDrive();
 // cameras: high chase, low chase (cinematic, close behind), bonnet
-function setCam(m) { chase.mode = m; save.settings.camera = m; writeSave(); $("camBtn").textContent = "Cam " + (CAMS.indexOf(m) + 1); chase.ready = false; }
+function camLabel(m) { return "Camera: " + ({ chase: "Chase", low: "Low", bonnet: "Bonnet" }[m] || m); }
+function setCam(m) { chase.mode = m; save.settings.camera = m; writeSave(); $("camBtn").textContent = camLabel(m); chase.ready = false; }
 $("camBtn").addEventListener("click", () => setCam(CAMS[(CAMS.indexOf(chase.mode) + 1) % CAMS.length]));
-$("camBtn").textContent = "Cam " + (CAMS.indexOf(chase.mode) + 1);
+$("camBtn").textContent = camLabel(chase.mode);
 input.onKey = (k) => {
   if (k === "Escape" || k === "p" || k === "P") pause(!G.paused);
   else if ((k === "r" || k === "R") && G.mode === "race") G.player.respawn();
@@ -967,7 +968,7 @@ input.onKey = (k) => {
   else if (k === "c" || k === "C") $("camBtn").click();
 };
 sfx.setMuted(!save.settings.sound);
-$("muteBtn").textContent = save.settings.sound ? "♪ On" : "♪ Off";
+$("muteBtn").textContent = save.settings.sound ? "Sound: On" : "Sound: Off";
 
 // ---------- autopilot (tests and attract mode) ----------
 function autopilot(v) {

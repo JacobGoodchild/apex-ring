@@ -339,12 +339,12 @@ test.describe("Apex Ring", () => {
     const problems = await openGame(page, "rivals=3");
     await startRace(page);
     // the camera button lives in the pause menu now; C cycles it during the race
-    await expect(page.locator("#camBtn")).toHaveText("Cam 1");
-    await page.keyboard.press("c"); await expect(page.locator("#camBtn")).toHaveText("Cam 2");
+    await expect(page.locator("#camBtn")).toHaveText("Camera: Chase");
+    await page.keyboard.press("c"); await expect(page.locator("#camBtn")).toHaveText("Camera: Low");
     await page.waitForTimeout(800);
     await page.screenshot({ path: "screenshots/lowcam-landscape.png" });
-    await page.click("#pauseBtn"); await page.click("#camBtn"); await expect(page.locator("#camBtn")).toHaveText("Cam 3");
-    await page.click("#camBtn"); await expect(page.locator("#camBtn")).toHaveText("Cam 1");
+    await page.click("#pauseBtn"); await page.click("#camBtn"); await expect(page.locator("#camBtn")).toHaveText("Camera: Bonnet");
+    await page.click("#camBtn"); await expect(page.locator("#camBtn")).toHaveText("Camera: Chase");
     await page.click("#resumeBtn");
     expect((await game(page, () => window.__apex.save)).settings.camera).toBe("chase");
     expect(problems).toEqual([]);
