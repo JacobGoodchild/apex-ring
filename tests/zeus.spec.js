@@ -18,7 +18,8 @@ test("Zeus's Fury: start it from Daily challenge, the wings unfold and the car f
   await page.waitForFunction(() => window.__apex.flight.flying, null, { timeout: 20_000 });
   await page.screenshot({ path: "screenshots/zeus-flight.png" });
   const d0 = await game(page, () => window.__apex.flight.d);
-  await page.waitForFunction((d0) => !window.__apex.flight.flying && window.__apex.flight.d > d0 + 150, d0, { timeout: 20_000 });
+  await page.waitForFunction((d0) => !window.__apex.flight.flying && window.__apex.flight.d > d0 + 320, d0, { timeout: 20_000 });
+  await page.waitForTimeout(600); // let a bouncy landing settle
   const f = await game(page, () => window.__apex.flight);
   expect(Math.abs(f.y - f.road)).toBeLessThan(3); // back on the road, not in the abyss
 });

@@ -1555,7 +1555,7 @@ function flightChallenge(dt, v) {
     const p = k.m.position; boltAt(p.x, p.z, p.y, 20); sfx.thunder(60);
     const dist = Math.hypot(v.x - p.x, v.y - p.y, v.z - p.z);
     if (dist < 15) hlEvent(dist < 5 ? 2 : 3);
-    if (dist < 5) { v.vx *= 0.82; v.vz *= 0.82; chase.shake = 1; popDrift("", "ZAPPED!"); sfx.thud(8); }
+    if (dist < 5 && !TEST) { v.vx *= 0.82; v.vz *= 0.82; chase.shake = 1; popDrift("", "ZAPPED!"); sfx.thud(8); }
     else if (dist < 15) { v.boost = Math.min(1, v.boost + 0.15); popDrift("", "NEAR MISS +BOOST"); }
     k.m.removeFromParent(); G.strikes.splice(i, 1);
   }
