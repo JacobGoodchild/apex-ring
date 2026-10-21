@@ -54,6 +54,14 @@ create policy "see your own friends" on public.friends for select to authenticat
 drop policy if exists "remove a friend" on public.friends;
 create policy "remove a friend" on public.friends for delete to authenticated using (user_id = auth.uid());
 
+-- what the public API roles may touch at all (row-level security above then narrows it to each player's own rows)
+grant usage on schema public to anon, authenticated;
+grant select on public.profiles, public.laps, public.leaderboard to anon, authenticated;
+grant insert, update on public.profiles to authenticated;
+grant insert on public.laps to authenticated;
+grant select, delete on public.friends to authenticated;
+revoke insert, update, delete on public.profiles, public.laps, public.friends from anon;
+
 -- add a friend by their code: makes the friendship both ways and returns their name
 create or replace function public.add_friend(code text) returns text
 language plpgsql security definer set search_path = public as $$

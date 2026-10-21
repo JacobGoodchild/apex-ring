@@ -3,7 +3,13 @@
 // Sign-in is anonymous (no email or password): the session token is kept in localStorage on this device.
 import { ONLINE } from "./onlineconfig.js";
 
-export const onlineReady = () => !!(ONLINE.url && ONLINE.anonKey);
+// A secret key (sb_secret_..., or an old-style service_role JWT) gives full control of the database to whoever has it.
+// It must never be in the game; if one is pasted in by mistake, online play stays off rather than use it.
+export function isSecretKey(k) {
+  if (/^sb_secret_/.test(k)) return true;
+  try { return JSON.parse(atob(String(k).split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).role === "service_role"; } catch (_) { return false; }
+}
+export const onlineReady = () => !!(ONLINE.url && ONLINE.anonKey) && !isSecretKey(ONLINE.anonKey);
 const KEY = "apexOnline";
 let sess = null;
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (_) { return null; } };
@@ -31,7 +37,7 @@ export async function signIn() {
   if (!s.access_token) throw new Error("Anonymous sign-in is switched off in the Supabase project");
   keep(s); return s.user.id;
 }
-export const token = () => (sess ? sess.access_token : ONLINE.anonKey);
+export const token = () => (sess ? sess.access_token : undefined); // a publishable key is not a JWT, so only send a real session token
 
 // creates or updates this driver's profile (name + friend code)
 export async function saveProfile(name, code) {
@@ -66,7 +72,7 @@ export class Room {
     const u = ONLINE.url.replace(/^http/, "ws").replace(/\/$/, "") + "/realtime/v1/websocket?apikey=" + enc(ONLINE.anonKey) + "&vsn=1.0.0";
     const ws = (this.ws = new WebSocket(u));
     ws.onopen = () => {
-      this.send0({ topic: this.topic, event: "phx_join", payload: { config: { broadcast: { self: false, ack: false }, presence: { key: "" }, postgres_changes: [], private: false }, access_token: token() }, ref: String(++this.ref), join_ref: "1" });
+      this.send0({ topic: this.topic, event: "phx_join", payload: { config: { broadcast: { self: false, ack: false }, presence: { key: "" }, postgres_changes: [], private: false }, ...(token() ? { access_token: token() } : {}) }, ref: String(++this.ref), join_ref: "1" });
       this.beat = setInterval(() => this.send0({ topic: "phoenix", event: "heartbeat", payload: {}, ref: String(++this.ref) }), 25000);
     };
     ws.onmessage = (e) => {
