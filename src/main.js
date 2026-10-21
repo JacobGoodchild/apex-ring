@@ -27,7 +27,7 @@ import { setMusicMode, setMusicVolume, songName, SONGS } from "./music.js";
 import { ChaseCam } from "./camera.js";
 import { Driver, RIVALS, collide, STYLE_NAMES } from "./ai.js";
 import { makeRng } from "./rng.js";
-import { Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
+import { Sparks, Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
 import { addWings, setWings } from "./wings.js";
 
@@ -48,7 +48,7 @@ const camera2 = new THREE.PerspectiveCamera(60, 1, 0.1, 2600), chase2 = new Chas
 scene.add(camera);
 const showroom = new Showroom(world);
 showroom.bindDrag($("menu")); showroom.bindDrag($("garage"));
-const skids = new Skids(scene), smoke = new Smoke(scene), speedLines = new SpeedLines(camera);
+const skids = new Skids(scene), smoke = new Smoke(scene), speedLines = new SpeedLines(camera), sparks = new Sparks(scene);
 const CAMS = ["chase", "low", "bonnet"];
 chase.mode = CAMS.includes(save.settings.camera) ? save.settings.camera : "chase";
 
@@ -723,7 +723,7 @@ function buildCareer() {
   const dsec = document.createElement("div"); dsec.className = "chapter daily";
   dsec.innerHTML = `<div class="chh">Today</div>`;
   const db = document.createElement("button"); db.type = "button"; db.id = "ev-daily"; db.className = "event node daily t-" + daily.type + (dst && dst.done ? " done" : "");
-  db.innerHTML = `<span class="nd">DAILY</span><span class="nn">${TYPE_LABEL[daily.type]}</span><span class="ns">${dst && dst.done ? "★".repeat(dst.stars) + "☆".repeat(3 - dst.stars) : "+900 · 1 gem"}</span>`;
+  db.innerHTML = `<span class="nd" data-t="DAILY">DAILY</span><span class="nn">${TYPE_LABEL[daily.type]}</span><span class="ns">${dst && dst.done ? "★".repeat(dst.stars) + "☆".repeat(3 - dst.stars) : "+900 · 1 gem"}</span>`;
   db.addEventListener("click", () => selectEvent(daily));
   dsec.appendChild(db); el.appendChild(dsec);
   EVENTS.forEach((ev, i) => {
@@ -737,7 +737,7 @@ function buildCareer() {
     const b = document.createElement("button"); b.type = "button"; b.id = "ev-" + ev.id;
     b.className = "event node t-" + ev.type + (st && st.done ? " done" : "") + (open ? "" : " lockd");
     b.disabled = !open;
-    b.innerHTML = `<span class="nd">${open ? TYPE_TAG[ev.type] : "🔒"}</span><span class="nn">${ev.name.replace("Boss: ", "")}</span><span class="ns">${st ? "★".repeat(st.stars) + "☆".repeat(3 - st.stars) : open ? "☆☆☆" : ""}</span>`;
+    b.innerHTML = `<span class="nd" data-t="${open ? TYPE_TAG[ev.type] : "🔒"}">${open ? TYPE_TAG[ev.type] : "🔒"}</span><span class="nn">${ev.name.replace("Boss: ", "")}</span><span class="ns">${st ? "★".repeat(st.stars) + "☆".repeat(3 - st.stars) : open ? "☆☆☆" : ""}</span>`;
     b.addEventListener("click", () => selectEvent(ev));
     row.appendChild(b);
   });
@@ -1235,6 +1235,7 @@ function lightning(dt) {
 // Smoke + skid marks from the rear wheels when a car slides or brakes hard. Runs every physics tick (so a short
 // slide still marks the road on a slow phone); the wheel positions come from the car's state, not its model.
 function tyreFx(key, v, dt) {
+  if (v.wallHit > 2.5) { const s = Math.sign(v.lat) || 1, nx = Math.cos(v.p.h) * s, nz = -Math.sin(v.p.h) * s; sparks.emit(v.x - nx * 0.9, v.y, v.z - nz * 0.9, v.vx, v.vz, nx, nz, Math.min(14, 3 + v.wallHit)); }
   if (v.airborne) { skids.mark(key + 2, 0, 0, 0, 0, 0); skids.mark(key + 3, 0, 0, 0, 0, 0); return; }
   const slide = Math.abs(v.driftAngle) > 0.12 && v.vF > 12 ? Math.min(1, (Math.abs(v.driftAngle) - 0.08) * 4) : 0;
   const lock = v.lonAcc < -18 && v.vF > 15 ? 0.6 : 0;
@@ -1296,7 +1297,7 @@ function render(dt) {
   if (car.beams) car.beams.visible = false; // the player has a real spotlight at night instead
   if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.friend) G.friend.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
-  smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight);
+  smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight); sparks.update(dt);
   drawRocks();
   if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
   speedLines.update(dt, v.vF, G.mode === "race" && fxOn() && !G.photo ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);

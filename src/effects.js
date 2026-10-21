@@ -197,3 +197,41 @@ export function updateContactShadow(model, carY, groundY) {
   model.blob.position.y = 0.04 - up; model.blob.material.opacity = Math.max(0, 1 - up / 6);
   const k = 1 + up * 0.08; model.blob.scale.set(k, 1, k);
 }
+
+// Sparks: short glowing streaks thrown off when a car scrapes a wall. One draw call (line segments), pooled.
+export class Sparks {
+  constructor(scene, max = 160) {
+    this.max = max; this.i = 0; this.p = new Float32Array(max * 3); this.v = new Float32Array(max * 3); this.life = new Float32Array(max);
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(max * 6), 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 6), 3).setUsage(THREE.DynamicDrawUsage));
+    this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    this.lines.frustumCulled = false; scene.add(this.lines); this.geo = g;
+  }
+  // a burst at (x, y, z), thrown along the car's velocity and away from the wall (nx, nz)
+  emit(x, y, z, vx, vz, nx, nz, n = 10) {
+    for (let k = 0; k < n; k++) {
+      const i = this.i++ % this.max, s = 0.3 + Math.random() * 0.6;
+      this.p[i * 3] = x; this.p[i * 3 + 1] = y + 0.4; this.p[i * 3 + 2] = z;
+      this.v[i * 3] = vx * s + nx * (2 + Math.random() * 5) + (Math.random() - 0.5) * 6;
+      this.v[i * 3 + 1] = 1 + Math.random() * 5;
+      this.v[i * 3 + 2] = vz * s + nz * (2 + Math.random() * 5) + (Math.random() - 0.5) * 6;
+      this.life[i] = 0.25 + Math.random() * 0.35;
+    }
+  }
+  update(dt) {
+    const pos = this.geo.attributes.position.array, col = this.geo.attributes.color.array;
+    for (let i = 0; i < this.max; i++) {
+      const o = i * 6;
+      if (this.life[i] <= 0) { for (let k = 0; k < 6; k++) { pos[o + k] = 0; col[o + k] = 0; } continue; }
+      this.life[i] -= dt; this.v[i * 3 + 1] -= 14 * dt;
+      const x = this.p[i * 3], y = this.p[i * 3 + 1], z = this.p[i * 3 + 2];
+      this.p[i * 3] += this.v[i * 3] * dt; this.p[i * 3 + 1] = Math.max(y + this.v[i * 3 + 1] * dt, 0.02); this.p[i * 3 + 2] += this.v[i * 3 + 2] * dt;
+      // streak from where it was a moment ago to where it is now; white-hot fading to orange
+      pos[o] = x - this.v[i * 3] * 0.03; pos[o + 1] = y - this.v[i * 3 + 1] * 0.03; pos[o + 2] = z - this.v[i * 3 + 2] * 0.03;
+      pos[o + 3] = this.p[i * 3]; pos[o + 4] = this.p[i * 3 + 1]; pos[o + 5] = this.p[i * 3 + 2];
+      const h = Math.min(1, this.life[i] * 3);
+      col[o] = 1; col[o + 1] = 0.45 + 0.4 * h; col[o + 2] = 0.1 + 0.5 * h; col[o + 3] = 1; col[o + 4] = 0.6 + 0.4 * h; col[o + 5] = 0.3 + 0.6 * h;
+    }
+    this.geo.attributes.position.needsUpdate = true; this.geo.attributes.color.needsUpdate = true;
+  }
+}

@@ -295,3 +295,23 @@ body:has(.screen.full:not([hidden])) .topbar .brand { visibility: hidden; }
 #soon .card.soon { max-width: 380px; background: linear-gradient(180deg, rgba(18, 25, 38, .98), rgba(8, 11, 18, .98)); box-shadow: inset 0 0 0 1px var(--line2), 0 20px 60px rgba(0,0,0,.6); padding: var(--s5); border-radius: var(--r); text-align: left; }
 #soon { z-index: 30; }
 .soon-i { width: 34px; height: 34px; color: var(--accent2); }
+
+/* results, pause, career, garage, settings in the new style */
+#finish .card { max-width: 480px; }
+.place { font: italic 800 72px/0.85 var(--display); color: var(--text); letter-spacing: -.02em; }
+.place small { font: 700 18px var(--display); color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-left: 6px; }
+.standings { font-family: var(--display); gap: 2px; }
+.standings li { background: rgba(255, 255, 255, .035); border-radius: 2px; padding: 6px 10px; font-size: 17px; }
+.standings li.me { background: rgba(255, 122, 26, .16); outline: 0; box-shadow: inset 3px 0 0 var(--accent); }
+.standings .pos { font-style: italic; font-weight: 800; }
+.podium .blk { border-radius: 2px 2px 0 0; font-style: italic; }
+.reward { background: rgba(255, 255, 255, .035); border: 0; box-shadow: inset 0 0 0 1px var(--line); border-radius: var(--r); }
+.evhead { border: 0; box-shadow: inset 3px 0 0 var(--accent), inset 0 0 0 1px var(--line); border-radius: var(--r); background: rgba(255,255,255,.035); }
+.evhead.ok { box-shadow: inset 3px 0 0 #46d38a, inset 0 0 0 1px var(--line); } .evhead.fail { box-shadow: inset 3px 0 0 #ff5a4e, inset 0 0 0 1px var(--line); }
+#finish .btn, #pause .btn, #settings .btn, #garage .btn, #career .btn { width: 100%; box-sizing: border-box; }
+.label { margin-top: 2px; }
+#settings .tabs { margin-bottom: 4px; }
+.nd { border-radius: 4px; transform: rotate(45deg); width: 38px; height: 38px; }
+.nd > * { transform: rotate(-45deg); }
+.event.node .nd { font-size: 0; position: relative; }
+.event.node .nd::after { content: attr(data-t); position: absolute; inset: 0; display: grid; place-items: center; transform: rotate(-45deg); font: 800 9px var(--display); letter-spacing: .06em; }

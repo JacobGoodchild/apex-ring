@@ -180,6 +180,19 @@ export function buildScenery(path, theme, density, seed) {
       const c = new THREE.Color().setScalar(light * (0.82 + rnd() * 0.3)).lerp(new THREE.Color(light, light, light * 1.05), snowy);
       return { x, z, y: ground(x, z) - cell.base * cell.extent * s - 0.15, sx: cell.extent * 0.5 * s, sy: cell.extent * s, sz: 1, r: 0, cell: cell.cell, c };
     };
+    // the verge: grass tufts and low bushes all along both sides of the track, just beyond the run-off
+    const tufts = TREE_CELLS.filter((c) => c.key === "grass" || c.key === "bush");
+    if (tufts.length && kind !== "desert") {
+      const verge = [];
+      for (let d = 0; d < path.length; d += 2.2 / Math.max(0.4, density)) {
+        if (nearGap(d)) continue;
+        const side = rnd() < 0.5 ? -1 : 1, cell = tufts[Math.floor(rnd() * tufts.length)], bush = cell.key === "bush";
+        path.pointAt(d, side * (edge + 0.8 + rnd() * (bush ? 10 : 6)), tmp);
+        const s = (bush ? 1.6 : 1.1) * (0.7 + rnd() * 0.6), c = new THREE.Color().setScalar(light * (0.75 + rnd() * 0.3));
+        verge.push({ x: tmp.x, z: tmp.z, y: ground(tmp.x, tmp.z) - cell.base * cell.extent * s, sx: cell.extent * 0.5 * s, sy: cell.extent * s, sz: 1, r: 0, cell: cell.cell, c });
+      }
+      if (verge.length) add(treeCards(verge, 0));
+    }
     const trees = scatter(path, grid, rnd, n, edge + 8, 260, make).concat(terrain ? scatter(path, grid, rnd, Math.round(n * 0.6), edge + 90, 700, make) : []);
     if (trees.length) add(treeCards(trees, snowy));
   }
