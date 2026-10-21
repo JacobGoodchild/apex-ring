@@ -206,7 +206,7 @@ body:has(.screen.full:not([hidden])) .topbar .brand { visibility: hidden; }
   .scrhead { flex-wrap: wrap; padding-right: 150px; gap: var(--s2) var(--s3); }
   .scrtitle { font-size: 26px; }
   .scrhead .seg { margin-right: -150px; }
-  .scrhead .seg { order: 3; width: 100%; } .scrhead .seg .tab { flex: 1; padding: 8px 4px; }
+  .scrhead .seg { order: 3; flex: 0 0 calc(100% + 150px); width: auto; } .scrhead .seg .tab { flex: 1; padding: 8px 4px; min-width: 0; font-size: 12px; } /* its own full-width row under the title */
   .setupgrid { display: flex; flex-direction: column; flex: none; }
   .hero { flex: none; height: 46vw; min-height: 210px; max-height: 300px; }
   .hero .trackName { font-size: 38px; }
