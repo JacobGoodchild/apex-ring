@@ -188,13 +188,19 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   const scoops = [];
   if (S.intake) scoops.push(loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: S.n, tumble: () => S.tumble, th0: -0.12, th1: 0.32, scale: 1.006, closeEnds: false }),
     loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: S.n, tumble: () => S.tumble, th0: Math.PI - 0.32, th1: Math.PI + 0.12, scale: 1.006, closeEnds: false }));
-  for (const s of [-1, 1]) { const ex = new THREE.CylinderGeometry(0.075, 0.085, 0.24, 12); ex.rotateX(Math.PI / 2); ex.translate(s * 0.32, 0.38, -L + 0.02); carbonParts.push(ex); }
+  // rear diffuser: vertical strakes under the bumper
+  for (let k = -2; k <= 2; k++) carbonParts.push(box(0.025, 0.16, 0.42, k * S.wid * 0.32, 0.19, -L + 0.2));
+  const chrome = [];
+  for (const s of [-1, 1]) {
+    const ex = new THREE.CylinderGeometry(0.075, 0.085, 0.24, 14, 1, true); ex.rotateX(Math.PI / 2); ex.translate(s * 0.32, 0.38, -L + 0.02); chrome.push(ex);
+    const lip = new THREE.TorusGeometry(0.078, 0.012, 6, 16); lip.translate(s * 0.32, 0.38, -L - 0.1); chrome.push(lip);
+  }
   // wing
   const wingY = S.wing === "high" ? S.deck + 0.42 : S.deck + 0.12;
   if (S.wing === "high" || S.wing === "low") {
     carbonParts.push(aerofoil(S.wid * 2.1, 0.44, 0.065, 0, wingY, -L + 0.52, -0.12));
     for (const s of [-1, 1]) {
-      carbonParts.push(box(0.04, 0.24, 0.5, s * S.wid * 1.05, wingY - 0.04, -L + 0.3));
+      carbonParts.push(box(0.018, 0.17, 0.48, s * S.wid * 1.05, wingY - 0.01, -L + 0.5, 0.12)); // slim endplates
       if (S.wing === "high") { // slim swept struts from the deck up to the wing
         const h = wingY - S.deck + 0.02, strut = new THREE.BoxGeometry(0.035, h, 0.16); strut.rotateX(0.25); strut.translate(s * 0.45, S.deck + h / 2 - 0.02, -L + 0.55); carbonParts.push(strut);
       }
@@ -217,6 +223,14 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   const tz = -L + 0.1, ty = t(tz) - 0.1;
   for (const s of [-1, 1]) tails.push(box(0.05, 0.14, 0.06, s * S.wid * 0.8, ty - 0.06, tz - 0.08));
   add(heads, M.head, false);
+  add(chrome, M.rim, false);
+  // LED projector lenses: two small glowing lenses tucked under each headlight strip
+  const lenses = [];
+  for (const s of [-1, 1]) for (const k of [0, 1]) {
+    const z = hz0 + 0.02 + k * 0.1, x = s * (w(z) * (0.62 + k * 0.12)), lens = new THREE.SphereGeometry(0.045, 10, 8);
+    lens.scale(1, 0.75, 0.6); lens.translate(x, t(z) - 0.06, z + 0.02); lenses.push(lens);
+  }
+  add(lenses, M.head, false);
   const tailMesh = add(tails, M.tail, false);
   // grille / arch shadows / scoops
   add([...scoops, box(S.wid * 1.1, 0.1, 0.12, 0, (t(L - 0.08) + 0.2) / 2, L - 0.08), box(S.wid * 1.4, 0.14, 0.08, 0, 0.42, -L + 0.06)], M.dark, false);

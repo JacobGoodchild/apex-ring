@@ -215,17 +215,21 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
   // pouring off the far cliff of the first chasm. One mesh for all the islands; the waterfall's texture is scrolled by the game.
   if (theme.floating && path.gaps.length) {
     let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const geos = [];
+    const geos = [], tops = [];
     for (const g of path.gaps) for (let k = 0; k < 9; k++) {
       const d = g.d0 - 120 + rnd() * (g.d1 - g.d0 + 240), side = rnd() < 0.5 ? -1 : 1, lat = side * (W + R + 25 + rnd() * 140);
       path.pointAt(d, lat, tmp);
       const r = 4 + rnd() * 10, top = new THREE.IcosahedronGeometry(r, 1), under = new THREE.ConeGeometry(r * 0.9, r * (1.8 + rnd()), 7, 1);
       top.scale(1, 0.45, 1); under.rotateX(Math.PI); under.translate(0, -r * (0.9 + rnd() * 0.4), 0);
       const y = tmp.y + 6 + rnd() * 40;
-      for (const q of [top, under]) { const m = q.index ? q.toNonIndexed() : q; m.rotateY(rnd() * 6); m.translate(tmp.x, y, tmp.z); m.deleteAttribute("normal"); geos.push(m); }
+      const spin = rnd() * 6;
+      for (const [q, list] of [[top, tops], [under, geos]]) { const m = q.index ? q.toNonIndexed() : q; m.rotateY(spin); m.translate(tmp.x, y, tmp.z); m.deleteAttribute("normal"); list.push(m); }
     }
     const isl = mergeGeometries(geos, false); isl.computeVertexNormals();
     const isles = new THREE.Mesh(isl, surface("rock", 0xb0a898, [0.2, 0.2], { flatShading: true })); isles.name = "isles"; isles.castShadow = true; group.add(isles);
+    // grassy tops on the islands
+    const tg = mergeGeometries(tops, false); tg.computeVertexNormals();
+    group.add(new THREE.Mesh(tg, surface("grass", 0x8fb06a, [0.25, 0.25], { flatShading: true })));
     // the waterfall
     const g0 = path.gaps[0]; path.pointAt(g0.d1 + 2, W + R + 6, tmp);
     const fallTex = canvasTex(64, 256, (c, w, h) => {
