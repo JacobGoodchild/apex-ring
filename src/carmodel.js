@@ -171,8 +171,8 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
     carbonParts.push(aerofoil(S.wid * 2.1, 0.44, 0.065, 0, wingY, -L + 0.52, -0.12));
     for (const s of [-1, 1]) {
       carbonParts.push(box(0.04, 0.24, 0.5, s * S.wid * 1.05, wingY - 0.04, -L + 0.3));
-      if (S.wing === "high") { // swan-neck mounts: curved struts from the deck up over the wing
-        const h = wingY - S.deck + 0.05, neck = new THREE.TorusGeometry(h * 0.55, 0.022, 6, 12, Math.PI * 0.7); neck.rotateY(Math.PI / 2); neck.translate(s * 0.45, S.deck + h * 0.38, -L + 0.5); carbonParts.push(neck);
+      if (S.wing === "high") { // slim swept struts from the deck up to the wing
+        const h = wingY - S.deck + 0.02, strut = new THREE.BoxGeometry(0.035, h, 0.16); strut.rotateX(0.25); strut.translate(s * 0.45, S.deck + h / 2 - 0.02, -L + 0.55); carbonParts.push(strut);
       }
     }
   } else if (S.wing === "duck") paintParts.push(box(S.wid * 1.7, 0.06, 0.22, 0, S.tail + 0.05, -L + 0.12, -0.35));
@@ -222,10 +222,12 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   // the cabin you see through the glass: a dark tub over the body top, seat backs with headrests, a dash and a steering wheel
   const tub = loft({ z0: c0 + 0.1, z1: c1 - 0.1, nz: 12, nt: 12, w: (z) => S.cabinW * 0.95, t: (z) => t(z) + 0.012, b: (z) => t(z) - 0.05, n: 2.4, tumble: () => 0.62, th0: 0.2, th1: Math.PI - 0.2, closeEnds: false });
   add([tub, box(S.cabinW * 1.5, 0.08, 0.32, 0, t(c1 - 0.35) + 0.07, c1 - 0.35, -0.25)], M.cabin, false);
-  const seatZ = S.cabinZ - 0.35, seats = [];
+  // seat backs sized to fit under the canopy (the roof is lowest at the sides, so they sit well inside it)
+  const seatZ = S.cabinZ - 0.3, seats = [], sx = Math.min(0.22, S.cabinW * 0.3);
+  const top = ct(seatZ) - 0.24, base = t(seatZ) + 0.04, r = 0.11, len = Math.max(0.02, top - base - 2 * r); // tops stay well under the curved roof
   for (const s of [-1, 1]) {
-    const back = new THREE.CapsuleGeometry(0.17, 0.28, 4, 10); back.scale(1, 1, 0.45); back.rotateX(-0.28); back.translate(s * 0.31, t(seatZ) + 0.2, seatZ); seats.push(back);
-    const head = new THREE.SphereGeometry(0.1, 10, 8); head.scale(1, 0.85, 0.6); head.translate(s * 0.31, t(seatZ) + 0.47, seatZ - 0.1); seats.push(head);
+    const back = new THREE.CapsuleGeometry(r, len, 4, 10); back.scale(1, 1, 0.45); back.rotateX(-0.2);
+    back.translate(s * sx, base + r + len / 2, seatZ); seats.push(back);
   }
   add(seats, M.leather, false);
   const wheel = new THREE.TorusGeometry(0.13, 0.018, 6, 20); wheel.rotateX(-0.55); wheel.translate(0.31, t(c1 - 0.55) + 0.18, c1 - 0.55);
