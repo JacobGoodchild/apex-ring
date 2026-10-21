@@ -4,9 +4,3 @@ playwright-report/
 screenshots/dev-*.png
 sw-test.js
 devassets/
-
-# secrets never go in the repo
-.env
-.env.*
-*.secret
-supabase/.temp/

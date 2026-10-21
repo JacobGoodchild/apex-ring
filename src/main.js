@@ -30,7 +30,6 @@ import { makeRng } from "./rng.js";
 import { Sparks, Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
 import { addWings, setWings } from "./wings.js";
-import { onlineReady, signIn, saveProfile, postLap, topLaps, friendLaps, addFriend, myId, Room, roomCode } from "./online.js";
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -319,7 +318,7 @@ function gridUp() {
 // Everyone in the race, ordered by position.
 function standings() {
   const L = G.path.length, n = laps();
-  const all = [{ veh: G.player, name: "You", me: true, finished: G.playerFinish, color: 0xf2a65a }, ...G.field, ...(G.net ? [...G.net.peers.values()].filter((q) => q.racing) : [])];
+  const all = [{ veh: G.player, name: "You", me: true, finished: G.playerFinish, color: 0xf2a65a }, ...G.field];
   return all.sort((a, b) => {
     if (a.finished != null && b.finished != null) return a.finished - b.finished;
     if (a.finished != null) return -1; if (b.finished != null) return 1;
@@ -544,8 +543,8 @@ function startRace() {
   if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
   if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
   G.splitRace = !!G.split && !ev && !G.trial && canSplit(); input.split = G.splitRace;
-  G.field = solo || G.net ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
-  G.realRace = !trialMode() && (G.field.length > 0 || !!(G.net && G.net.peers.size));
+  G.field = solo ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
+  G.realRace = !trialMode() && G.field.length > 0;
   for (const r of G.rivals) r.model.group.visible = G.field.includes(r);
   G.elimDone = 0; G.eliminated = false; G.attackShown = -1;
   if (ev && ev.type === "boss") setTimeout(() => toast("BOSS BATTLE · " + ev.desc.split(".")[0], 3200), 300);
@@ -587,7 +586,6 @@ function finishRace() {
   G.mode = "done";
   if (G.rocks && G.rocks.length) { G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock"); G.rocks = []; }
   G.playerFinish = G.raceTime;
-  if (G.net && G.net.racing) G.net.room.send("fin", { i: G.net.me, t: G.raceTime });
   const order = standings(), place = order.findIndex((e) => e.me) + 1;
   sfx.fanfare(place <= 3 && !G.eliminated);
   G.place = place;
@@ -799,150 +797,29 @@ function friendCode() {
   if (!save.friendCode) { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < 4; i++) c += a[Math.floor(Math.random() * a.length)]; save.friendCode = "APX-" + c; writeSave(); }
   return save.friendCode;
 }
-const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const boardRow = (r, i, me) => `<li class="${r.user_id === me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="nm">${esc(r.name)}</span><span class="tm">${fmt(r.ms / 1000)}</span></li>`;
-function refreshOnline(fetchNow = true) {
+function refreshOnline() {
   const t = TRACKS[G.oTrack], best = save.best[t.id], name = save.driverName || "You";
   $("oTrackName").textContent = t.name;
+  // your own best lap is real; the world's rows are placeholders until the server exists
+  const rows = [`<li class="me"><span class="pos">–</span><span class="nm">${name} <small>this device</small></span><span class="tm">${best ? fmt(best) : "no lap yet"}</span></li>`];
+  for (let i = 1; i <= 6; i++) rows.push(`<li class="ghostrow"><span class="pos">${i}</span><span class="nm"><i></i></span><span class="tm"><i></i></span></li>`);
+  $("oBoard").innerHTML = rows.join("");
+  $("oFriendBoard").innerHTML = `<li class="me"><span class="pos">1</span><span class="nm">${name}</span><span class="tm">${best ? fmt(best) : "–"}</span></li><li class="empty">Add friends to see their times here.</li>`;
   $("oCode").textContent = friendCode();
   $("oName").value = save.driverName || "";
   const st = save.stats || { races: 0, wins: 0, podiums: 0 };
   $("oStats").innerHTML = [["Races", st.races], ["Wins", st.wins], ["Podiums", st.podiums]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("");
-  if (onlineReady() && fetchNow) {
-    // real boards from the server (your best lap is uploaded when you set it)
-    const id = t.id;
-    $("oBoard").innerHTML = `<li class="empty">Loading…</li>`;
-    ensureProfile().catch(() => {}).then(() => Promise.all([topLaps(id), friendLaps(id).catch(() => [])])).then(([top, fr]) => {
-      if (TRACKS[G.oTrack].id !== id) return;
-      const me = myId();
-      $("oBoard").innerHTML = top.length ? top.map((r, i) => boardRow(r, i, me)).join("") : `<li class="empty">No laps yet. Set one and you're first!</li>`;
-      $("oFriendBoard").innerHTML = fr.length ? fr.map((r, i) => boardRow(r, i, me)).join("") : `<li class="empty">No laps from you or your friends on this track yet.</li>`;
-    }).catch((e) => { $("oBoard").innerHTML = `<li class="empty">Couldn't reach the server: ${esc(e.message)}</li>`; });
-    return;
-  }
-  // not set up yet: your own best lap is real; the world's rows are placeholders
-  const rows = [`<li class="me"><span class="pos">–</span><span class="nm">${esc(name)} <small>this device</small></span><span class="tm">${best ? fmt(best) : "no lap yet"}</span></li>`];
-  for (let i = 1; i <= 6; i++) rows.push(`<li class="ghostrow"><span class="pos">${i}</span><span class="nm"><i></i></span><span class="tm"><i></i></span></li>`);
-  $("oBoard").innerHTML = rows.join("");
-  $("oFriendBoard").innerHTML = `<li class="me"><span class="pos">1</span><span class="nm">${esc(name)}</span><span class="tm">${best ? fmt(best) : "–"}</span></li><li class="empty">Add friends to see their times here.</li>`;
 }
-// the server needs a profile (name + friend code) before it takes laps or friends; made once per session
-function ensureProfile(force = false) {
-  if (!G.profileP || force) G.profileP = saveProfile((save.driverName || "Driver").slice(0, 16), friendCode()).catch((e) => { G.profileP = null; throw e; });
-  return G.profileP;
-}
-function uploadLap(track, lap) { if (onlineReady() && !TEST) ensureProfile().then(() => postLap(track, lap, save.car)).catch(() => {}); }
-function doAddFriend() {
-  const code = $("oFriendCode").value.trim().toUpperCase(); if (!code) return;
-  sfx.click();
-  ensureProfile().then(() => addFriend(code)).then((n) => { sfx.chime(); toast(`${n || "Driver"} is now your friend`, 2000); $("oFriendCode").value = ""; refreshOnline(); })
-    .catch((e) => toast(e.message.includes("No driver") ? "No driver has that code" : e.message.includes("own code") ? "That's your own code" : "Couldn't add: " + e.message, 2400));
-}
-function onlineTab(o) {
-  document.querySelectorAll("#online .seg .tab").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.o === o)));
-  for (const [k, id] of [["global", "oGlobal"], ["friends", "oFriends"], ["race", "oRace"], ["profile", "oProfile"]]) $(id).hidden = k !== o;
-  if (o === "race") drawLobby();
-}
-document.querySelectorAll("#online .seg .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); onlineTab(b.dataset.o); }));
-
-// ---------- race friends live: a room on Supabase Realtime. Messages: hi (who's here), trk (host's track pick),
-// go (start), s (car state, 10 a second), fin (finish time), bye. Friends' cars are drawn where they say they are. ----------
-const NET_COLORS = [0x4cc9f0, 0xf72585, 0x80ed99, 0xffd166, 0xb388ff, 0xff8fab, 0x90e0ef];
-const NET_TRACKS = TRACKS.filter((t) => t.id !== "xtreme");
-function openRoom(code, host) {
-  if (!onlineReady()) { soon("Live races with friends are under construction: they switch on once the game's server is set up."); return; }
-  sfx.click(); leaveRoom();
-  const n = (G.net = { code, host, me: null, peers: new Map(), track: G.track ? baseId(G.track.id) : NET_TRACKS[0].id, racing: false, room: null, status: "Connecting…" });
-  drawLobby();
-  signIn().then((id) => id, () => "g" + Math.random().toString(36).slice(2, 10)).then((id) => {
-    if (G.net !== n) return;
-    n.me = id;
-    n.room = new Room(code, (e, p) => netMsg(e, p), (st, why) => {
-      if (G.net !== n) return;
-      n.status = st === "open" ? "" : st === "closed" ? "Disconnected" : "Couldn't join: " + (why || st);
-      if (st === "open") { netHello(); n.helloT = setInterval(netHello, 2000); }
-      drawLobby();
-    });
-  });
-}
-function leaveRoom() {
-  const n = G.net; if (!n) return;
-  if (n.room) { n.room.send("bye", { i: n.me }); n.room.close(); }
-  clearInterval(n.helloT); for (const q of n.peers.values()) if (q.model) q.model.group.removeFromParent();
-  G.net = null; drawLobby();
-}
-function netHello() { const n = G.net; if (n && n.room) n.room.send("hi", { i: n.me, n: (save.driverName || "Driver").slice(0, 16), c: save.car, h: n.host ? 1 : 0, t: n.host ? n.track : undefined }); }
-function netMsg(e, p) {
-  const n = G.net; if (!n || !p || p.i === n.me) return;
-  let q = n.peers.get(p.i);
-  if (!q && e !== "bye") { q = { id: p.i, name: "Driver", car: CARS[0].id, color: NET_COLORS[n.peers.size % NET_COLORS.length], veh: { totalD: 0, vF: 0 }, finished: null, racing: false, seen: 0, at: null, model: null }; n.peers.set(p.i, q); }
-  if (q) q.seen = performance.now();
-  if (e === "hi") { q.name = esc(String(p.n || "Driver").slice(0, 16)); if (CARS.some((c) => c.id === p.c)) q.car = p.c; if (p.h && p.t && !n.host && trackById(p.t)) n.track = p.t; if (G.mode === "menu") drawLobby(); }
-  else if (e === "trk" && !n.host && trackById(p.t)) { n.track = p.t; drawLobby(); }
-  else if (e === "go" && !n.host && trackById(p.t) && G.mode === "menu") { n.track = p.t; netStart(); }
-  else if (e === "s" && n.racing) { q.racing = true; q.prev = q.at; q.at = { x: +p.x, y: +p.y, z: +p.z, h: +p.h, t: performance.now() }; q.veh.totalD = +p.d || 0; q.veh.vF = +p.v || 0; }
-  else if (e === "fin" && n.racing) { q.finished = +p.t; }
-  else if (e === "bye") { if (q && q.model) q.model.group.removeFromParent(); n.peers.delete(p.i); drawLobby(); }
-}
-function drawLobby() {
-  const n = G.net, inRoom = !!n;
-  $("oRoomStart").hidden = inRoom; $("oLobby").hidden = !inRoom;
-  if (!n) return;
-  const now = performance.now();
-  for (const [k, q] of n.peers) if (now - q.seen > 7000 && !n.racing) n.peers.delete(k); // gone quiet: left
-  $("oRoomName").textContent = n.code;
-  $("oRoomTrack").textContent = trackById(n.track).name;
-  $("oRoomPick").hidden = !n.host; $("oGo").hidden = !n.host; $("oWait").hidden = n.host && !n.status;
-  $("oWait").textContent = n.status || "Waiting for the host to start the race…";
-  const me = `<li class="me"><span class="pos">${n.host ? "★" : "·"}</span><span class="nm">${esc(save.driverName || "You")} <small>you</small></span><span class="tm">${carDef(save.car).name}</span></li>`;
-  $("oPlayers").innerHTML = me + [...n.peers.values()].map((q) => `<li><span class="pos">·</span><span class="nm">${q.name}</span><span class="tm">${carDef(q.car).name}</span></li>`).join("") + (n.peers.size ? "" : `<li class="empty">Send your friends the code <b>${n.code}</b> to join.</li>`);
-}
-const carDef = (id) => CARS.find((c) => c.id === id) || CARS[0];
-function netPickTrack(dir) {
-  const n = G.net; if (!n || !n.host) return;
-  const i = NET_TRACKS.findIndex((t) => t.id === n.track); n.track = NET_TRACKS[(i + dir + NET_TRACKS.length) % NET_TRACKS.length].id;
-  sfx.click(); n.room && n.room.send("trk", { i: n.me, t: n.track }); drawLobby();
-}
-function netStart() {
-  const n = G.net; if (!n) return;
-  if (n.host) n.room.send("go", { i: n.me, t: n.track });
-  for (const q of n.peers.values()) { q.finished = null; q.racing = false; q.at = q.prev = null; q.veh.totalD = 0; }
-  n.racing = true; n.sendT = 0;
-  G.event = null; G.cup = null; G.trial = false; G.split = false;
-  loadTrack(n.track, "dry"); startRace();
-  $("againBtn").hidden = true;
-}
-function netFrame(dt) {
-  const n = G.net; if (!n.racing) return;
-  if (G.mode === "menu") { n.racing = false; for (const q of n.peers.values()) { q.racing = false; if (q.model) q.model.group.visible = false; } return; }
-  const v = G.player;
-  if ((n.sendT -= dt) <= 0 && n.room) { n.sendT = 0.1; n.room.send("s", { i: n.me, x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2), h: +v.h.toFixed(3), d: +v.totalD.toFixed(1), v: +v.vF.toFixed(1) }); }
-  const now = performance.now();
-  for (const q of n.peers.values()) {
-    if (!q.at) continue;
-    if (!q.model) { q.model = makeCar(carDef(q.car), q.color); scene.add(q.model.group); }
-    const g = q.model.group; g.visible = true;
-    // aim a little ahead of the last report along its velocity (reports come 10 a second), and ease toward it
-    const a = q.at, b = q.prev, k = b && a.t > b.t ? Math.min(0.25, (now - a.t) / 1000) / ((a.t - b.t) / 1000) : 0;
-    const tx = a.x + (b ? (a.x - b.x) * k : 0), ty = a.y + (b ? (a.y - b.y) * k : 0), tz = a.z + (b ? (a.z - b.z) * k : 0);
-    const e = Math.min(1, dt * 12);
-    if (!q.placed) { g.position.set(tx, ty, tz); g.rotation.y = a.h; q.placed = true; }
-    g.position.x += (tx - g.position.x) * e; g.position.y += (ty - g.position.y) * e; g.position.z += (tz - g.position.z) * e;
-    let dh = a.h - g.rotation.y; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); g.rotation.y += dh * e;
-  }
-}
-$("oMakeRoom").addEventListener("click", () => openRoom(roomCode(), true));
-$("oJoin").addEventListener("click", () => { const c = $("oRoomCode").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""); if (c.length === 5) openRoom(c, false); else toast("Room codes have 5 letters and numbers", 1800); });
-$("oLeave").addEventListener("click", () => { sfx.click(); leaveRoom(); });
-$("oRPrev").addEventListener("click", () => netPickTrack(-1));
-$("oRNext").addEventListener("click", () => netPickTrack(1));
-$("oGo").addEventListener("click", () => { if (G.net && G.net.host && G.net.room && G.net.room.open) { sfx.click(); netStart(); } });
+document.querySelectorAll("#online .seg .tab").forEach((b) => b.addEventListener("click", () => {
+  sfx.click(); document.querySelectorAll("#online .seg .tab").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  $("oGlobal").hidden = b.dataset.o !== "global"; $("oFriends").hidden = b.dataset.o !== "friends"; $("oProfile").hidden = b.dataset.o !== "profile";
+}));
 $("oPrev").addEventListener("click", () => { sfx.click(); G.oTrack = (G.oTrack + TRACKS.length - 1) % TRACKS.length; refreshOnline(); });
 $("oNext").addEventListener("click", () => { sfx.click(); G.oTrack = (G.oTrack + 1) % TRACKS.length; refreshOnline(); });
-$("oRefresh").addEventListener("click", () => onlineReady() ? refreshOnline(true) : soon("World leaderboards are under construction. Your laps are saved on this device and will be uploaded when online play arrives."));
-$("oAdd").addEventListener("click", () => onlineReady() ? doAddFriend() : soon("Adding friends is under construction. Keep your friend code handy: it'll work as soon as online play is switched on."));
+$("oRefresh").addEventListener("click", () => soon("World leaderboards are under construction. Your laps are saved on this device and will be uploaded when online play arrives."));
+$("oAdd").addEventListener("click", () => soon("Adding friends is under construction. Keep your friend code handy: it'll work as soon as online play is switched on."));
 $("oSignIn").addEventListener("click", () => soon("Syncing across devices is under construction."));
-$("oSaveName").addEventListener("click", () => { const n = $("oName").value.trim().slice(0, 16); save.driverName = n; writeSave(); sfx.chime(); if (onlineReady()) ensureProfile(true).catch(() => {}); toast(n ? "Name saved: " + n : "Name cleared", 1500); refreshOnline(); });
+$("oSaveName").addEventListener("click", () => { const n = $("oName").value.trim().slice(0, 16); save.driverName = n; writeSave(); sfx.chime(); toast(n ? "Name saved: " + n : "Name cleared", 1500); refreshOnline(); });
 $("onlineBtn").addEventListener("click", () => show("online"));
 function setMode(trial, cup = false) {
   G.trial = trial; G.cupMode = cup;
@@ -1018,7 +895,7 @@ $("resetBtn").addEventListener("click", () => {
 });
 $("againBtn").addEventListener("click", startRace);
 $("nextBtn").addEventListener("click", () => { if (G.cup) { G.cup.i++; startCupRace(); return; } const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
-$("menuBtn").addEventListener("click", () => { const ev = G.event; G.cup = null; $("againBtn").hidden = false; toMenu(); if (ev) show("career"); else if (G.net) { show("online"); onlineTab("race"); } });
+$("menuBtn").addEventListener("click", () => { const ev = G.event; G.cup = null; $("againBtn").hidden = false; toMenu(); if (ev) show("career"); });
 // share a one-line result through the phone's share sheet, or copy it (nothing is sent anywhere by the game)
 $("shareBtn").addEventListener("click", async () => {
   const best = Math.min(...G.lapTimes);
@@ -1250,7 +1127,7 @@ function step(dt) {
       const best = save.best[G.track.id];
       if (G.lapWall === 0) G.cleanLaps++;
       G.lapWall = 0;
-      if (best == null || lap < best) { if (best != null) G.newRecord = true; save.best[G.track.id] = lap; writeSave(); uploadLap(G.track.id, lap); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
+      if (best == null || lap < best) { if (best != null) G.newRecord = true; save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
       if (G.lapTimes.length >= laps()) finishRace(); else sfx.lapChime();
     }
     if (G.event && G.event.type === "elim" && G.mode === "race") { if (G.event.every) { if (G.raceTime >= (G.elimDone + 1) * G.event.every) { G.elimDone++; dropLast(G.event.every + " seconds"); } } else eliminate(); }
@@ -1427,7 +1304,6 @@ function render(dt) {
   if (car.beams) car.beams.visible = false; // the player has a real spotlight at night instead
   if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.friend) G.friend.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
-  if (G.net) netFrame(dt);
   smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight); sparks.update(dt);
   drawRocks();
   if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
@@ -1715,7 +1591,6 @@ if (TEST) {
     // jump the player to a distance along the track (used for screenshots of specific corners)
     warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
     // freeze the race and frame the car from a photo-mode camera (angle relative to the car's heading); used for track previews
-    get net() { const n = G.net; return n ? { code: n.code, racing: n.racing, peers: [...n.peers.values()].map((q) => ({ name: q.name, shown: !!(q.model && q.model.group.visible), x: q.model ? q.model.group.position.x : null })), standings: G.path ? standings().length : 0 } : null; },
     photo(a, e, d) { G.paused = true; G.photo = { a: G.player.h + a, e, d }; document.body.classList.add("photo"); $("pause").hidden = true; $("hud").hidden = true; },
     gapD() { return G.path.gaps.length ? G.path.gaps[0].d0 : -1; },
     get flight() { const v = G.player; return { wing: +(v.wing || 0).toFixed(2), flying: !!v.flying, y: +v.y.toFixed(1), road: +v.p.y.toFixed(1), vF: +v.vF.toFixed(0), d: +v.p.d.toFixed(0) }; },

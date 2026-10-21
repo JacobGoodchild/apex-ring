@@ -25,9 +25,7 @@ throttle, brake and handbrake.
 - Never use real car brands, logos or exact copies of real car designs.
 - Only use 3D models, textures and sounds with a licence that allows reuse (CC0 or CC-BY). Record each one in `CREDITS.md`.
 - Must run smoothly on a mid-range phone (aim for 60fps on a Pixel 7). Watch polygon and draw-call counts; instance repeated things.
-- No external network requests at runtime except the user's own Supabase project for online play (src/online.js, off until
-  src/onlineconfig.js is filled in; see ONLINE.md). No tracking, no eval, no remote code, no secrets (the anon key is public by
-  design; never the service_role key), no cookies. Only localStorage (always in try/catch).
+- No external network requests at runtime (only files in this repo), no tracking, no eval, no remote code, no secrets, no cookies. Only localStorage (always in try/catch).
 - Only well-known npm dependencies (three, @playwright/test).
 - Keep it playable after every commit. If something breaks, revert it rather than piling fixes on top.
 
@@ -361,7 +359,7 @@ Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Pla
       (shown once on the countdown only); smaller flight panel; only position, time, lap, minimap, speed and pause stay.
 - [x] E2 Real chasm on Zeus's Fury: a canyon that crosses the road (sheer cliff faces where the road ends and resumes,
       stepped rock terraces, a river far below) instead of walls along the road; flight camera close behind the car.
-- [x] E3 Land the WIP (sparks, verge grass atlas bake, results styling) through the full suite.
+- [ ] E3 Land the WIP (sparks, verge grass atlas bake, results styling) through the full suite.
 - [ ] E4 Bug hunt (subagent review) and polish.
 
 ### Run 3 progress log
@@ -380,17 +378,3 @@ Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Pla
   (no trench where the coarse terrain was carved); flight HUD / subtitle / voice / rival wings cleared on leaving a
   race (stopFlightFx); no lightning while paused; bolt materials disposed; pop-ups sit below the flight panel.
 - The suite is ~30 min locally now: snaptest timeout 50 min, CI job timeout 50 min.
-- Verge: grass tufts (grass_medium_01/02) and bushes (shrub_02/03, Poly Haven CC0) baked as single clumps into the
-  tree atlas (cells 9-13), sized by their real height (~0.6 m tufts, ~1.3 m bushes) along both sides beyond the run-off.
-- Less text in races: messages are a slim pill under the timer; trophies won mid-race are queued (G.trophyQ) and shown
-  on the results (flushTrophies); shorter "Boost empty" / "You're out!". Pause menu reads "Camera: Chase/Low/Bonnet"
-  and "Sound: On/Off".
-- Don't `pkill -f "serve.mjs 4174"` inside a longer command: the pattern matches the shell running it and kills the
-  whole command (exit 144). Use `pgrep -f "[s]erve.mjs"`.
-- Online play (src/online.js, no SDK: fetch for anonymous sign-in + PostgREST, a small Phoenix WebSocket client for Realtime
-  broadcast). supabase/schema.sql = profiles / laps / friends + leaderboard view + add_friend() RPC with row-level security.
-  Online > Global / Friends read real boards when configured; personal bests upload (uploadLap, not in test mode). New
-  Online > Race tab: Make a room (5-letter code) / Join; lobby lists players and cars; the host picks the track and starts;
-  no AI rivals; cars send their state 10x a second and friends' cars are drawn eased toward an extrapolated position; they
-  count in the position chip and results; Menu returns to the room. ONLINE.md = setup steps for the user. Test:
-  tests/zeus.spec.js fakes the server (page.route + routeWebSocket) and races a fake friend.
