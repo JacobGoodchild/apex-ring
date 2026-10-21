@@ -1,5 +1,6 @@
 // Themed scenery around a track. Everything repeated is instanced (one draw call per kind).
 import * as THREE from "three";
+import { TREE_CELLS, TREE_COLS, TREE_ROWS } from "./treeatlas.js";
 import { makeRng } from "./rng.js";
 import { canvasTex, waveNormals } from "./textures.js";
 import { photo } from "./photo.js";
@@ -26,6 +27,35 @@ export function trackGrid(path) {
   };
 }
 
+// Tree cards: a unit quad per tree, scaled per instance and turned to face the camera in the vertex shader;
+// the instance's "cell" picks its picture from the atlas.
+let treeTex = null;
+function treeCards(list, snowy) {
+  if (!treeTex) {
+    treeTex = new THREE.TextureLoader().load(new URL("../assets/trees/atlas.webp", import.meta.url).href);
+    treeTex.colorSpace = THREE.SRGBColorSpace; treeTex.anisotropy = 4;
+  }
+  const geo = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0);
+  geo.setAttribute("cell", new THREE.InstancedBufferAttribute(new Float32Array(list.map((t) => t.cell)), 1));
+  const mat = new THREE.MeshBasicMaterial({ map: treeTex, alphaTest: 0.45, side: THREE.DoubleSide });
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = "attribute float cell;\n" + sh.vertexShader
+      .replace("#include <uv_vertex>", `#include <uv_vertex>
+        vMapUv = vec2((uv.x + mod(cell, ${TREE_COLS}.0)) / ${TREE_COLS}.0, (uv.y + ${TREE_ROWS - 1}.0 - floor(cell / ${TREE_COLS}.0)) / ${TREE_ROWS}.0);`)
+      .replace("#include <project_vertex>", `
+        vec3 base = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        float sx = length(instanceMatrix[0].xyz), sy = length(instanceMatrix[1].xyz);
+        vec3 camR = normalize(vec3(viewMatrix[0][0], 0.0, viewMatrix[2][0]));
+        vec3 wp = base + camR * position.x * sx + vec3(0.0, position.y * sy, 0.0);
+        vec4 mvPosition = viewMatrix * vec4(wp, 1.0);
+        gl_Position = projectionMatrix * mvPosition;`);
+  };
+  mat.customProgramCacheKey = () => "treeCards" + snowy;
+  const im = instanced(geo, mat, list);
+  im.frustumCulled = false; // instances span the whole map; the bounding sphere of one unit quad would cull them all
+  return im;
+}
+
 function instanced(geo, mat, list, { shadow = false } = {}) {
   if (!list.length) return null;
   const im = new THREE.InstancedMesh(geo, mat, list.length), o = new THREE.Object3D();
@@ -41,7 +71,7 @@ function scatter(path, grid, rnd, n, clear, spread, fn) {
   while (out.length < n && tries++ < n * 8) {
     const x = minX + rnd() * (maxX - minX), z = minZ + rnd() * (maxZ - minZ);
     if (grid.dist(x, z) < clear) continue;
-    const it = fn(x, z); if (it) out.push(it);
+    const it = fn(x, z); if (it && !(it.y < -60)) out.push(it); // nothing in the chasm
   }
   return out;
 }
@@ -50,6 +80,7 @@ const tmp = {};
 
 export function buildScenery(path, theme, density, seed) {
   const g = new THREE.Group(), rnd = makeRng(seed), grid = trackGrid(path);
+  const nearGap = (d) => path.gaps.length > 0 && (path.gapAt(d) || path.toGap(d) < 170 || path.gapAt(d - 80)); // inside the canyon walls
   const edge = path.width / 2 + path.runoff;
   const kind = theme.scenery;
   const add = (o) => { if (o) g.add(o); return o; };
@@ -133,29 +164,24 @@ export function buildScenery(path, theme, density, seed) {
     // a lit far shore
   }
 
-  // trees: layered pines and round broadleaf trees, scattered near the track and out across the hills
-  if (kind === "parkland" || kind === "forest" || kind === "mountain" || kind === "coastal" || kind === "winter") {
-    const n = Math.round((kind === "forest" ? 1100 : kind === "mountain" ? 420 : kind === "coastal" ? 220 : kind === "winter" ? 700 : 560) * density);
-    const jitter = (geo, amt, k) => { const p = geo.attributes.position; for (let v = 0; v < p.count; v++) { const h = Math.sin(v * 12.9898 + k * 78.233) * 43758.5453; const r = (h - Math.floor(h)) - 0.5; p.setXYZ(v, p.getX(v) * (1 + r * amt), p.getY(v) + r * amt * 0.6, p.getZ(v) * (1 + r * amt)); } return geo; };
-    const tiers = [[2.6, 4.2, 3.2], [2.1, 3.8, 5.4], [1.6, 3.4, 7.4], [1.0, 2.8, 9.2]];
-    const pine = mergeGeometries(tiers.map(([r, h, y], k) => jitter(new THREE.ConeGeometry(r, h, 7, 1, true).translate(0, y, 0), 0.18, k)));
-    const blob = (r, x, y, z, k) => { const b = new THREE.IcosahedronGeometry(r, 0); jitter(b, 0.25, k); return b.translate(x, y, z); };
-    const round = mergeGeometries([blob(2.7, 0, 5.3, 0, 1), blob(2.1, 1.3, 6.7, 0.5, 2), blob(2.0, -1.1, 6.6, -0.7, 3)]);
-    const trunk = new THREE.CylinderGeometry(0.22, 0.38, 4.2, 5, 1, true); trunk.translate(0, 2.1, 0); // no caps: never seen
-    const leafTex = canvasTex(64, 64, (c, w, h) => { c.fillStyle = "#8a8a8a"; c.fillRect(0, 0, w, h); for (let k = 0; k < 700; k++) { const l = 30 + Math.random() * 70; c.fillStyle = `rgb(${l},${l},${l})`; c.fillRect(Math.random() * w, Math.random() * h, 2, 2); } }, { repeat: [2, 2] });
-    const leaves = new THREE.MeshStandardMaterial({ color: 0xffffff, map: leafTex, roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
-    const pick = kind === "mountain" || kind === "coastal" || kind === "winter" ? 1 : kind === "forest" ? 0.72 : 0.35; // share of pines
-    const base = new THREE.Color(theme.tree || 0x1f4a32);
-    const make = (x, z) => (theme.sea && theme.seaY != null && x > bounds.maxX + 20 ? null : { x, z, y: ground(x, z) - 0.3, s: 0.9 + rnd() * 0.9, r: rnd() * 6, pine: rnd() < pick, c: base.clone().offsetHSL((rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.08) });
-    const trees = scatter(path, grid, rnd, n, edge + 8, 260, make);
-    // trees out on the far hills are only ever seen small: one simple cone each (a quarter of the triangles)
-    const far = terrain ? scatter(path, grid, rnd, Math.round(n * 0.5), edge + 90, 700, make) : [];
-    const pines = trees.filter((t) => t.pine), rounds = trees.filter((t) => !t.pine);
-    const shade = density >= 1; // High quality: near trees cast shadows onto the road
-    add(instanced(pine, leaves, pines, { shadow: shade }));
-    if (far.length) { const cone = new THREE.ConeGeometry(2.3, 8.5, 6); cone.translate(0, 5.2, 0); add(instanced(cone, leaves, far.map((t) => ({ ...t, s: t.s * 1.1 })))); }
-    add(instanced(round, leaves, rounds.map((t) => ({ ...t, c: t.c.clone().offsetHSL(0.03, 0.05, 0.06) })), { shadow: shade }));
-    add(instanced(trunk, new THREE.MeshStandardMaterial({ color: 0x4a3626, roughness: 1 }), trees.map((t) => ({ ...t, c: null }))));
+  // trees: photo-real impostors (Poly Haven CC0 tree models baked to a texture atlas by scripts/dev/impostors.mjs),
+  // drawn as cards that always turn to face the camera. One draw call for every tree on the map, two triangles each.
+  if (kind === "parkland" || kind === "forest" || kind === "mountain" || kind === "coastal" || kind === "winter" || kind === "desert") {
+    const n = Math.round((kind === "forest" ? 3200 : kind === "mountain" ? 1100 : kind === "coastal" ? 420 : kind === "winter" ? 1600 : kind === "desert" ? 90 : 1100) * density);
+    // the full firs (cells 3-5) read best in numbers; the tall wispy pines (0-2) are mixed in for height
+    const pool = { forest: [3, 4, 5, 3, 4, 5, 0, 1, 6], mountain: [3, 4, 5, 3, 4, 0, 1], winter: [3, 4, 5, 3, 4, 5], parkland: [6, 7, 6, 7, 3, 4, 5], coastal: [6, 7, 3, 4], desert: [8] }[kind];
+    const night = !!theme.stars, wet = !!theme.rain;
+    const light = night ? 0.22 : wet ? 0.72 : 0.95;
+    const snowy = kind === "winter" ? 0.28 : 0;
+    const make = (x, z) => {
+      if (theme.sea && theme.seaY != null && x > bounds.maxX + 20) return null;
+      const cell = TREE_CELLS[pool[Math.floor(rnd() * pool.length)]];
+      const s = (0.85 + rnd() * 0.55) * (cell.key === "broad" ? 2.1 : cell.key === "quiver" ? 1.8 : cell.key === "fir" ? 1.35 : 1);
+      const c = new THREE.Color().setScalar(light * (0.82 + rnd() * 0.3)).lerp(new THREE.Color(light, light, light * 1.05), snowy);
+      return { x, z, y: ground(x, z) - cell.base * cell.extent * s - 0.15, sx: cell.extent * 0.5 * s, sy: cell.extent * s, sz: 1, r: 0, cell: cell.cell, c };
+    };
+    const trees = scatter(path, grid, rnd, n, edge + 8, 260, make).concat(terrain ? scatter(path, grid, rnd, Math.round(n * 0.6), edge + 90, 700, make) : []);
+    if (trees.length) add(treeCards(trees, snowy));
   }
 
   // grandstand by the start line, on the right-hand side
@@ -189,7 +215,7 @@ export function buildScenery(path, theme, density, seed) {
     let k = 0;
     for (let d = 60; d < path.length - 60; d += 23) {
       const i = Math.floor(d / path.ds) % path.N;
-      if (Math.abs(path.cs[i]) > 0.003 || path.bridge[i] || path.tunnel[i]) continue;
+      if (Math.abs(path.cs[i]) > 0.003 || path.bridge[i] || path.tunnel[i] || nearGap(d)) continue;
       if ((k++ % 4) !== 0) continue;
       const side = k % 8 < 4 ? 1 : -1;
       path.pointAt(d, side * (edge + 3.5), tmp);
@@ -238,7 +264,7 @@ export function buildScenery(path, theme, density, seed) {
   if (!theme.poles) {
     const poles = [], heads = [];
     for (let d = 0; d < path.length; d += 48) {
-      const i = Math.floor(d / path.ds) % path.N; if (path.bridge[i] || path.tunnel[i]) continue;
+      const i = Math.floor(d / path.ds) % path.N; if (path.bridge[i] || path.tunnel[i] || nearGap(d)) continue;
       const side = path.cs[i] > 0 ? -1 : 1; // outside of the bend
       path.pointAt(d, side * (edge + 2.5), tmp);
       poles.push({ x: tmp.x, y: tmp.y, z: tmp.z });

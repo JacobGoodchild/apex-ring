@@ -3,7 +3,7 @@ export const THEMES = {
   dusk: {
     sky: [0x0d1b2a, 0x35507a, 0xf2a65a], sunDir: [-0.8, 0.12, -0.55], sunColor: 0xffc49a, sunIntensity: 1.6,
     hemi: [0x9fb4e0, 0x1a2a1e, 0.6], fog: 0x41506b, fogNear: 160, fogFar: 1100, ground: 0x2a4a33,
-    runoff: "#4b6b3f", embankment: 0x3d5a35, scenery: "parkland", label: "Parkland · Dusk", clouds: 0.45, cloudColor: 0xc8a8a0, groundTex: "grass", runTex: "grass",
+    runoff: "#4b6b3f", embankment: 0x3d5a35, scenery: "parkland", skyImg: "qwantani_late_afternoon", label: "Parkland · Golden hour", clouds: 0.45, cloudColor: 0xc8a8a0, groundTex: "grass", runTex: "grass",
   },
   coast: {
     sky: [0x02040c, 0x0b1630, 0x1d2f55], sunDir: [0.5, 0.35, -0.7], sunColor: 0x9fb8ff, sunIntensity: 0.55, stars: 1,
@@ -14,12 +14,12 @@ export const THEMES = {
   mountain: {
     sky: [0x2c6fc2, 0x7fb2e8, 0xdfeaf5], sunDir: [0.6, 0.55, 0.4], sunColor: 0xfff3e0, sunIntensity: 2.0,
     hemi: [0xbfd8ff, 0x50604a, 0.8], fog: 0xb9cde3, fogNear: 220, fogFar: 1500, ground: 0x56704a,
-    runoff: "#7d7a70", embankment: 0x6b6a5c, scenery: "mountain", label: "Mountain pass · Day", rockfall: true, clouds: 0.5, groundTex: "grass", runTex: "gravel", embTex: "rock", tree: 0x24452f, sign: "ALPINE PASS",
+    runoff: "#7d7a70", embankment: 0x6b6a5c, scenery: "mountain", skyImg: "kloofendal_38d_partly_cloudy", label: "Mountain pass · Day", rockfall: true, clouds: 0.5, groundTex: "grass", runTex: "gravel", embTex: "rock", tree: 0x24452f, sign: "ALPINE PASS",
   },
   desert: {
     sky: [0x3d6fb0, 0xd99a62, 0xffcf8a], sunDir: [-0.4, 0.3, 0.8], sunColor: 0xffc58a, sunIntensity: 2.0,
     hemi: [0xffd2a8, 0x8a4a2a, 0.7], fog: 0xe0a878, fogNear: 200, fogFar: 1300, ground: 0xc07a48,
-    runoff: "#c98f5d", asphalt: "#4a4440", embankment: 0xa8643a, scenery: "desert", label: "Desert canyon · Sunset", rockfall: true, clouds: 0.18, cloudColor: 0xffd8b0, groundTex: "sand", groundTint: 0xffc49a, runTex: "sand", runTint: 0xffd0a8, embTex: "sand", asphaltTint: 0.85, sign: "RED CANYON",
+    runoff: "#c98f5d", asphalt: "#4a4440", embankment: 0xa8643a, scenery: "desert", skyImg: "qwantani_sunset", label: "Desert canyon · Sunset", rockfall: true, clouds: 0.18, cloudColor: 0xffd8b0, groundTex: "sand", groundTint: 0xffc49a, runTex: "sand", runTint: 0xffd0a8, embTex: "sand", asphaltTint: 0.85, sign: "RED CANYON",
   },
   neon: {
     sky: [0x05010f, 0x1c0838, 0x5a1a6e], sunDir: [0, 0.2, -1], sunColor: 0xff4fd8, sunIntensity: 0.4, stars: 0.5,
@@ -30,25 +30,33 @@ export const THEMES = {
   forest: {
     sky: [0x4a86c8, 0x9cc4e6, 0xe8f0e0], sunDir: [-0.5, 0.6, -0.3], sunColor: 0xfff0d0, sunIntensity: 1.8,
     hemi: [0xcfe3ff, 0x2a4020, 0.8], fog: 0xa9c4b8, fogNear: 150, fogFar: 1100, ground: 0x3f6a30,
-    runoff: "#557a3c", embankment: 0x406a2c, scenery: "forest", label: "Forest circuit · Morning", clouds: 0.55, groundTex: "grass", runTex: "drygrass", tree: 0x1d4a26, sign: "GREENWOOD",
+    runoff: "#557a3c", embankment: 0x406a2c, scenery: "forest", skyImg: "kloofendal_misty_morning", label: "Forest circuit · Morning", clouds: 0.55, groundTex: "grass", runTex: "drygrass", tree: 0x1d4a26, sign: "GREENWOOD",
   },
   storm: {
     sky: [0x4c5560, 0x7d8790, 0xa9b1b8], sunDir: [-0.3, 0.75, 0.4], sunColor: 0xc8d0d8, sunIntensity: 0.9,
     hemi: [0xc0c8d0, 0x2a2e30, 1.1], fog: 0x8d969e, fogNear: 60, fogFar: 760, ground: 0x3a3c3e, exposure: 1.05,
     clouds: 0.95, cloudColor: 0x9aa2aa, groundTex: "gravel", groundTint: 0x5e6062, runTex: "gravel", runTint: 0x6a6c6e, embTex: "darkrock",
     asphaltTint: 0.62, wetRoad: true, rain: true, centreLine: "#d8b23a", lines: "#e2e4e6", sea: true, seaColor: 0x2f3d44, seaY: -0.8, poles: true,
-    wallA: "#d8dadc", wallB: "#2b2f36", tree: 0x2a3a2e, scenery: "coastal", label: "Coastal highway · Rain", envIntensity: 0.7, bloom: 0.4, sign: "COASTAL HIGHWAY",
+    wallA: "#d8dadc", wallB: "#2b2f36", tree: 0x2a3a2e, scenery: "coastal", skyImg: "kloofendal_overcast", label: "Coastal highway · Rain", envIntensity: 0.7, bloom: 0.4, sign: "COASTAL HIGHWAY",
   },
   winter: {
     sky: [0x8fa3ba, 0xc4cfdb, 0xe4e9ef], sunDir: [-0.5, 0.35, 0.5], sunColor: 0xfff4e6, sunIntensity: 1.3,
     hemi: [0xdfe8f2, 0x8a96a4, 1.0], fog: 0xd6dde5, fogNear: 90, fogFar: 760, ground: 0xe8edf2, exposure: 0.95,
     clouds: 0.8, cloudColor: 0xe8ecf0, groundTex: "snow", groundTint: 0xf2f4f7, runTex: "snow", runTint: 0xe8ecf0, embTex: "snow",
-    asphaltTint: 0.7, snowfall: true, tree: 0x4f6a5e, wallA: "#e6ebf0", wallB: "#2a6fd6", scenery: "winter", label: "Winter valley · Snow", sign: "FROSTBITE RIDGE",
+    asphaltTint: 0.7, snowfall: true, tree: 0x4f6a5e, wallA: "#e6ebf0", wallB: "#2a6fd6", scenery: "winter", skyImg: "snow_field", label: "Winter valley · Snow", sign: "FROSTBITE RIDGE",
+  },
+  // Zeus's Fury: a thunderstorm over black rock. Lightning flashes and thunder are added in main.js (theme.lightning).
+  thunder: {
+    sky: [0x0a0d14, 0x1c2230, 0x3a4250], sunDir: [0.3, 0.5, -0.8], sunColor: 0x9fb0d0, sunIntensity: 0.65,
+    hemi: [0x7a8aa8, 0x1a1c22, 0.75], fog: 0x262c38, fogNear: 120, fogFar: 900, ground: 0x2a2a2e, rock: 0x3a3a40,
+    runoff: "#3a3a3e", asphalt: "#2a2c30", embankment: 0x2e2e34, scenery: "mountain", stars: 0.01, label: "Thunderstorm · Night", clouds: 1, cloudColor: 0x2a3040,
+    groundTex: "darkrock", runTex: "gravel", embTex: "darkrock", groundTint: 0x8a8a90, rain: true, wetRoad: true, lightning: true, envIntensity: 0.6,
+    wallA: "#f2c230", wallB: "#0b0d12", tree: 0x24302a, sign: "ZEUS'S FURY", bloom: 0.9, exposure: 1.1,
   },
   xtreme: {
     sky: [0x1b1030, 0x6b3a5a, 0xff9a4a], sunDir: [0.7, 0.18, -0.6], sunColor: 0xffa860, sunIntensity: 1.7,
     hemi: [0xffc8a0, 0x3a2a30, 0.7], fog: 0x7a4a52, fogNear: 220, fogFar: 1400, ground: 0x5a4436, rock: 0x6e5a4a,
-    runoff: "#7a6450", asphalt: "#3a3640", embankment: 0x6a5244, scenery: "mountain", label: "Quarry cliffs · Sunset", clouds: 0.4, cloudColor: 0xc89080, groundTex: "gravel", runTex: "gravel", embTex: "darkrock",
+    runoff: "#7a6450", asphalt: "#3a3640", embankment: 0x6a5244, scenery: "mountain", skyImg: "industrial_sunset_02", label: "Quarry cliffs · Sunset", clouds: 0.4, cloudColor: 0xc89080, groundTex: "gravel", runTex: "gravel", embTex: "darkrock",
     wallA: "#ffcc1f", wallB: "#11141b", tree: 0x3a4a2a, sign: "XTREME",
   },
 };
@@ -102,6 +110,19 @@ export function rounded(verts, { tunnel = [] } = {}) {
 function track(def, verts, opts) { const r = rounded(verts, opts); return { ...def, points: r.points, tunnels: r.tunnels }; }
 
 // difficulty: 1 = Easy (wide, long straights, big sweepers), 2 = Medium, 3 = Hard (hairpins, chicanes)
+// Special tracks are raced from the Daily Challenge screen only (not in quick race, cups, career or the tests that sweep TRACKS).
+export const SPECIAL_TRACKS = [
+  track({ id: "zeus", name: "Zeus's Fury", theme: "thunder", difficulty: 3, laps: 2, width: 24, runoff: 9, banking: 0.08, mult: 1.6, special: true,
+    blurb: "A storm track for the bold: huge ramps, boost pads, and a chasm with no road at all. Your car grows wings. Fly it.",
+    heights: [[0, 0], [0.12, 2], [0.22, 8], [0.3, 20], [0.376, 20], [0.437, 12], [0.56, 10], [0.68, 4], [0.85, 0], [1, 0]],
+    gaps: [[0.376, 0.437]],
+    ramps: [{ at: 0.18, h: 4.2, len: 30 }, { at: 0.376, h: 4.5, len: 36 }, { at: 0.63, h: 3.6, len: 26 }, { at: 0.9, lat: -6, half: 5, h: 2, len: 16 }],
+    hazards: [{ type: "pad", at: 0.06, lat: 0, len: 10, w: 8 }, { type: "pad", at: 0.33, lat: -4, len: 10, w: 7 }, { type: "pad", at: 0.35, lat: 4, len: 10, w: 7 },
+      { type: "pad", at: 0.6, lat: 0, len: 10, w: 8 }, { type: "pad", at: 0.8, lat: 5, len: 10, w: 7 }, { type: "split", at: 0.75, lat: 0, len: 120, w: 4 },
+      { type: "wet", at: 0.5, lat: -3, len: 24, w: 9 }] },
+    [[0, -600, 110], [760, -600, 120], [980, -320, 140], [980, 480, 130], [560, 720, 120], [-220, 700, 110], [-480, 320, 100], [-320, -120, 120]]),
+];
+
 export const DIFFICULTY_NAMES = ["", "Easy", "Medium", "Hard"];
 
 export const TRACKS = [
@@ -148,7 +169,7 @@ export const TRACKS = [
 export const LAYOUTS = [["", "Normal"], ["r", "Reverse"], ["m", "Mirror"]];
 export const baseId = (id) => String(id).split(":")[0];
 export const layoutOf = (id) => String(id).split(":")[1] || "";
-export const canReverse = (t) => !(t.heights && t.heights.some((h, i) => i && h[0] === t.heights[i - 1][0]));
+export const canReverse = (t) => !t.gaps && !(t.heights && t.heights.some((h, i) => i && h[0] === t.heights[i - 1][0]));
 const variants = new Map();
 function variant(base, lay) {
   const key = base.id + ":" + lay;
@@ -167,7 +188,7 @@ function variant(base, lay) {
   return v;
 }
 export const trackById = (id) => {
-  const base = TRACKS.find((t) => t.id === baseId(id)) || TRACKS[0], lay = layoutOf(id);
+  const base = TRACKS.find((t) => t.id === baseId(id)) || SPECIAL_TRACKS.find((t) => t.id === baseId(id)) || TRACKS[0], lay = layoutOf(id);
   if (!lay || (lay === "r" && !canReverse(base))) return base;
   return variant(base, lay);
 };
@@ -177,7 +198,7 @@ const mixHex = (a, b, t) => { const ar = (a >> 16) & 255, ag = (a >> 8) & 255, a
 export function rainy(theme) {
   if (theme.rain) return theme;
   const night = !!theme.stars, grey = night ? 0x1c222c : 0x8a939c;
-  return { ...theme, rain: true, wetRoad: true, stars: 0, dark: night, clouds: 0.95, cloudColor: night ? 0x262c36 : 0x9aa2aa,
+  return { ...theme, rain: true, wetRoad: true, stars: 0, dark: night, skyImg: night ? undefined : "kloofendal_overcast", clouds: 0.95, cloudColor: night ? 0x262c36 : 0x9aa2aa,
     sky: theme.sky.map((c) => mixHex(c, grey, night ? 0.35 : 0.7)), fog: mixHex(theme.fog, grey, 0.7), fogNear: (theme.fogNear || 160) * 0.5, fogFar: (theme.fogFar || 1100) * 0.7,
     sunIntensity: theme.sunIntensity * 0.55, sunColor: mixHex(theme.sunColor, 0xd0d6dc, 0.6), hemi: [mixHex(theme.hemi[0], 0xc0c8d0, 0.5), theme.hemi[1], theme.hemi[2] * 1.05],
     asphaltTint: (theme.asphaltTint || 0.8) * 0.78, label: (theme.label || "").split(" · ")[0] + (night ? " · Night rain" : " · Rain") };
@@ -186,7 +207,7 @@ export function rainy(theme) {
 // Time of day: turn a daytime theme into night (dark sky with stars, a cool moon, lamps and headlights do the work).
 export function nightly(theme) {
   if (theme.stars) return theme;
-  return { ...theme, stars: 1, sky: [0x02040c, 0x0a1428, 0x1a2a48], sunDir: [0.4, 0.45, -0.6], sunColor: 0x9fb8ff, sunIntensity: 0.45,
+  return { ...theme, stars: 1, skyImg: undefined, sky: [0x02040c, 0x0a1428, 0x1a2a48], sunDir: [0.4, 0.45, -0.6], sunColor: 0x9fb8ff, sunIntensity: 0.45,
     hemi: [0x4a5f9a, mixHex(theme.hemi[1], 0x05070c, 0.7), 0.5], fog: 0x0a1222, fogNear: (theme.fogNear || 160) * 0.8, fogFar: (theme.fogFar || 1100) * 0.85,
     exposure: 1.15, clouds: (theme.clouds ?? 0.4) * 0.6, cloudColor: 0x1e2636, groundTint: mixHex(theme.groundTint || 0xd8d8d8, 0x404858, 0.4),
     envIntensity: 0.4, bloom: 0.8, label: (theme.label || "").split(" · ")[0] + " · Night" };

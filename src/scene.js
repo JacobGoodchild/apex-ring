@@ -7,6 +7,7 @@ import { photo, antiTile } from "./photo.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { noiseTex } from "./textures.js";
+import { SKIES, SKY_KEEP } from "./skies.js";
 import { TEST, FORCE_QUALITY } from "./env.js";
 
 export const QUALITY = {
@@ -47,14 +48,27 @@ export class World {
     this.skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: { top: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, hor: { value: new THREE.Color() },
-        sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, stars: { value: 0 }, clouds: { value: 0 }, cloudCol: { value: new THREE.Color() } },
+        sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, stars: { value: 0 }, clouds: { value: 0 }, cloudCol: { value: new THREE.Color() },
+        skyTex: { value: null }, useTex: { value: 0 }, skyGain: { value: 1 } },
       vertexShader: "varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}",
       fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float stars; uniform float clouds; uniform vec3 cloudCol; varying vec3 vP;
+        uniform sampler2D skyTex; uniform float useTex; uniform float skyGain;
         float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
         float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
         float cfbm(vec2 p){ float s = 0.0, a = 0.5; for (int o = 0; o < 5; o++) { s += vn(p)*a; p = p*2.07 + 3.1; a *= 0.5; } return s; }
         float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
         void main(){ vec3 d = normalize(vP); float h = d.y;
+          if (useTex > 0.5) {
+            // photographic sky: equirect lookup (gradients fixed across the wrap seam), fading into the fog colour at the horizon
+            vec2 uv = vec2(0.5 + atan(d.x, -d.z) / 6.2831853, 1.0 - (0.5 - asin(clamp(h, -1.0, 1.0)) / 3.1415927) / ${SKY_KEEP});
+            vec2 gx = dFdx(uv), gy = dFdy(uv); gx.x -= floor(gx.x + 0.5); gy.x -= floor(gy.x + 0.5);
+            vec3 tc = textureGrad(skyTex, vec2(uv.x, max(uv.y, 0.002)), gx, gy).rgb;
+            float l = dot(tc, vec3(0.2126, 0.7152, 0.0722));
+            tc = mix(vec3(l), tc, 1.3); tc = pow(max(tc, 0.0), vec3(1.12)) * skyGain; // a little more colour and depth than the raw photo
+            gl_FragColor = vec4(mix(hor, tc, smoothstep(-0.03, 0.07, h)), 1.0);
+            #include <colorspace_fragment>
+            return;
+          }
           vec3 c = mix(hor, mid, smoothstep(-0.02, 0.22, h)); c = mix(c, top, smoothstep(0.22, 0.75, h));
           float s = max(dot(d, sunDir), 0.0); c += sunCol*(pow(s, 300.0)*1.4 + pow(s, 40.0)*0.3 + pow(s,6.0)*0.08);
           if (clouds > 0.0 && h > 0.0) { vec2 cp = d.xz / (h + 0.12) * 1.6; float n = cfbm(cp); float cov = smoothstep(0.62 - clouds*0.3, 0.86 - clouds*0.2, n) * smoothstep(0.0, 0.1, h);
@@ -125,12 +139,37 @@ export class World {
     }
   }
 
-  setTheme(t) {
+  // A photographic sky (see src/skies.js): the photo sets where the sun is, its colour, the fog and the ambient light.
+  // The image loads in the background; until it arrives the painted sky is used.
+  skyTexture(name) {
+    this.skyTexCache = this.skyTexCache || {};
+    if (!this.skyTexCache[name]) {
+      const tex = new THREE.TextureLoader().load(new URL(`../assets/sky/${name}.jpg`, import.meta.url).href, () => { tex.ready = true; if (this.theme && this.theme.skyImg === name) this.setTheme(this.theme); });
+      tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
+      this.skyTexCache[name] = tex;
+    }
+    return this.skyTexCache[name];
+  }
+
+  setTheme(t0) {
+    this.theme = t0;
+    const sky = t0.skyImg && SKIES[t0.skyImg], tex = sky && this.skyTexture(t0.skyImg);
+    let t = t0;
+    if (sky) {
+      // light from the photo's sun (never lower than ~12 degrees, or the terrain goes black), fog the colour of its horizon
+      const sd = new THREE.Vector3(...sky.sun); const el = Math.max(sd.y, 0.21); sd.y = 0; sd.normalize().multiplyScalar(Math.sqrt(1 - el * el)); sd.y = el;
+      const fog = new THREE.Color(sky.horizon).lerp(new THREE.Color(t0.fog), t0.skyFogMix ?? 0.55).getHex();
+      t = { ...t0, sunDir: [sd.x, sd.y, sd.z], sunColor: new THREE.Color(sky.sunColor).lerp(new THREE.Color(0xffffff), 0.45).getHex(), fog,
+        sky: [sky.zenith, sky.zenith, fog], hemi: [new THREE.Color(sky.zenith).lerp(new THREE.Color(t0.hemi[0]), 0.4).getHex(), t0.hemi[1], t0.hemi[2]] };
+    }
     const u = this.skyMat.uniforms;
     u.top.value.set(t.sky[0]); u.mid.value.set(t.sky[1]); u.hor.value.set(t.sky[2]);
     u.sunDir.value.set(...t.sunDir).normalize(); u.sunCol.value.set(t.sunColor); u.stars.value = t.stars || 0;
     u.clouds.value = t.clouds ?? 0.4; u.cloudCol.value.set(t.cloudColor ?? 0xe4e8ee);
-    this.scene.fog = new THREE.Fog(t.fog, t.fogNear || 160, t.fogFar || 1100);
+    const useTex = !!(tex && tex.ready);
+    u.skyTex.value = useTex ? tex : null; u.useTex.value = useTex ? 1 : 0; u.skyGain.value = t0.skyGain ?? 1;
+    if (this.skyMat.toneMapped === useTex) { this.skyMat.toneMapped = !useTex; this.skyMat.needsUpdate = true; } // the photo is already tone-mapped
+    this.scene.fog = new THREE.Fog(t.fog, (t.fogNear || 160) * (sky ? 1.6 : 1), (t.fogFar || 1100) * (sky ? 1.3 : 1)); // photo skies: clearer air
     this.hemi.color.set(t.hemi[0]); this.hemi.groundColor.set(t.hemi[1]); this.hemi.intensity = t.hemi[2] * 0.85;
     // everything is toned down from the theme values: at full strength races felt blinding on a phone
     this.sun.color.set(t.sunColor); this.sun.intensity = t.sunIntensity * 0.8;

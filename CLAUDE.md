@@ -305,3 +305,36 @@ The user asked for a full-release push overnight: work flat out until 05:40 UTC,
   - more split-path islands (they work on any layout via `hazards`);
   - a second Compact car;
   - a 2-worker CI if the runner gets faster (the suite is ~19 min on one worker).
+
+## Overnight run 2: go deep (2026-10-20 19:05 UTC → 2026-10-21 05:40 UTC = 06:40 UK)
+The user asked for depth over breadth: work until 05:40 UTC, tested batches, push to `claude/bold-cray-7rck1e` and `main`.
+An hourly routine ("Apex Ring overnight run 2 check-in", :23 past) wakes the session if it stopped. Online features are
+now allowed (the earlier "no network" rule only meant "keep the code safe"); where they need a server the user hasn't set up
+yet (Supabase), build the screens and show an "under construction" message. Plan (tick as done):
+- [ ] D1 UI overhaul: a real game look (type scale, spacing grid, panels, icons), quick race track select with a photo of
+      each track (rendered from the game itself into assets/previews), less "AI text".
+- [ ] D2 Zeus's Fury (Daily Challenge section): extreme track with huge ramps, speed-boost pads, and a chasm with no road
+      where the car unfurls mech wings ("Welcome aboard, Captain. All systems online." in a robot voice) and you steer the
+      flight. Thunderstorm weather (lightning flashes, thunder, rain).
+- [ ] D3 Realism: photographic sky (CC0 HDRI), better trees and roadside detail, grass, kerbs, lighting/colour grade.
+- [ ] D4 Online screens: global / friends leaderboards, add friends, profile (under construction until the server exists).
+- [ ] D5 Racing depth: anything that makes races feel better (sparks, camera, sound, AI, feedback).
+
+### Overnight run 2 progress log
+- UI part 1: self-hosted Barlow / Barlow Condensed (OFL) and a design layer in `ui.css` (tokens, slanted buttons, segmented
+  tabs, panels). Main menu: car name + class + mini stat bars bottom-left, tiles (Race with the last track's photo, Career
+  with stars, Garage with cars owned), settings icon in the top bar. Race select is a full screen: big track photo
+  (`assets/previews/<id>.jpg`, rendered by `scripts/dev/previews.mjs` via the `__apex.photo()` test hook), track stats
+  (length, laps, record, difficulty pips), a thumbnail strip, and an options panel (layout / time / weather / players,
+  your laps, Start). Showroom: studio RoomEnvironment reflections, one big soft light panel, doors closed (open doors
+  looked like black slabs), car framed clear of the menu tiles / garage card. `scripts/dev/uishots.mjs` screenshots menus.
+- Realism part 1: photographic skies. Poly Haven "pure sky" HDRIs (CC0) tone-mapped to `assets/sky/*.jpg` (~20-100 KB
+  each) by `scripts/dev/skies.py`, with the sun position/colour and horizon/zenith colours in `src/skies.js`. The sky
+  shader samples the photo (equirect, seam-safe gradients, a touch more saturation/contrast) and the sun light, fog and
+  ambient follow the photo. Themes pick one with `skyImg`; rain swaps in the overcast photo, night uses the star sky.
+- Realism part 2: real trees. `scripts/dev/impostors.mjs` + `dev/impostor.html` bake Poly Haven CC0 tree models
+  (fir_tree_01 x3, fir_sapling_medium x3, island_tree_01/02, quiver_tree_01; downloaded to `devassets/`, git-ignored)
+  into `assets/trees/atlas.webp` (+ `src/treeatlas.js`). In game every tree is a camera-facing card from that atlas:
+  one instanced draw call for all trees, 2 triangles each, so forests are 2-3x denser than before. Desert gets quiver trees.
+- Skid marks and tyre smoke now run every physics tick from the car's state (the per-frame version missed short slides on
+  slow frames, which made the skid test flaky).

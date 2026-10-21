@@ -7,6 +7,7 @@
 <meta name="description" content="Apex Ring: an arcade hypercar racing game for your browser.">
 <title>Apex Ring</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="ui.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -76,21 +77,40 @@
 </div>
 
 <!-- lobby -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4m0 0h11l-1.5 3.5L16 11H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Zm0 2H4a3 3 0 0 0 3 4m10-4h3a3 3 0 0 1-3 4M12 13v4m-4 3h8l-1-3h-6l-1 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M3 15v-3l2.5-5h11L20 12l1 .5V15a1 1 0 0 1-1 1h-1m-14 0H4a1 1 0 0 1-1-1m2 1a2 2 0 1 0 4 0m6 0a2 2 0 1 0 4 0m-10 0h6M5 12h15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v3m0 13v3M2.5 12h3m13 0h3M5.3 5.3l2.1 2.1m9.2 9.2 2.1 2.1M5.3 18.7l2.1-2.1m9.2-9.2 2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7m0 3v.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+</svg>
 <div class="topbar" id="topbar">
   <div class="brand mini">APEX<span>RING</span></div>
-  <div class="wallet"><span class="coin" id="coinsV">0</span><span class="gem" id="gemsV">0</span></div>
+  <div class="tb-right">
+    <div class="wallet"><span class="coin" id="coinsV">0</span><span class="gem" id="gemsV">0</span></div>
+    <button class="iconbtn" id="settingsTop" type="button" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
+  </div>
 </div>
 <div class="overlay screen" id="menu">
-  <div class="card">
-    <div class="carhead"><div class="label">Your car</div><div class="carName" id="lobbyCar">Vanta S1</div></div>
-    <button class="btn" id="raceBtn" type="button">Race</button>
-    <div class="grid3">
-      <button class="btn ghost" id="careerBtn" type="button">Career</button>
-      <button class="btn ghost" id="garageBtn" type="button">Garage</button>
-      <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
+  <div class="card menuwrap">
+    <div class="carhead">
+      <div class="clsline"><span class="cls" id="lobbyCls"></span><span class="hint" id="lobbyEngine"></span></div>
+      <div class="carName" id="lobbyCar">Vanta S1</div>
+      <div class="ministats" id="lobbyStats"></div>
     </div>
-    <div class="hint">Drag the car to spin it. Phone: hold the left or right half of the screen to steer; tap both halves together twice to boost. The car accelerates, brakes and drifts by itself. Keyboard: ← → steer, Space boost, C camera, P pause.</div>
-    <button class="btn ghost small" id="helpBtn" type="button">How to play</button>
+    <div class="tiles">
+      <button class="tile primary" id="raceBtn" type="button"><img class="tile-img" id="raceTileImg" alt="" src="assets/previews/gp.jpg"><span class="tile-body"><span class="tile-k">Quick race · Time trial · Cups</span><span class="tile-t">Race</span><span class="tile-s" id="raceTileSub"></span></span></button>
+      <button class="tile" id="careerBtn" type="button"><svg class="tile-i"><use href="#i-trophy"/></svg><span class="tile-body"><span class="tile-t">Career</span><span class="tile-s" id="careerTileSub"></span></span></button>
+      <button class="tile" id="garageBtn" type="button"><svg class="tile-i"><use href="#i-car"/></svg><span class="tile-body"><span class="tile-t">Garage</span><span class="tile-s" id="garageTileSub"></span></span></button>
+    </div>
+    <div class="menufoot">
+      <button class="linkbtn" id="helpBtn" type="button"><svg><use href="#i-help"/></svg>How to play</button>
+      <button class="linkbtn" id="settingsBtn" type="button"><svg><use href="#i-gear"/></svg>Settings</button>
+    </div>
   </div>
 </div>
 
@@ -136,41 +156,64 @@
 </div>
 
 <!-- race setup -->
-<div class="overlay screen" id="setup" hidden>
-  <div class="card">
-    <div class="brand small">RACE</div>
-    <div class="tabs" role="tablist">
-      <button class="tab" id="modeRace" type="button" aria-pressed="true">Quick race</button>
-      <button class="tab" id="modeTrial" type="button" aria-pressed="false">Time trial</button>
-      <button class="tab" id="modeCup" type="button" aria-pressed="false">Cup</button>
+<div class="overlay screen full" id="setup" hidden>
+  <div class="card setupwrap">
+    <header class="scrhead">
+      <button class="backbtn" id="setupBack" type="button" aria-label="Back"><svg><use href="#i-back"/></svg></button>
+      <div class="scrtitle">Race</div>
+      <div class="seg" role="tablist">
+        <button class="tab" id="modeRace" type="button" aria-pressed="true">Quick race</button>
+        <button class="tab" id="modeTrial" type="button" aria-pressed="false">Time trial</button>
+        <button class="tab" id="modeCup" type="button" aria-pressed="false">Cup</button>
+      </div>
+    </header>
+    <div class="setupgrid">
+      <div class="setupmain">
+        <section class="hero" id="trackPick">
+          <img class="hero-img" id="trackImg" alt="">
+          <div class="hero-shade"></div>
+          <canvas id="trackPreview" width="96" height="96"></canvas>
+          <button class="arrow prev" id="trackPrev" type="button" aria-label="Previous track"><svg><use href="#i-back"/></svg></button>
+          <button class="arrow next" id="trackNext" type="button" aria-label="Next track"><svg><use href="#i-back"/></svg></button>
+          <div class="heroinfo">
+            <div class="label" id="trackTheme">Track</div>
+            <div class="trackName" id="trackName"></div>
+            <div class="tstats" id="trackStats"></div>
+            <div class="hint" id="trackBlurb"></div>
+          </div>
+          <div class="lockveil"><svg><use href="#i-lock"/></svg><span>Win it in Career</span></div>
+        </section>
+        <section class="hero cuphero" id="cupPick" hidden>
+          <img class="hero-img" id="cupImg" alt="">
+          <div class="hero-shade"></div>
+          <button class="arrow prev" id="cupPrev" type="button" aria-label="Previous cup"><svg><use href="#i-back"/></svg></button>
+          <button class="arrow next" id="cupNext" type="button" aria-label="Next cup"><svg><use href="#i-back"/></svg></button>
+          <div class="heroinfo"><div class="label">Championship</div><div class="trackName" id="cupName"></div><div class="hint" id="cupTracks"></div></div>
+        </section>
+        <div class="strip" id="trackStrip" role="listbox" aria-label="Tracks"></div>
+      </div>
+      <aside class="setupside">
+        <div class="opts">
+          <div class="opt" id="layoutOpt"><div class="label">Layout</div>
+            <div class="tabs" id="layoutTabs"><button class="tab" data-l="" type="button">Normal</button><button class="tab" data-l="r" type="button">Reverse</button><button class="tab" data-l="m" type="button">Mirror</button></div></div>
+          <div class="opt" id="timeOpt"><div class="label">Time</div>
+            <div class="tabs" id="timeTabs"><button class="tab" data-t="day" type="button">Day</button><button class="tab" data-t="night" type="button">Night</button></div></div>
+          <div class="opt" id="weatherOpt"><div class="label">Weather</div>
+            <div class="tabs" id="weatherTabs"><button class="tab" data-w="dry" type="button">Dry</button><button class="tab" data-w="rain" type="button">Rain</button></div></div>
+          <div class="opt" id="playersOpt"><div class="label">Players</div>
+            <div class="tabs" id="playersTabs"><button class="tab" data-n="1" type="button">1P</button><button class="tab" data-n="2" type="button">2P split</button></div></div>
+          <div class="hint" id="playersHint" hidden>Player 1: A/D and W. Player 2: ← → and ↑. Two gamepads work too.</div>
+        </div>
+        <div class="medals" id="medalLine" hidden></div>
+        <div class="board" id="board"><div class="row between"><div class="label">Your best laps</div>
+          <div class="tabs mini" id="boardTabs"><button class="tab" data-p="week" type="button">Week</button><button class="tab" data-p="month" type="button">Month</button><button class="tab" data-p="all" type="button">All</button></div></div>
+          <ol class="boardlist" id="boardList"></ol></div>
+        <div class="ghostbar" id="ghostBar" hidden><button class="chipbtn" id="ghostShare" type="button">Share ghost</button><button class="chipbtn" id="ghostImport" type="button">Friend's ghost</button><button class="chipbtn" id="replayBtn" type="button">Watch best lap</button></div>
+        <div class="ghostpanel" id="ghostPanel" hidden><textarea id="ghostCode" rows="3" spellcheck="false" aria-label="Ghost code"></textarea>
+          <div class="row"><button class="chipbtn" id="ghostCopy" type="button">Copy</button><button class="chipbtn" id="ghostLoad" type="button">Load code</button><span class="hint" id="ghostMsg"></span></div></div>
+        <button class="btn go" id="startBtn" type="button">Start race</button>
+      </aside>
     </div>
-    <div class="cuppick" id="cupPick" hidden>
-      <button class="arrow" id="cupPrev" type="button" aria-label="Previous cup">‹</button>
-      <div class="cupinfo"><div class="trackName" id="cupName"></div><div class="hint" id="cupTracks"></div></div>
-      <button class="arrow" id="cupNext" type="button" aria-label="Next cup">›</button>
-    </div>
-    <div class="trackpick" id="trackPick">
-      <button class="arrow" id="trackPrev" type="button" aria-label="Previous track">‹</button>
-      <canvas id="trackPreview" width="96" height="96"></canvas>
-      <div class="trackinfo"><div class="label" id="trackTheme">Track</div><div class="trackName" id="trackName"></div><div class="hint" id="trackBlurb"></div></div>
-      <button class="arrow" id="trackNext" type="button" aria-label="Next track">›</button>
-    </div>
-    <div class="board" id="board"><div class="row between"><div class="label">Your best laps</div>
-      <div class="tabs mini" id="boardTabs"><button class="tab" data-p="week" type="button">Week</button><button class="tab" data-p="month" type="button">Month</button><button class="tab" data-p="all" type="button">All</button></div></div>
-      <ol class="boardlist" id="boardList"></ol></div>
-    <div class="medals" id="medalLine" hidden></div>
-    <div class="ghostbar" id="ghostBar" hidden><button class="chipbtn" id="ghostShare" type="button">Share my ghost</button><button class="chipbtn" id="ghostImport" type="button">Race a friend's ghost</button><button class="chipbtn" id="replayBtn" type="button">Watch best lap</button></div>
-    <div class="ghostpanel" id="ghostPanel" hidden><textarea id="ghostCode" rows="3" spellcheck="false" aria-label="Ghost code"></textarea>
-      <div class="row"><button class="chipbtn" id="ghostCopy" type="button">Copy</button><button class="chipbtn" id="ghostLoad" type="button">Load code</button><span class="hint" id="ghostMsg"></span></div></div>
-    <div class="opts">
-    <div class="tabs" id="playersTabs"><button class="tab" data-n="1" type="button">1 player</button><button class="tab" data-n="2" type="button">2 players</button></div>
-    <div class="hint" id="playersHint" hidden>Split-screen: player 1 steers with A/D and boosts with W, player 2 uses ← → and ↑. Two gamepads work too.</div>
-    <div class="tabs" id="timeTabs"><button class="tab" data-t="day" type="button">Day</button><button class="tab" data-t="night" type="button">Night</button></div>
-    <div class="tabs" id="weatherTabs"><button class="tab" data-w="dry" type="button">Dry</button><button class="tab" data-w="rain" type="button">Rain</button></div>
-    <div class="tabs" id="layoutTabs"><button class="tab" data-l="" type="button">Normal</button><button class="tab" data-l="r" type="button">Reverse</button><button class="tab" data-l="m" type="button">Mirror</button></div>
-    </div>
-    <button class="btn" id="startBtn" type="button">Start race</button>
-    <button class="btn ghost" id="setupBack" type="button">Back</button>
   </div>
 </div>
 

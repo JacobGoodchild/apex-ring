@@ -28,14 +28,17 @@ export class Vehicle {
 
   // Put the car back on the racing line after getting stuck.
   respawn() {
-    const t = this.track, d = this.p.d, i = this.p.i;
-    const keepTotal = this.totalD, keepBoost = this.boost;
+    const t = this.track, g = t.gaps && t.gaps.length ? t.gapAt(this.p.d) || (t.toGap(this.p.d) < 30 ? t.gapAt(this.p.d + 30) : null) : null;
+    const d = g ? g.d1 + 18 : this.p.d, i = Math.floor(t.wrapD(d) / t.ds) % t.N;
+    const keepTotal = this.totalD, keepBoost = this.boost, oldD = this.p.d;
     let lat = t.line[i] * 0.5;
     // never drop the car onto a split-path island: pick the nearer lane beside it
     for (const h of t.hazards) if (h.type === "split" && t.islandHalf(h, d) > 0 && Math.abs(lat - h.lat) < h.w / 2 + 2) lat = h.lat + Math.sign(lat - h.lat || 1) * (h.w / 2 + 3);
     this.reset(d, lat);
-    this.totalD = keepTotal; this.lastD = this.p.d; this.boost = keepBoost;
-    this.vF = 18; this.vx = Math.sin(this.h) * 18; this.vz = Math.cos(this.h) * 18;
+    // skipping past a chasm still counts as distance covered (laps and positions stay right)
+    let skip = g ? d - oldD : 0; if (skip < -t.length / 2) skip += t.length; if (skip > t.length / 2) skip -= t.length;
+    this.totalD = keepTotal + Math.max(0, skip); this.lastD = this.p.d; this.boost = keepBoost;
+    this.vF = g ? 30 : 18; this.vx = Math.sin(this.h) * this.vF; this.vz = Math.cos(this.h) * this.vF; this.wing = 0;
     this.respawnFlash = 1.2;
   }
 
@@ -72,14 +75,24 @@ export class Vehicle {
     if (this.boostT > 0) this.boostT -= dt;
     // a slipstream slingshot is a free burst that doesn't spend the meter
     const sling = active && this.slingT > 0; if (this.slingT > 0) this.slingT -= dt;
+    // boost pads: a free 1.4 s burst (plus a kick) when the wheels touch one
+    this.padHit = false;
+    if (active && !this.airborne && t.hazards.length && t.padAt(p.d, p.lat)) { if (!(this.padT > 1.2)) { this.padHit = true; vF += 6; } this.padT = 1.4; }
+    const pad = active && this.padT > 0; if (this.padT > 0) this.padT -= dt;
+    // wings: they unfurl on the approach to a chasm (a gap in the road), fly you across it, and fold away after landing
+    const overGap = t.gaps.length ? t.gapAt(p.d) : null;
+    this.wingWant = t.gaps.length && (overGap || t.toGap(p.d) < 260 || (this.airborne && this.wing > 0.3)) ? 1 : 0;
+    this.wing = (this.wing || 0) + (this.wingWant - (this.wing || 0)) * Math.min(1, dt * (this.wingWant ? 0.9 : 1.4));
+    this.flying = !!overGap && this.airborne && this.wing > 0.45;
     const metered = active && this.boostT > 0 && this.boost > 0.01;
-    this.boosting = metered || sling;
+    this.boosting = metered || sling || pad;
     if (metered) this.boost = Math.max(0, this.boost - dt * drain); else this.boostT = 0;
 
     // longitudinal
     const vmax = s.vmax * (this.offTrack ? 0.82 : 1) * (this.boosting ? 1.16 : 1) * (this.draft || 1);
     let a = active && !this.airborne ? s.accel * Math.max(0, 1 - (vF / vmax) ** 2) * (pro ? c.throttle || 0 : 1) : 0;
     if (this.boosting) a += s.boostPower;
+    if (this.flying) a += 0.0009 * vF * vF + (vF < 50 ? 6 : 0); // thrusters hold the speed in flight
     let decel = 0;
     if (pro) {
       // manual: brake pedal, engine braking when off the throttle, and the handbrake scrubs a little speed
@@ -95,7 +108,8 @@ export class Vehicle {
     this.lonAcc += ((vF - prevVF) / dt - this.lonAcc) * Math.min(1, dt * 6);
 
     // lateral grip
-    const grip = s.grip * surf * (this.airborne ? 0.08 : 1);
+    const grip = s.grip * surf * (this.flying ? 0.6 : this.airborne ? 0.08 : 1); // in flight the wings steer
+    if (this.flying && active) vL += Math.sin(this.totalD * 0.045) * Math.sin(this.totalD * 0.013 + 1.3) * 7 * dt; // storm gusts: you have to fly it
     let latCap = grip * (this.drifting ? 1.02 * (s.driftGrip || 1) : 1); // drifting tyres still bite, so the slide doesn't run wide
     if (!this.drifting && vF > s.vmax * 0.85 && Math.abs(this.steer) > 0.7) latCap *= 0.82; // a little slide flat out
     const dvL = Math.min(Math.abs(vL), latCap * dt);
@@ -141,9 +155,14 @@ export class Vehicle {
     }
     this.lat = q.lat;
     // vertical: gravity, sitting exactly on the road, flying off ramp lips, crests and cliffs
-    const ground = q.y + t.rampAt(q.d, q.lat);
+    const gapHere = t.gaps.length ? t.gapAt(q.d) : null;
+    const ground = gapHere ? q.y - 250 : q.y + t.rampAt(q.d, q.lat); // nothing under you over the chasm
     if (this.groundPrev == null) this.groundPrev = ground;
-    this.vy -= 15.7 * dt; // arcade gravity (1.6 g) so jumps stay short and punchy
+    if (this.flying) {
+      // gliding: a little gravity, settling to a gentle sink; boost fires the thrusters and climbs
+      this.vy -= 15.7 * dt * 0.18; this.vy += (-2.2 - this.vy) * Math.min(1, dt * 0.6);
+      if (this.boosting) this.vy = Math.min(6, this.vy + 9 * dt);
+    } else this.vy -= 15.7 * dt; // arcade gravity (1.6 g) so jumps stay short and punchy
     this.y += this.vy * dt;
     this.landed = 0; this.airDone = 0;
     if (this.airborne) this.airT += dt;
@@ -155,6 +174,12 @@ export class Vehicle {
       this.airborne = false;
     } else if (this.y > ground + 0.08) this.airborne = true;
     this.groundPrev = ground;
+    // fell into the chasm, or flew into the cliff face below the far edge: back on the road beyond it
+    this.crashed = false;
+    if (gapHere && this.y < q.y - 35) this.crashed = true;
+    else if (!gapHere && this.overGapPrev && this.y < ground - 2.5) this.crashed = true;
+    this.overGapPrev = !!gapHere;
+    if (this.crashed) { this.overGapPrev = false; this.respawn(); return; }
     this.slope = q.slope; this.bank = q.bank;
 
     // progress along the track (handles the wrap at the line)

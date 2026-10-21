@@ -114,6 +114,8 @@ export class Terrain {
     }
     if (bi < 0) return T;
     const d = Math.sqrt(best), base = this.base[bi];
+    // the chasm: carved deep under the gap and a grid cell beyond its walls (the rock shelf on the walls hides the slope)
+    if (P.gap && P.gap[bi] && d < this.edge + this.spacing * 1.3) return base - 240;
     const t = smooth(flat, flat + 30 + Math.abs(T - base) * 1.6, d);
     return Math.min(low, base + (T - base) * t);
   }

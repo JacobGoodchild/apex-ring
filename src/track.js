@@ -76,6 +76,10 @@ export class TrackPath {
     // hazards: oil slicks (very slippery) and wet patches (less grip). Given per track as { type, at, lat, len, w }.
     this.hazards = (def.hazards || []).map((h) => ({ type: h.type, d: (def.reversed ? 1 - h.at : h.at) * this.length, lat: (def.reversed ? -1 : 1) * (h.lat || 0) * (def.layout === "m" ? -1 : 1), len: h.len || 10, w: h.w || 3.5 }));
     if (def.wet) this.hazards.push({ type: "wet", d: 0, lat: 0, len: 1e9, w: 1e9, all: true });
+    // gaps: stretches with no road at all (a chasm). Cars fly across on wings (see Vehicle); nothing is built there.
+    this.gap = new Uint8Array(N);
+    this.gaps = (def.gaps || []).map(([a, b]) => ({ d0: a * this.length, d1: b * this.length }));
+    for (const g of this.gaps) for (let i = Math.floor(g.d0 / this.ds); i <= Math.ceil(g.d1 / this.ds); i++) this.gap[i % N] = 1;
     this.findBridges();
     this._profiles = new Map();
     this.out = { i: 0, t: 0, d: 0, lat: 0, y: 0, h: 0 };
@@ -122,12 +126,26 @@ export class TrackPath {
     let g = 1;
     for (const h of this.hazards) {
       if (h.all) { g = Math.min(g, 0.86); continue; }
-      if (h.type === "rock" || h.type === "split") continue; // rocks and islands are obstacles, not a surface
+      if (h.type === "rock" || h.type === "split" || h.type === "pad") continue; // obstacles and boost pads, not a surface
       let x = d - h.d; if (x > this.length / 2) x -= this.length; if (x < -this.length / 2) x += this.length;
       if (Math.abs(x) < h.len / 2 && Math.abs(lat - h.lat) < h.w / 2) g = Math.min(g, h.type === "oil" ? 0.35 : h.type === "ice" ? 0.45 : 0.72);
     }
     return g;
   }
+
+  // Is (d, lat) on a boost pad?
+  padAt(d, lat) {
+    for (const h of this.hazards) {
+      if (h.type !== "pad") continue;
+      let x = d - h.d; if (x > this.length / 2) x -= this.length; if (x < -this.length / 2) x += this.length;
+      if (Math.abs(x) < h.len / 2 && Math.abs(lat - h.lat) < h.w / 2) return true;
+    }
+    return false;
+  }
+  // The gap (chasm) at distance d, or null
+  gapAt(d) { d = this.wrapD(d); for (const g of this.gaps) if (d >= g.d0 && d <= g.d1) return g; return null; }
+  // Metres to the start of the next gap ahead of d (Infinity when the track has none)
+  toGap(d) { let best = Infinity; for (const g of this.gaps) { let x = g.d0 - this.wrapD(d); if (x < -1) x += this.length; best = Math.min(best, x); } return best; }
 
   // Split-path island (a hazard of type "split", centred at h.d): its half-width at distance d, with tapered noses; 0 if not beside it
   islandHalf(h, d) {

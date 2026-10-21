@@ -7,7 +7,8 @@ import { photo, overlayMarkings } from "./photo.js";
 const tmp = { x: 0, y: 0, z: 0, h: 0 };
 
 // A ribbon between two lateral offsets, following the track. yA/yB lift each edge; mask(i) can skip quads.
-function strip(path, latA, latB, { yA = 0, yB = 0, vScale = 10, mask = null, edgeFn = null } = {}) {
+function strip(path, latA, latB, { yA = 0, yB = 0, vScale = 10, mask = null, edgeFn = null, gaps = false } = {}) {
+  const gap = path.gap; // nothing is built over a chasm (unless this strip is the chasm itself)
   const N = path.N, pos = [], uv = [], idx = [];
   for (let i = 0; i <= N; i++) {
     const d = i * path.ds;
@@ -15,7 +16,7 @@ function strip(path, latA, latB, { yA = 0, yB = 0, vScale = 10, mask = null, edg
     path.pointAt(d, ea ? ea.lat : latA, tmp); pos.push(tmp.x, ea ? ea.y : tmp.y + yA, tmp.z);
     path.pointAt(d, eb ? eb.lat : latB, tmp); pos.push(tmp.x, eb ? eb.y : tmp.y + yB, tmp.z);
     uv.push(0, d / vScale, 1, d / vScale);
-    if (i < N && (!mask || mask(i))) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    if (i < N && (!mask || mask(i)) && (gaps || !gap || !(gap[i] || gap[(i + 1) % N]))) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
@@ -165,13 +166,63 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
     lm.userData.glow = true; group.add(lm);
   }
 
+  // chasm: sheer rock walls either side from the approach to beyond the far edge, a rock shelf on top of them, and the
+  // cliff faces under both lips. The terrain is carved away below (see Terrain).
+  if (path.gaps.length) {
+    const rock = surface("darkrock", theme.groundTint || 0x9a9aa0, [6, 1], { side: THREE.DoubleSide });
+    const geos = [], top = 32, deep = 240, wlat = W + R + 0.5, shelf = 70;
+    for (const g of path.gaps) {
+      const i0 = Math.floor((g.d0 - 150) / path.ds), i1 = Math.ceil((g.d1 + 70) / path.ds);
+      const inR = (i) => { const k = ((i - i0) % N + N) % N; return k < (i1 - i0); };
+      const face = (lat) => (i, side) => { path.pointAt(i * path.ds, lat, tmp); const over = path.gap[i]; return { lat, y: side ? tmp.y + top : tmp.y - (over || 1) * deep * (over ? 1 : 0.02) }; };
+      for (const sg of [-1, 1]) {
+        geos.push(strip(path, 0, 0, { mask: inR, edgeFn: face(sg * wlat), vScale: 30, gaps: true }));
+        geos.push(strip(path, 0, 0, { mask: inR, edgeFn: (i, side) => { const lat = sg * (side ? wlat + shelf : wlat); path.pointAt(i * path.ds, lat, tmp); return { lat, y: path.y[i] + top }; }, vScale: 30, gaps: true }));
+      }
+      // the faces under the two lips
+      for (const [d, y] of [[g.d0, 0], [g.d1, 0]]) {
+        const pts = [-wlat, wlat].map((lat) => path.pointAt(d, lat, {}));
+        const pos = [pts[0].x, pts[0].y - deep, pts[0].z, pts[1].x, pts[1].y - deep, pts[1].z, pts[0].x, pts[0].y - 0.05, pts[0].z, pts[1].x, pts[1].y - 0.05, pts[1].z];
+        const q = new THREE.BufferGeometry(); q.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        q.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 4, 0, 0, 8, 4, 8], 2)); q.setIndex([0, 1, 2, 1, 3, 2]); q.computeVertexNormals(); geos.push(q);
+      }
+    }
+    const canyon = new THREE.Mesh(merge(geos), rock); canyon.name = "chasm"; canyon.receiveShadow = true; group.add(canyon);
+    // a glowing edge line at both lips so you can see where the road ends, and warning chevrons on the walls
+    const lipMat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
+    for (const g of path.gaps) for (const d of [g.d0, g.d1]) {
+      const a = path.pointAt(d, -W - R, {}), b = path.pointAt(d, W + R, {});
+      const m = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(b.x - a.x, b.z - a.z), 0.12, 0.5), lipMat);
+      m.position.set((a.x + b.x) / 2, (a.y + b.y) / 2 + 0.06, (a.z + b.z) / 2); m.rotation.y = a.h + Math.PI / 2; m.userData.glow = true; group.add(m);
+    }
+  }
+
+  // boost pads: glowing chevrons set into the road
+  {
+    const pads = path.hazards.filter((h) => h.type === "pad");
+    if (pads.length) {
+      const tex = canvasTex(64, 128, (g, w, h) => {
+        g.fillStyle = "rgba(10,40,60,.9)"; g.fillRect(0, 0, w, h);
+        g.strokeStyle = "#5ff3ff"; g.lineWidth = 10; g.lineJoin = "miter";
+        for (let k = 0; k < 3; k++) { const y = 20 + k * 36; g.beginPath(); g.moveTo(6, y + 26); g.lineTo(w / 2, y); g.lineTo(w - 6, y + 26); g.stroke(); }
+      });
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, polygonOffset: true, polygonOffsetFactor: -5, depthWrite: false });
+      for (const h of pads) {
+        const c = path.pointAt(h.d, h.lat, {});
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(h.w, h.len).rotateX(-Math.PI / 2), mat);
+        m.position.set(c.x, c.y + 0.04, c.z); m.rotation.y = c.h; m.userData.glow = true; group.add(m);
+      }
+      group.userData.padMat = mat;
+    }
+  }
+
   // hazards: glossy oil slicks with a rainbow sheen, and dark puddles
   {
     const oil = new THREE.MeshPhysicalMaterial({ color: 0x07080a, roughness: 0.06, metalness: 0.4, iridescence: 1, iridescenceIOR: 1.3, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
     const wet = new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.04, metalness: 0.2, transparent: true, opacity: 0.65, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
     const ice = new THREE.MeshStandardMaterial({ color: 0xcfe6f5, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.55, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false });
     for (const h of path.hazards) {
-      if (h.all || h.type === "split") continue;
+      if (h.all || h.type === "split" || h.type === "pad") continue;
       const blobs = h.type === "oil" ? 3 : 4;
       for (let k = 0; k < blobs; k++) {
         const g = new THREE.CircleGeometry(1, 20); g.rotateX(-Math.PI / 2);

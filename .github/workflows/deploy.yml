@@ -58,7 +58,7 @@ jobs:
       - name: Collect site files
         run: |
           mkdir -p _site
-          cp -r index.html styles.css src vendor _site/
+          cp -r index.html styles.css ui.css src vendor _site/
           for f in manifest.webmanifest sw.js icons assets CREDITS.md; do [ -e "$f" ] && cp -r "$f" _site/ || true; done
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

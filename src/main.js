@@ -85,7 +85,8 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
   for (const r of G.rivals || []) if (r.model.beams) r.model.beams.visible = G.night;
   if (G.player) { G.player.track = G.path; gridUp(); }
   save.track = def.id;
-  $("trackName").textContent = def.name; $("trackBlurb").textContent = def.blurb + " " + def.laps + " laps.";
+  $("trackName").textContent = def.name; $("trackBlurb").textContent = def.blurb;
+  showTrackCard(def, theme);
   $("trackTheme").textContent = DIFFICULTY_NAMES[def.difficulty || 1] + " · " + (theme.label || "Track");
   $("trackTheme").dataset.diff = def.difficulty || 1;
   applyAids();
@@ -124,7 +125,7 @@ function refreshBoard() {
   $("medalLine").hidden = !G.trial || !mt.length;
   $("trackName").innerHTML = G.track.name + (G.trial && got ? ` <i class="mdot ${got}" title="${got} medal"></i>` : "");
   $("medalLine").innerHTML = mt.map((m) => `<span class="md ${m.name}${got && MEDAL_RANK[got] >= MEDAL_RANK[m.name] ? " won" : ""}"><i></i>${fmt(m.t)}</span>`).join("");
-  $("playersTabs").hidden = !!G.trial || !canSplit(); applyPlayers(); applyWeather();
+  $("playersOpt").hidden = !!G.trial || G.cupMode || !canSplit(); applyPlayers(); applyWeather();
 }
 document.querySelectorAll("#boardTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.boardPeriod = b.dataset.p; refreshBoard(); }));
 $("ghostShare").addEventListener("click", async () => {
@@ -173,6 +174,40 @@ $("ghostLoad").addEventListener("click", async () => {
   } catch (_) { $("ghostMsg").textContent = "That code doesn't look right."; }
 });
 const previewCtx = $("trackPreview").getContext("2d");
+// ---------- race select: track photo, stats and the thumbnail strip ----------
+const previewSrc = (id) => `assets/previews/${baseId(id)}.jpg`;
+function setImg(img, src) {
+  if (img.dataset.src === src) return;
+  img.dataset.src = src; img.style.visibility = "";
+  img.onerror = () => (img.style.visibility = "hidden");
+  img.src = src; img.classList.remove("swap"); void img.offsetWidth; img.classList.add("swap");
+}
+function showTrackCard(def, theme) {
+  setImg($("trackImg"), previewSrc(def.id));
+  const km = G.path.length / 1000, best = save.best[def.id], d = def.difficulty || 1;
+  const len = mph() ? (km / 1.609).toFixed(1) + " mi" : km.toFixed(1) + " km";
+  $("trackStats").innerHTML = `<div><b>${len}</b><span>Length</span></div><div><b>${def.laps}</b><span>Laps</span></div>` +
+    `<div><b>${best ? fmt(best) : "–"}</b><span>Your record</span></div>` +
+    `<div><span class="pips">${[1, 2, 3].map((k) => `<i class="${k <= d ? "on" : ""}"></i>`).join("")}</span><span>${DIFFICULTY_NAMES[d]}</span></div>`;
+  buildStrip();
+}
+function buildStrip() {
+  const strip = $("trackStrip"), cur = baseId(G.track.id);
+  if (!strip.childElementCount) {
+    for (const t of TRACKS) {
+      const b = document.createElement("button"); b.type = "button"; b.dataset.id = t.id; b.setAttribute("role", "option");
+      b.innerHTML = `<img alt="" loading="lazy" src="${previewSrc(t.id)}"><span>${t.name}</span>`;
+      b.querySelector("img").onerror = (e) => (e.target.style.visibility = "hidden");
+      b.addEventListener("click", () => { if (baseId(G.track.id) === t.id) return; sfx.click(); const lay = layoutOf(G.track.id); loadTrack(t.id + (lay && (lay !== "r" || canReverse(t)) ? ":" + lay : "")); writeSave(); });
+      strip.appendChild(b);
+    }
+  }
+  for (const b of strip.children) {
+    const sel = b.dataset.id === cur; b.setAttribute("aria-selected", String(sel));
+    b.classList.toggle("locked", !TEST && !trackUnlocked(save, b.dataset.id));
+    if (sel && strip.offsetParent) b.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
 const minimap = new Minimap($("minimap"));
 function pickTrack(dir) {
   sfx.click();
@@ -196,6 +231,7 @@ function applyPlayers() {
 document.querySelectorAll("#playersTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.split = b.dataset.n === "2"; applyPlayers(); }));
 document.querySelectorAll("#layoutTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); loadTrack(baseId(G.track.id) + (b.dataset.l ? ":" + b.dataset.l : "")); writeSave(); }));
 $("trackPrev").addEventListener("click", () => pickTrack(-1));
+$("settingsTop").addEventListener("click", () => show("settings"));
 $("trackNext").addEventListener("click", () => pickTrack(1));
 
 // ---------- player car ----------
@@ -309,6 +345,7 @@ function show(id) {
   setMusicMode("menu"); if (G.photo) endPhoto();
   $("topbar").hidden = !SCREENS.includes(id);
   G.screen = id;
+  showroom.side = id === "garage" ? -2.4 : 1.6; // keep the car clear of the garage card (left) or the menu tiles (right)
   if (id === "garage") { G.garageCar = save.car; refreshGarage(); }
   if (id === "menu") { if (G.garageCar && G.garageCar !== save.car) buildPlayer(); refreshLobby(); }
   if (id === "settings") refreshSettings();
@@ -321,7 +358,15 @@ function show(id) {
   }
 }
 function refreshLobby() {
-  $("lobbyCar").textContent = carById(save.car).name;
+  const car = carById(save.car), sp = carSpec(car, carSave(car.id).upgrades || {});
+  $("lobbyCar").textContent = car.name;
+  $("lobbyCls").textContent = car.cls; $("lobbyCls").className = "cls cls-" + car.cls.toLowerCase();
+  $("lobbyEngine").textContent = car.engine === "electric" ? "Electric" : car.engine.toUpperCase().replace("FLAT6", "Flat-6");
+  $("lobbyStats").innerHTML = STAT_KEYS.slice(0, 3).map(([k, f]) => `<div>${k}<i><b style="width:${Math.round(Math.min(1, Math.max(0.05, f(sp))) * 100)}%"></b></i></div>`).join("");
+  if (G.track) { $("raceTileSub").textContent = "Last track: " + G.track.name; setImg($("raceTileImg"), previewSrc(G.track.id)); }
+  const stars = EVENTS.reduce((a, e) => a + ((save.career[e.id] || {}).stars || 0), 0);
+  $("careerTileSub").textContent = `${stars} / ${EVENTS.length * 3} stars`;
+  $("garageTileSub").textContent = `${save.owned.length} of ${CARS.length} cars`;
   $("coinsV").textContent = save.coins.toLocaleString("en-GB"); $("gemsV").textContent = save.gems;
 }
 
@@ -728,7 +773,7 @@ function setMode(trial, cup = false) {
   const m = cup ? "cup" : trial ? "trial" : "race";
   if (save.settings.raceMode !== m) { save.settings.raceMode = m; writeSave(); } // the race screen opens on the mode you used last
   $("modeRace").setAttribute("aria-pressed", String(!trial && !cup)); $("modeTrial").setAttribute("aria-pressed", String(trial)); $("modeCup").setAttribute("aria-pressed", String(cup));
-  $("cupPick").hidden = !cup; $("trackPick").hidden = cup; ["layoutTabs", "board", "timeTabs", "weatherTabs"].forEach((id) => ($(id).hidden = cup)); // cups always race by day, dry
+  $("cupPick").hidden = !cup; $("trackPick").hidden = cup; ["layoutOpt", "board", "timeOpt", "weatherOpt", "trackStrip"].forEach((id) => ($(id).hidden = cup)); // cups always race by day, dry
   if (cup) refreshCup();
   refreshLock();
 }
@@ -738,6 +783,7 @@ const cupOpen = (c) => TEST || c.tracks.every((t) => trackUnlocked(save, baseId(
 function refreshCup() {
   const c = CUPS[G.cupIdx], best = (save.cups || {})[c.id];
   $("cupName").textContent = c.name + (best ? ` · best ${ordinal(best)}` : "");
+  setImg($("cupImg"), previewSrc(c.tracks[0]));
   $("cupTracks").textContent = c.tracks.map((t) => trackById(t).name).join(" → ") + ` · prize ${c.reward.coins.toLocaleString("en-GB")} coins` + (cupOpen(c) ? "" : " · unlock its tracks in Career");
 }
 $("modeCup").addEventListener("click", () => { sfx.click(); setMode(false, true); });
@@ -1012,6 +1058,7 @@ function step(dt) {
     }
     G.wasBoosting = v.boosting;
     G.raceTime += dt;
+    tyreFx("p", v, dt); G.field.forEach((r, i) => tyreFx("r" + i, r.veh, dt));
     const L = G.path.length, done = G.lapTimes.length;
     if (trialMode() && v.totalD >= done * L) G.ghost.record(G.raceTime - G.lapStart, v);
     if (v.totalD >= (done + 1) * L) {
@@ -1065,16 +1112,18 @@ function dropLast(per) {
   if (!G.field.length) { toast("Last one standing!", 2000); finishRace(); } // knockout won
 }
 
-const wp = new THREE.Vector3();
-// Smoke + skid marks from the rear wheels when a car slides or brakes hard.
-function tyreFx(key, m, v, dt) {
+// Smoke + skid marks from the rear wheels when a car slides or brakes hard. Runs every physics tick (so a short
+// slide still marks the road on a slow phone); the wheel positions come from the car's state, not its model.
+function tyreFx(key, v, dt) {
+  if (v.airborne) { skids.mark(key + 2, 0, 0, 0, 0, 0); skids.mark(key + 3, 0, 0, 0, 0, 0); return; }
   const slide = Math.abs(v.driftAngle) > 0.12 && v.vF > 12 ? Math.min(1, (Math.abs(v.driftAngle) - 0.08) * 4) : 0;
   const lock = v.lonAcc < -18 && v.vF > 15 ? 0.6 : 0;
   const k = Math.max(slide, lock);
+  const fx = Math.sin(v.h), fz = Math.cos(v.h), rx = -Math.cos(v.h), rz = Math.sin(v.h);
   for (let w = 2; w < 4; w++) {
-    m.wheels[w].parent.getWorldPosition(wp);
-    skids.mark(key + w, wp.x, v.y, wp.z, v.h, k);
-    if (k > 0.2 && Math.random() < k * dt * 40) smoke.emit(wp.x, v.y, wp.z, v.vx, v.vz, k);
+    const side = w === 2 ? -0.82 : 0.82, x = v.x - fx * 1.35 + rx * side, z = v.z - fz * 1.35 + rz * side;
+    skids.mark(key + w, x, v.y, z, v.h, k);
+    if (k > 0.2 && Math.random() < k * dt * 40) smoke.emit(x, v.y, z, v.vx, v.vz, k);
   }
 }
 
@@ -1125,10 +1174,6 @@ function render(dt) {
   if (car.beams) car.beams.visible = false; // the player has a real spotlight at night instead
   if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.friend) G.friend.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
-  if (G.mode === "race" || G.mode === "done") {
-    tyreFx("p", car, v, dt);
-    G.field.forEach((r, i) => tyreFx("r" + i, r.model, r.veh, dt));
-  }
   smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight);
   drawRocks();
   if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
@@ -1139,8 +1184,8 @@ function render(dt) {
   const portrait = camera.aspect < 1;
   if (G.mode === "menu") {
     G.menuT += dt;
-    // doors swing open and shut every few seconds in the lobby; held open in the garage
-    const want = G.screen === "garage" ? 1 : (G.menuT % 9) < 5 ? 1 : 0;
+    // doors stay shut in the showroom (open doors read as flat slabs at this distance)
+    const want = 0;
     G.doors += (want - G.doors) * Math.min(1, dt * 2.2); setDoors(G.car, G.doors);
     car.group.position.set(0, 0, 0); car.group.rotation.set(0, 0, 0, "YXZ"); car.body.rotation.set(0, 0, 0); car.body.position.y = 0;
     updateContactShadow(car, 0, 0);
@@ -1397,6 +1442,8 @@ if (TEST) {
     get track() { return G.track.id; },
     // jump the player to a distance along the track (used for screenshots of specific corners)
     warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
+    // freeze the race and frame the car from a photo-mode camera (angle relative to the car's heading); used for track previews
+    photo(a, e, d) { G.paused = true; G.photo = { a: G.player.h + a, e, d }; document.body.classList.add("photo"); $("pause").hidden = true; $("hud").hidden = true; },
     rampD() { const r = G.path.ramps[0]; return r ? r.d - r.len - 45 : -1; },
     get airPops() { return G.airPops || 0; },
     // anything solid within car height above the road surface (should be nothing)

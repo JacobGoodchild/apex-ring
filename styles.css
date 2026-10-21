@@ -132,7 +132,7 @@ button { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) { #driftPop.pop { animation: none; } }
 
 .topbar { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center;
-  padding: calc(var(--safe-t) + 12px) calc(var(--safe-r) + 16px) 0 calc(var(--safe-l) + 16px); pointer-events: none; z-index: 5; }
+  padding: calc(var(--safe-t) + 12px) calc(var(--safe-r) + 16px) 0 calc(var(--safe-l) + 16px); pointer-events: none; z-index: 12; }
 .brand.mini { font-size: 30px; }
 .wallet { display: flex; gap: 8px; font: 700 18px var(--display); }
 .wallet span { background: var(--panel); border: 1px solid var(--edge); border-radius: 20px; padding: 4px 12px 4px 8px; display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }

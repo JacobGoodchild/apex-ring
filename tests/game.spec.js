@@ -52,9 +52,9 @@ test.describe("Apex Ring", () => {
     const key = (await game(page, () => window.__apex.player.bend)) > 0 ? "ArrowRight" : "ArrowLeft";
     await page.keyboard.down(key);
     await page.waitForFunction(() => window.__apex.player.drifting, null, { timeout: 10_000 });
-    await page.waitForFunction(() => window.__apex.skidCount > 0, null, { timeout: 20_000 }); // marks are laid per drawn frame, so few on a slow machine
+    await page.waitForFunction(() => window.__apex.skidCount > 0, null, { timeout: 20_000 });
+    await page.waitForFunction((b0) => window.__apex.player.boost > b0, b0, { timeout: 20_000 }); // drifting fills the boost meter
     await page.keyboard.up(key);
-    expect((await game(page, () => window.__apex.player)).boost).toBeGreaterThan(b0);
   });
 
   test("Space fires a boost burst that spends the meter", async ({ page }) => {
