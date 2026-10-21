@@ -428,4 +428,10 @@ commitsnap.sh pushes to `claude/bold-cray-7rck1e` and `main`. Plan (tick as done
 - [ ] F8 Share replay: cinematic highlight clip (slow-mo, camera cuts, logo + time overlay) recorded to a video file,
       shared via the share sheet or downloaded.
 - [ ] F9 Cars (a few hours, not all night): real glass, smoother bodywork, no clipping, proper door animation, wheels, paint.
-- [ ] F10 If time: slow-mo photo-finish camera, daily login streak, "friend online" ping.
+- [ ] F10 Extras agreed: photo-finish slow-mo (1), light rain drops on the camera in wet races (3, subtle), crowd + fireworks
+      at the finish when you win (4, subtle), second flight track "sky islands" with two chasms (5), wing skins unlocked by
+      badges (6), daily login streak (7), friend online ping + room invites (8), spectate friends after you finish (9),
+      seasonal titles next to names (10), showroom moments: doors open, lights flicker on, engine rev (11), underglow (12),
+      livery / sticker editor (13), title screen fly-by (14), optional short tutorial with a small Tutorial button on the
+      home screen and a one-time hint (16).
+Order: F1+F3 -> F2/F4/F5/F6/7/8/9/10 -> F7/5/6 -> F8/1/3/4 -> F9/11/12/13/14/16.
