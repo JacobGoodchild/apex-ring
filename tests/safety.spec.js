@@ -1,11 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
 // No secret keys anywhere in the repo: a Supabase secret key (sb_secret_...) or a service_role JWT would let anyone
 // who opens the game take over the database. CI runs this before every deploy.
 test("no secret keys are committed", () => {
-  const files = execSync("git ls-files", { encoding: "utf8" }).split("\n").filter((f) => f && !/\.(png|jpe?g|webp|mp3|woff2?|ico|glb|bin)$/i.test(f) && !f.startsWith("vendor/"));
+  const skip = new Set(["node_modules", ".git", "vendor", "test-results", "playwright-report", "screenshots", "devassets"]);
+  const files = [];
+  const walk = (dir) => { for (const e of readdirSync(dir, { withFileTypes: true })) { if (skip.has(e.name)) continue; const f = join(dir, e.name); if (e.isDirectory()) walk(f); else if (!/\.(png|jpe?g|webp|mp3|woff2?|ico|glb|bin|hdr)$/i.test(e.name)) files.push(f); } };
+  walk(".");
   const bad = [];
   for (const f of files) {
     let text; try { text = readFileSync(f, "utf8"); } catch (_) { continue; }
