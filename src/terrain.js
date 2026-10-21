@@ -125,7 +125,7 @@ export class Terrain {
 
   heightAt(x, z, carve = true) {
     // under the canyon's own mesh (and a margin round it) the coarse terrain drops well out of sight
-    if (carve) for (const C of this.canyons) { const k = this.canyonAt(C, x, z); if (k.t > -48 && Math.abs(k.v) < C.vmax + 70) return this.heightAt(x, z, false) - 340; }
+    if (carve) for (const C of this.canyons) { const k = this.canyonAt(C, x, z); if (k.t > -48 && Math.abs(k.v) < C.vmax + 20) return this.heightAt(x, z, false) - 340; }
     const P = this.path, T = this.natural(x, z), flat = this.edge + this.spacing + 2;
     const cx = Math.floor(x / this.cell), cz = Math.floor(z / this.cell), R = 6;
     let best = 1e18, bi = -1, low = 1e9;
@@ -186,8 +186,8 @@ export class Terrain {
   // the cliff edges stay sharp. Walls get rough (jittered sideways), rock bands are baked into the vertex colours.
   canyonMesh(C, mat) {
     const vs = [];
-    for (let v = -C.vmax - 60; v <= C.vmax + 60;) { vs.push(v); const a = Math.abs(v); v += a < 160 ? 7 : a < 600 ? 18 : 36; }
-    const ts = [-46, -30, -16, -7, -2.5, -0.6, 0, 0.6, 1.6, 2.8, 3.7, 4.6, 8, 13, 18, 23, 23.8, 25, 26.6, 28.2, 29.4, 33, 40, 47, 49.6, 50.8, 52.5, 54.2, 55.4, 62];
+    for (let v = -C.vmax - 130; v <= C.vmax + 130;) { vs.push(v); const a = Math.abs(v); v += a < 160 ? 7 : a < 600 ? 18 : 36; }
+    const ts = [-150, -110, -75, -46, -30, -16, -7, -2.5, -0.6, 0, 0.6, 1.6, 2.8, 3.7, 4.6, 8, 13, 18, 23, 23.8, 25, 26.6, 28.2, 29.4, 33, 40, 47, 49.6, 50.8, 52.5, 54.2, 55.4, 62];
     const pos = [], uv = [], col = [], rows = [];
     for (const v of vs) {
       const k0 = this.canyonAt(C, C.cx + C.fz * v, C.cz - C.fx * v), uc = k0.uc, hw = k0.hw, row = [];
@@ -239,7 +239,7 @@ export class Terrain {
     vs.forEach((v, i) => {
       const k = this.canyonAt(C, C.cx + C.fz * v, C.cz - C.fx * v);
       const w = Math.max(4, Math.min(16, k.hw - 56)), x0 = C.cx + C.fx * k.uc + C.fz * v, z0 = C.cz + C.fz * k.uc - C.fx * v;
-      const y = this.heightAt(x0, z0, false) - Terrain.drop(k.hw) + 2.2;
+      const y = this.heightAt(x0, z0, false) - Terrain.drop(Math.max(k.hw, 56)) + 2.2; // where the canyon pinches out the river runs under the ground
       rp.push(x0 - C.fx * w, y, z0 - C.fz * w, x0 + C.fx * w, y, z0 + C.fz * w);
       if (i < vs.length - 1) { const a = i * 2; ri.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     });

@@ -17,7 +17,7 @@ export class Vehicle {
     this.vx = 0; this.vz = 0; this.vF = 0; this.vL = 0;
     this.yawRate = 0; this.steer = 0; this.latAcc = 0; this.lonAcc = 0;
     this.drifting = false; this.driftAngle = 0; this.driftTime = 0; this.driftScore = 0;
-    this.wing = 0; this.wingWant = 0; this.flying = false; this.padT = 0; this.overGapPrev = false;
+    this.wing = 0; this.wingWant = 0; this.flying = false; this.padT = 0; this.overGapPrev = false; this.crossedGap = false; this.gapCleared = false;
     this.boost = this.boost ?? 0.25; this.boosting = false;
     this.offTrack = false; this.wallHit = 0; this.stuckT = 0;
     this.hint = -1;
@@ -49,7 +49,8 @@ export class Vehicle {
     let vF = this.vx * fx + this.vz * fz, vL = this.vx * rx + this.vz * rz;
     const p = t.project(this.x, this.z, this.hint, this.p); this.hint = p.i;
     const halfW = t.width / 2;
-    this.offTrack = Math.abs(p.lat) > halfW + 0.7;
+    const gapNow = t.gaps.length ? t.gapAt(p.d) : null;
+    this.offTrack = !gapNow && Math.abs(p.lat) > halfW + 0.7;
     const surf = (this.offTrack ? 0.8 : 1) * t.surfaceAt(p.d, p.lat); // run-off is grippy enough to recover on; oil and water aren't
     this.onOil = surf < 0.5;
     if (this.onOil && active && vF > 20) this.yawRate += Math.sin(this.totalD * 0.9) * 0.5 * dt; // the tail wriggles on oil
@@ -146,7 +147,11 @@ export class Vehicle {
     const q = t.project(this.x, this.z, this.hint, this.p); this.hint = q.i;
     const lim = halfW + t.runoff - 1.05;
     this.wallHit = 0;
-    if (Math.abs(q.lat) > lim) { const sg = Math.sign(q.lat); this.hitWall(q, -sg * (Math.abs(q.lat) - lim)); q.lat = sg * lim; }
+    if (t.gaps.length && t.gapAt(q.d)) {
+      // over the chasm there are no barriers: past the road's width a soft crosswind eases you back toward the line
+      const out = Math.abs(q.lat) - lim * 0.8;
+      if (out > 0) { const sg = Math.sign(q.lat), k = Math.min(1, out / 25) * 9 * dt, rx = -Math.cos(q.h) * sg, rz = Math.sin(q.h) * sg; this.vx -= rx * k; this.vz -= rz * k; }
+    } else if (Math.abs(q.lat) > lim) { const sg = Math.sign(q.lat); this.hitWall(q, -sg * (Math.abs(q.lat) - lim)); q.lat = sg * lim; }
     // split-path islands: a wall on both sides of a strip down the middle of the road
     for (const h of t.hazards) {
       if (h.type !== "split") continue;
@@ -165,10 +170,13 @@ export class Vehicle {
       if (this.boosting) this.vy = Math.min(6, this.vy + 9 * dt);
     } else this.vy -= 15.7 * dt; // arcade gravity (1.6 g) so jumps stay short and punchy
     this.y += this.vy * dt;
+    // flew into the cliff face below the far edge (checked before the landing snaps you up onto the road)
+    const faceHit = !gapHere && this.overGapPrev && this.y < ground - 4;
     this.landed = 0; this.airDone = 0;
     if (this.airborne) this.airT += dt;
     if (this.y <= ground) {
       if (this.airborne) { this.airDone = this.airT; this.airT = 0; }
+      if (this.airborne && this.crossedGap && !faceHit) { this.gapCleared = true; this.crossedGap = false; }
       if (this.airborne && this.vy < -3) { this.landed = -this.vy; this.vx *= 0.98; this.vz *= 0.98; }
       this.y = ground;
       this.vy = Math.min(14, Math.max(-14, (ground - this.groundPrev) / dt));
@@ -178,9 +186,9 @@ export class Vehicle {
     // fell into the chasm, or flew into the cliff face below the far edge: back on the road beyond it
     this.crashed = false;
     if (gapHere && this.y < q.y - 35) this.crashed = true;
-    else if (!gapHere && this.overGapPrev && this.y < ground - 2.5) this.crashed = true;
-    this.overGapPrev = !!gapHere;
-    if (this.crashed) { this.overGapPrev = false; this.respawn(); return; }
+    else if (faceHit) this.crashed = true;
+    this.overGapPrev = !!gapHere; if (gapHere && this.flying) this.crossedGap = true;
+    if (this.crashed) { this.overGapPrev = false; this.crossedGap = false; this.respawn(); return; }
     this.slope = q.slope; this.bank = q.bank;
 
     // progress along the track (handles the wrap at the line)

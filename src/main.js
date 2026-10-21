@@ -82,7 +82,7 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
   if (theme.snowfall && !G.snow) G.snow = new Rain(scene, 900, true);
   if (G.snow) G.snow.lines.visible = !!theme.snowfall && !theme.rain;
   sfx.setWeatherSound(theme.rain ? "rain" : theme.snowfall ? "snow" : theme.wetRoad ? "wet" : "");
-  G.ltFlash = 0; $("flash").style.opacity = 0; if (G.bolt) { G.bolt.removeFromParent(); G.bolt = null; } // setTheme has reset the light
+  G.ltFlash = 0; $("flash").style.opacity = 0; if (G.bolt) { G.bolt.removeFromParent(); G.bolt.geometry.dispose(); G.bolt.material.dispose(); G.bolt = null; } // setTheme has reset the light
   G.lightning = !!theme.lightning;
   if (G.car && G.car.beams) G.car.beams.visible = G.night;
   for (const r of G.rivals || []) if (r.model.beams) r.model.beams.visible = G.night;
@@ -339,7 +339,7 @@ function setRaceUI(on) {
   $("hud").classList.toggle("split", !!(on && G.splitRace));
   if (on && G.splitRace) { ["speedo", "minimap", "pads"].forEach((id) => ($(id).hidden = true)); }
   const pro = save.settings.drive === "pro" && matchMedia("(pointer: coarse)").matches;
-  $("proPads").hidden = !(on && pro); if (on && pro) $("pads").hidden = true; $("proSteer").hidden = input.tiltOn; $("tags").hidden = !on; if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; } }
+  $("proPads").hidden = !(on && pro); if (on && pro) $("pads").hidden = true; $("proSteer").hidden = input.tiltOn; $("tags").hidden = !on; if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; stopFlightFx(); } }
 
 const SCREENS = ["menu", "setup", "garage", "settings", "career", "help", "daily", "online"];
 function show(id) {
@@ -668,6 +668,7 @@ function pause(on) {
   if (G.mode !== "race" && G.mode !== "countdown") return;
   if (!on && G.photo) endPhoto();
   G.paused = on; $("pause").hidden = !on;
+  if (on) { clearTimeout(G.voiceT); clearTimeout(subtitle._d); }
 }
 
 // Photo mode (from pause): hide the HUD, orbit the camera around your car, save the picture to your device.
@@ -1174,7 +1175,7 @@ function flightFx(dt) {
   if (G.mode !== "race") return;
   // the wings start to unfurl: servos, then the ship's computer welcomes you aboard
   if (v.wingWant && !G.wingCalled) {
-    G.wingCalled = true; sfx.servo(); setTimeout(() => sfx.voice("wings"), 450);
+    G.wingCalled = true; sfx.servo(); G.voiceT = setTimeout(() => sfx.voice("wings"), 450);
     subtitle("WELCOME ABOARD, CAPTAIN. ALL SYSTEMS ONLINE.", 600);
   }
   if (!v.wingWant && (v.wing || 0) < 0.05) G.wingCalled = false;
@@ -1187,12 +1188,15 @@ function flightFx(dt) {
     $("fltBar").style.width = Math.round(Math.max(0, Math.min(1, (alt + 20) / 40)) * 100) + "%";
     hud.classList.toggle("warn", !!far && alt < -6);
   }
-  if (v.landed && G.flewGap) { G.flewGap = false; popDrift("", "CHASM CLEARED"); sfx.chime(); trophy("wings"); }
-  if (v.flying) G.flewGap = true;
+  if (v.gapCleared) { v.gapCleared = false; popDrift("", "CHASM CLEARED"); sfx.chime(); trophy("wings"); }
+}
+function stopFlightFx() {
+  $("flightHud").hidden = true; $("subtitle").hidden = true; G.wingCalled = false;
+  clearInterval(subtitle._i); clearTimeout(subtitle._t); clearTimeout(subtitle._d); clearTimeout(G.voiceT);
 }
 function subtitle(text, delay = 0) {
-  const el = $("subtitle"); clearInterval(subtitle._i); clearTimeout(subtitle._t);
-  setTimeout(() => {
+  const el = $("subtitle"); clearInterval(subtitle._i); clearTimeout(subtitle._t); clearTimeout(subtitle._d);
+  subtitle._d = setTimeout(() => {
     el.textContent = ""; el.hidden = false; let k = 0;
     subtitle._i = setInterval(() => { el.textContent = text.slice(0, ++k); if (k >= text.length) { clearInterval(subtitle._i); subtitle._t = setTimeout(() => (el.hidden = true), 2200); } }, 55);
   }, delay);
@@ -1206,9 +1210,9 @@ function lightning(dt) {
     const f = G.ltFlash * (0.6 + 0.4 * Math.sin(G.ltFlash * 40)); // flickers as it fades
     world.hemi.intensity = G.ltBase + f * 2.2; $("flash").style.opacity = (f * 0.28).toFixed(3);
     if (G.bolt) G.bolt.material.opacity = Math.min(1, G.ltFlash * 1.6);
-    if (G.ltFlash <= 0) { world.hemi.intensity = G.ltBase; $("flash").style.opacity = 0; if (G.bolt) { G.bolt.removeFromParent(); G.bolt.geometry.dispose(); G.bolt = null; } }
+    if (G.ltFlash <= 0) { world.hemi.intensity = G.ltBase; $("flash").style.opacity = 0; if (G.bolt) { G.bolt.removeFromParent(); G.bolt.geometry.dispose(); G.bolt.material.dispose(); G.bolt = null; } }
   }
-  if (G.ltT > 0 || G.mode === "menu") return;
+  if (G.ltT > 0 || G.mode !== "race" || G.paused) return;
   G.ltT = 3 + Math.random() * 7;
   if (!(G.ltFlash > 0)) G.ltBase = world.hemi.intensity;
   G.ltFlash = 1;
@@ -1228,7 +1232,7 @@ function lightning(dt) {
   for (let j = 0; j < 5; j++) { bx += (Math.random() - 0.3) * 60; bz += (Math.random() - 0.3) * 60; by -= 25 + Math.random() * 20; br.push([bx, by, bz]); }
   ribbon(br, 1.2);
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  if (G.bolt) { G.bolt.removeFromParent(); G.bolt.geometry.dispose(); }
+  if (G.bolt) { G.bolt.removeFromParent(); G.bolt.geometry.dispose(); G.bolt.material.dispose(); }
   G.bolt = new THREE.Mesh(g, boltMat.clone()); G.bolt.frustumCulled = false; scene.add(G.bolt);
   sfx.thunder(dist);
 }
@@ -1236,7 +1240,7 @@ function lightning(dt) {
 // Smoke + skid marks from the rear wheels when a car slides or brakes hard. Runs every physics tick (so a short
 // slide still marks the road on a slow phone); the wheel positions come from the car's state, not its model.
 function tyreFx(key, v, dt) {
-  if (v.wallHit > 2.5) { const s = Math.sign(v.lat) || 1, nx = Math.cos(v.p.h) * s, nz = -Math.sin(v.p.h) * s; sparks.emit(v.x - nx * 0.9, v.y, v.z - nz * 0.9, v.vx, v.vz, nx, nz, Math.min(14, 3 + v.wallHit)); }
+  if (v.wallHit > 2.5 && !v.airborne) { const s = Math.sign(v.lat) || 1, nx = Math.cos(v.p.h) * s, nz = -Math.sin(v.p.h) * s; sparks.emit(v.x - nx * 0.9, v.y, v.z - nz * 0.9, v.vx, v.vz, nx, nz, Math.min(14, 3 + v.wallHit)); }
   if (v.airborne) { skids.mark(key + 2, 0, 0, 0, 0, 0); skids.mark(key + 3, 0, 0, 0, 0, 0); return; }
   const slide = Math.abs(v.driftAngle) > 0.12 && v.vF > 12 ? Math.min(1, (Math.abs(v.driftAngle) - 0.08) * 4) : 0;
   const lock = v.lonAcc < -18 && v.vF > 15 ? 0.6 : 0;
@@ -1293,7 +1297,7 @@ function render(dt) {
   // in the garage, picking a flame colour shows the flames for a moment
   const showFlames = G.mode === "menu" && (G.trailShow = Math.max(0, (G.trailShow || 0) - dt)) > 0;
   updateFlames(car, v.boosting || showFlames, performance.now() / 1000);
-  if (G.path && G.path.gaps.length && G.mode !== "menu") flightFx(dt); else if (car.wings && car.wings.rig.visible) setWings(car, 0);
+  if (G.path && G.path.gaps.length && G.mode !== "menu") flightFx(dt); else { if (car.wings && car.wings.rig.visible) setWings(car, 0); for (const r of G.rivals) if (r.model.wings && r.model.wings.rig.visible) setWings(r.model, 0); }
   if (G.lightning) lightning(dt);
   if (car.beams) car.beams.visible = false; // the player has a real spotlight at night instead
   if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
@@ -1316,14 +1320,17 @@ function render(dt) {
     showroom.update(dt, camera);
     chase.snap(v);
   } else if (G.photo) {
+    G.camOff = null;
     const P = G.photo, c = Math.cos(P.e);
     camera.position.set(v.x + Math.sin(P.a) * P.d * c, v.y + 0.6 + Math.sin(P.e) * P.d, v.z + Math.cos(P.a) * P.d * c);
     camera.lookAt(v.x, v.y + 0.7, v.z);
   } else {
+    if (G.camOff) camera.position.sub(G.camOff); // take last frame's flight offset off before the chase cam eases
     chase.update(v, dt, v.boosting ? 1 : 0);
     // flight camera: up and back with the wings out, so you see them and the chasm
     const k = G.mode === "race" || G.mode === "done" ? smoothK(v.wing || 0) : 0;
-    if (k > 0.01) { camera.position.y += 0.9 * k; camera.position.x -= Math.sin(v.h) * 1.6 * k; camera.position.z -= Math.cos(v.h) * 1.6 * k; camera.lookAt(v.x + Math.sin(v.h) * 6 * k, v.y + 0.9, v.z + Math.cos(v.h) * 6 * k); } // close behind, wings filling the frame
+    G.camOff = null;
+    if (k > 0.01) { G.camOff = new THREE.Vector3(-Math.sin(v.h) * 1.6 * k, 0.9 * k, -Math.cos(v.h) * 1.6 * k); camera.position.add(G.camOff); camera.lookAt(v.x + Math.sin(v.h) * 6 * k, v.y + 0.9, v.z + Math.cos(v.h) * 6 * k); } // close behind, wings filling the frame
   }
   if (G.splitRace && G.p2 && G.mode !== "menu") {
     chase2.update(G.p2.veh, dt, G.p2.veh.boosting ? 1 : 0);

@@ -333,3 +333,7 @@ body:has(.screen.full:not([hidden])) .topbar .brand { visibility: hidden; }
 .pauseopts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .pauseopts .chipbtn { padding: 10px 8px; }
 .pauseopts .chipbtn[hidden] { display: none; }
+/* while the flight panel is up, drift / landing pop-ups and the captain's subtitle sit below it instead of on top */
+body:has(#flightHud:not([hidden])) #driftPop, body:has(#flightHud:not([hidden])) #drift { top: calc(var(--safe-t) + 150px); }
+body:has(#flightHud:not([hidden])) #subtitle { top: calc(var(--safe-t) + 196px); }
+@media (max-width: 500px) { body:has(#flightHud:not([hidden])) #driftPop, body:has(#flightHud:not([hidden])) #drift { top: calc(var(--safe-t) + 186px); } body:has(#flightHud:not([hidden])) #subtitle { top: calc(var(--safe-t) + 230px); } }
