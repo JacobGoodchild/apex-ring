@@ -109,6 +109,7 @@
       <button class="tile" id="onlineBtn" type="button"><svg class="tile-i"><use href="#i-globe"/></svg><span class="tile-body"><span class="tile-t">Online</span><span class="tile-s">Leaderboards · Friends</span></span></button>
     </div>
     <div class="menufoot">
+      <button class="linkbtn" id="tutBtn" type="button"><svg><use href="#i-bolt"/></svg>Tutorial</button>
       <button class="linkbtn" id="helpBtn" type="button"><svg><use href="#i-help"/></svg>How to play</button>
       <button class="linkbtn" id="settingsBtn" type="button"><svg><use href="#i-gear"/></svg>Settings</button>
     </div>
@@ -233,6 +234,7 @@
           <div class="hint">Huge ramps, boost pads and a chasm where the road just ends. Hold your nerve: your car grows wings. Steer the flight, boost to climb.</div>
           <div class="tstats"><div><b>4.6 km</b><span>Length</span></div><div><b>2</b><span>Laps</span></div><div><b id="zeusBest">–</b><span>Your record</span></div><div><b>+3,000</b><span>Reward</span></div></div>
           <button class="btn go" id="zeusGo" type="button">Fly Zeus's Fury</button>
+          <div class="skyrow"><div><b>New · Sky Islands</b><span>Two chasms, floating islands and a waterfall · Record <b id="skyBest">–</b></span></div><button class="btn" id="skyGo" type="button">Fly Sky Islands</button></div>
         </div>
       </section>
       <aside class="setupside">
@@ -251,17 +253,25 @@
 <div class="overlay screen full" id="online" hidden>
   <div class="card setupwrap">
     <header class="scrhead"><button class="backbtn" id="onlineBack" type="button" aria-label="Back"><svg><use href="#i-back"/></svg></button><div class="scrtitle">Online</div>
-      <div class="seg" role="tablist"><button class="tab" data-o="global" type="button" aria-pressed="true">Global</button><button class="tab" data-o="friends" type="button">Friends</button><button class="tab" data-o="race" type="button">Race</button><button class="tab" data-o="profile" type="button">Profile</button></div></header>
+      <div class="seg" role="tablist"><button class="tab" data-o="global" type="button" aria-pressed="true">Global</button><button class="tab" data-o="weekly" type="button">Weekly</button><button class="tab" data-o="friends" type="button">Friends</button><button class="tab" data-o="race" type="button">Race</button><button class="tab" data-o="profile" type="button">Profile</button></div></header>
     <div class="onlinegrid">
       <section class="opanel" id="oGlobal">
-        <div class="row between"><div class="label">World top 100 · <span id="oTrackName"></span></div><div class="tabs mini"><button class="tab" id="oPrev" type="button">‹</button><button class="tab" id="oNext" type="button">›</button></div></div>
+        <div class="row between"><div class="label"><span id="oBoardKind">Season</span> · <span id="oTrackName"></span></div><div class="tabs mini"><button class="tab" id="oPrev" type="button">‹</button><button class="tab" id="oNext" type="button">›</button></div></div>
+        <div class="tabs mini"><button class="tab" id="oSeason" type="button" aria-pressed="true">This season</button><button class="tab" id="oAll" type="button">All time</button></div>
+        <div class="hint" id="oSeasonHint"></div>
         <ol class="lboard" id="oBoard"></ol>
         <button class="btn ghost" id="oRefresh" type="button">Refresh</button>
+      </section>
+      <section class="opanel" id="oWeekly" hidden>
+        <div class="wkhead" id="oWkHead"></div>
+        <ol class="lboard" id="oWkBoard"></ol>
+        <button class="btn" id="oWkGo" type="button">Race this week's challenge</button>
       </section>
       <section class="opanel" id="oFriends" hidden>
         <div class="label">Your friend code</div><div class="code" id="oCode"></div>
         <div class="label">Add a friend</div>
         <div class="addrow"><input id="oFriendCode" placeholder="Friend code, e.g. APX-7K2Q" maxlength="12" autocomplete="off"><button class="btn" id="oAdd" type="button">Add</button></div>
+        <div class="label">Your friends</div><ol class="lboard flist" id="oFriendList"></ol>
         <div class="label">Friends leaderboard</div><ol class="lboard" id="oFriendBoard"></ol>
       </section>
       <section class="opanel" id="oRace" hidden>
@@ -275,7 +285,7 @@
           <div class="row between"><div class="label">Room <b class="code" id="oRoomName"></b></div><button class="tab" id="oLeave" type="button">Leave</button></div>
           <div class="row between"><div class="label">Track · <span id="oRoomTrack"></span></div><div class="tabs mini" id="oRoomPick"><button class="tab" id="oRPrev" type="button">‹</button><button class="tab" id="oRNext" type="button">›</button></div></div>
           <ol class="lboard" id="oPlayers"></ol>
-          <button class="btn" id="oGo" type="button">Start race</button>
+          <div class="row"><button class="btn ghost" id="oReady" type="button">I'm ready</button><button class="btn" id="oGo" type="button">Start race</button></div>
           <div class="hint" id="oWait">Waiting for the host to start the race…</div>
         </div>
       </section>
@@ -283,11 +293,21 @@
         <div class="label">Driver name</div>
         <div class="addrow"><input id="oName" maxlength="16" autocomplete="off"><button class="btn" id="oSaveName" type="button">Save</button></div>
         <div class="statgrid" id="oStats"></div>
+        <div class="label">Badges <small id="oBadgeCount"></small></div><div class="badges" id="oBadges"></div>
+        <div class="label">Wing skin <small>for the flight tracks</small></div><div class="tabs wrap" id="oWingSkins"></div>
         <button class="btn ghost" id="oSignIn" type="button">Sync progress across devices</button>
       </section>
     </div>
   </div>
 </div>
+<div id="react" hidden><button type="button" data-r="🔥">🔥</button><button type="button" data-r="😂">😂</button><button type="button" data-r="👋">👋</button><button type="button" data-r="😮">😮</button></div>
+<div id="reactFloat"></div>
+<div id="invite" hidden><span id="inviteMsg"></span><button class="btn" id="inviteJoin" type="button">Join</button><button class="btn ghost" id="inviteNo" type="button">Not now</button></div>
+<div id="spectate" hidden></div>
+<div id="clipBar" hidden></div>
+<div id="tutBox" hidden><small>Tutorial · <span id="tutStep"></span></small><b id="tutMsg"></b></div>
+<div id="title" hidden><div class="tlogo">APEX <b>RING</b></div><div class="ttag">Drift · Boost · Fly · Race your friends</div><div class="tgo">Tap to start</div></div>
+<canvas id="drops" hidden aria-hidden="true"></canvas>
 <div class="overlay center" id="soon" hidden><div class="card soon"><svg class="soon-i"><use href="#i-globe"/></svg><div class="brand small">Under construction</div>
   <div class="hint" id="soonMsg">This part of Apex Ring is still being built. Online leaderboards, friends and multiplayer are coming in an update.</div>
   <button class="btn" id="soonOk" type="button">Got it</button></div></div>
@@ -305,14 +325,16 @@
     <div class="tabs" role="tablist">
       <button class="tab" id="tabPaint" type="button" aria-pressed="true">Paint</button>
       <button class="tab" id="tabRims" type="button" aria-pressed="false">Rims</button>
-      <button class="tab" id="tabDecal" type="button" aria-pressed="false">Decals</button>
+      <button class="tab" id="tabDecal" type="button" aria-pressed="false">Livery</button>
       <button class="tab" id="tabUp" type="button" aria-pressed="false">Upgrades</button>
     </div>
     <div class="panel" id="panelPaint"><div class="row"><div class="paints" id="paints"></div><div class="paintName" id="paintName"></div></div>
       <div class="label">Finish</div><div class="chips" id="finishes"></div>
-      <div class="label">Boost flame</div><div class="chips" id="trails"></div></div>
+      <div class="label">Boost flame</div><div class="chips" id="trails"></div>
+      <div class="label">Underglow</div><div class="chips" id="glows"></div></div>
     <div class="panel" id="panelRims" hidden><div class="chips" id="rims"></div></div>
-    <div class="panel" id="panelDecal" hidden><div class="chips" id="decals"></div><div class="label">Livery colour</div><div class="chips" id="liveries"></div></div>
+    <div class="panel" id="panelDecal" hidden><div class="label">Pattern</div><div class="chips" id="decals"></div><div class="label">Livery colour</div><div class="chips" id="liveries"></div>
+      <div class="label">Race number</div><div class="row numrow"><button class="tab" id="numPrev" type="button" aria-label="Lower number">‹</button><b id="numV">07</b><button class="tab" id="numNext" type="button" aria-label="Higher number">›</button></div></div>
     <div class="panel" id="panelUp" hidden><div id="upgrades"></div></div>
     <button class="btn" id="carAction" type="button">Selected</button>
     <button class="btn ghost" id="garageBack" type="button">Back</button>
@@ -383,7 +405,9 @@
     <div class="brand small">RESULTS</div>
     <div class="results" id="results"></div>
     <button class="btn" id="nextBtn" type="button" hidden>Next event</button>
+    <button class="btn" id="clipBtn" type="button" hidden>🎬 Share replay</button>
     <button class="btn" id="againBtn" type="button">Race again</button>
+    <button class="btn ghost" id="watchBtn" type="button" hidden>Watch friends finish</button>
     <button class="btn ghost" id="shareBtn" type="button">Share result</button>
     <button class="btn ghost" id="menuBtn" type="button">Menu</button>
   </div>

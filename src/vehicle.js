@@ -164,10 +164,13 @@ export class Vehicle {
     const gapHere = t.gaps.length ? t.gapAt(q.d) : null;
     const ground = gapHere ? q.y - 250 : q.y + t.rampAt(q.d, q.lat); // nothing under you over the chasm
     if (this.groundPrev == null) this.groundPrev = ground;
+    this.inUpdraft = false;
     if (this.flying) {
       // gliding: a little gravity, settling to a gentle sink; boost fires the thrusters and climbs
       this.vy -= 15.7 * dt * 0.18; this.vy += (-2.2 - this.vy) * Math.min(1, dt * 0.6);
       if (this.boosting) this.vy = Math.min(6, this.vy + 9 * dt);
+      // a column of rising air over the chasm lifts you while you're in it
+      for (const [f, ul, ur] of t.def.updrafts || []) { const ud = f * t.length; if (Math.abs(q.d - ud) < ur * 1.6 && Math.abs(q.lat - ul) < ur) { this.vy = Math.min(9, this.vy + 16 * dt); this.inUpdraft = true; } }
     } else this.vy -= 15.7 * dt; // arcade gravity (1.6 g) so jumps stay short and punchy
     this.y += this.vy * dt;
     // flew into the cliff face below the far edge (checked before the landing snaps you up onto the road)

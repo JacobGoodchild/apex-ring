@@ -291,3 +291,44 @@ export class Sparks {
     this.hgeo.attributes.position.needsUpdate = true; this.hgeo.attributes.color.needsUpdate = true;
   }
 }
+
+// Fireworks for a win: rockets climb above a point, then burst into a sphere of coloured sparks that fall and fade.
+export class Fireworks {
+  constructor(scene, max = 900) {
+    this.max = max; this.i = 0; this.p = new Float32Array(max * 3); this.v = new Float32Array(max * 3); this.life = new Float32Array(max); this.c = new Float32Array(max * 3);
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    const dot = document.createElement("canvas"); dot.width = dot.height = 32;
+    const x = dot.getContext("2d"), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, "#fff"); gr.addColorStop(0.4, "rgba(255,255,255,.6)"); gr.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = gr; x.fillRect(0, 0, 32, 32);
+    this.pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, map: new THREE.CanvasTexture(dot), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    this.pts.frustumCulled = false; scene.add(this.pts); this.geo = g; this.rockets = []; this.t = 0;
+  }
+  show(x, y, z, seconds = 6) { this.at = [x, y, z]; this.t = seconds; this.next = 0; }
+  stop() { this.t = 0; this.rockets = []; this.life.fill(0); }
+  burst(x, y, z) {
+    const hue = Math.random(), col = new THREE.Color().setHSL(hue, 0.9, 0.62), col2 = new THREE.Color().setHSL((hue + 0.12) % 1, 0.9, 0.7);
+    for (let k = 0; k < 110; k++) {
+      const i = this.i++ % this.max, u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u), sp = 14 + Math.random() * 8;
+      this.p.set([x, y, z], i * 3); this.v.set([Math.cos(a) * r * sp, u * sp + 2, Math.sin(a) * r * sp], i * 3);
+      const cc = k % 3 ? col : col2; this.c.set([cc.r, cc.g, cc.b], i * 3); this.life[i] = 1.4 + Math.random() * 0.6;
+    }
+  }
+  update(dt) {
+    if (this.t > 0) {
+      this.t -= dt; this.next -= dt;
+      if (this.next <= 0) { this.next = 0.35 + Math.random() * 0.45; const [x, y, z] = this.at; this.rockets.push({ x: x + (Math.random() - 0.5) * 60, y, z: z + (Math.random() - 0.5) * 60, vy: 38 + Math.random() * 10, t: 0.9 + Math.random() * 0.4 }); }
+    }
+    const pos = this.geo.attributes.position.array, col = this.geo.attributes.color.array;
+    for (const r of this.rockets) { r.t -= dt; r.y += r.vy * dt; if (r.t <= 0) this.burst(r.x, r.y, r.z); }
+    this.rockets = this.rockets.filter((r) => r.t > 0);
+    for (let i = 0; i < this.max; i++) {
+      const q = i * 3;
+      if (this.life[i] <= 0) { pos[q] = pos[q + 1] = pos[q + 2] = 0; col[q] = col[q + 1] = col[q + 2] = 0; continue; }
+      this.life[i] -= dt; this.v[q] *= 1 - dt * 1.2; this.v[q + 1] = this.v[q + 1] * (1 - dt * 1.2) - 9 * dt; this.v[q + 2] *= 1 - dt * 1.2;
+      this.p[q] += this.v[q] * dt; this.p[q + 1] += this.v[q + 1] * dt; this.p[q + 2] += this.v[q + 2] * dt;
+      const f = Math.min(1, this.life[i]) * (0.75 + 0.25 * Math.random());
+      pos[q] = this.p[q]; pos[q + 1] = this.p[q + 1]; pos[q + 2] = this.p[q + 2]; col[q] = this.c[q] * f; col[q + 1] = this.c[q + 1] * f; col[q + 2] = this.c[q + 2] * f;
+    }
+    this.geo.attributes.position.needsUpdate = true; this.geo.attributes.color.needsUpdate = true;
+  }
+}
