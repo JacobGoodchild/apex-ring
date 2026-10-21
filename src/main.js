@@ -319,7 +319,7 @@ function gridUp() {
 // Everyone in the race, ordered by position.
 function standings() {
   const L = G.path.length, n = laps();
-  const all = [{ veh: G.player, name: "You", me: true, finished: G.playerFinish, color: 0xf2a65a }, ...G.field, ...(G.net ? [...G.net.peers.values()].filter((q) => q.racing) : [])];
+  const all = [{ veh: G.player, name: "You", me: true, finished: G.playerFinish, color: 0xf2a65a }, ...G.field, ...(G.netRace && G.net ? [...G.net.peers.values()].filter((q) => q.racing) : [])];
   return all.sort((a, b) => {
     if (a.finished != null && b.finished != null) return a.finished - b.finished;
     if (a.finished != null) return -1; if (b.finished != null) return 1;
@@ -544,8 +544,11 @@ function startRace() {
   if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
   if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
   G.splitRace = !!G.split && !ev && !G.trial && canSplit(); input.split = G.splitRace;
-  G.field = solo || G.net ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
-  G.realRace = !trialMode() && (G.field.length > 0 || !!(G.net && G.net.peers.size));
+  // a race started from a friends room has no bots; any other race does, even while you're still in a room
+  G.netRace = !!(G.netGo && G.net); G.netGo = false;
+  if (G.net && !G.netRace) { G.net.racing = false; for (const q of G.net.peers.values()) { q.racing = false; if (q.model) q.model.group.visible = false; } }
+  G.field = solo || G.netRace ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
+  G.realRace = !trialMode() && (G.field.length > 0 || !!(G.netRace && G.net.peers.size));
   for (const r of G.rivals) r.model.group.visible = G.field.includes(r);
   G.elimDone = 0; G.eliminated = false; G.attackShown = -1;
   if (ev && ev.type === "boss") setTimeout(() => toast("BOSS BATTLE · " + ev.desc.split(".")[0], 3200), 300);
@@ -587,7 +590,7 @@ function finishRace() {
   G.mode = "done";
   if (G.rocks && G.rocks.length) { G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock"); G.rocks = []; }
   G.playerFinish = G.raceTime;
-  if (G.net && G.net.racing) G.net.room.send("fin", { i: G.net.me, t: G.raceTime });
+  if (G.netRace && G.net && G.net.racing) G.net.room.send("fin", { i: G.net.me, t: G.raceTime });
   const order = standings(), place = order.findIndex((e) => e.me) + 1;
   sfx.fanfare(place <= 3 && !G.eliminated);
   G.place = place;
@@ -909,7 +912,7 @@ function netStart() {
   for (const q of n.peers.values()) { q.finished = null; q.racing = false; q.at = q.prev = null; q.veh.totalD = 0; }
   n.racing = true; n.sendT = 0;
   G.event = null; G.cup = null; G.trial = false; G.split = false;
-  loadTrack(n.track, "dry"); startRace();
+  loadTrack(n.track, "dry"); G.netGo = true; startRace();
   $("againBtn").hidden = true;
 }
 function netFrame(dt) {
@@ -1018,7 +1021,7 @@ $("resetBtn").addEventListener("click", () => {
 });
 $("againBtn").addEventListener("click", startRace);
 $("nextBtn").addEventListener("click", () => { if (G.cup) { G.cup.i++; startCupRace(); return; } const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
-$("menuBtn").addEventListener("click", () => { const ev = G.event; G.cup = null; $("againBtn").hidden = false; toMenu(); if (ev) show("career"); else if (G.net) { show("online"); onlineTab("race"); } });
+$("menuBtn").addEventListener("click", () => { const ev = G.event; G.cup = null; $("againBtn").hidden = false; const wasNet = G.netRace; toMenu(); if (ev) show("career"); else if (wasNet && G.net) { show("online"); onlineTab("race"); } });
 // share a one-line result through the phone's share sheet, or copy it (nothing is sent anywhere by the game)
 $("shareBtn").addEventListener("click", async () => {
   const best = Math.min(...G.lapTimes);

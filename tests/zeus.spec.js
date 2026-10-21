@@ -62,7 +62,7 @@ test("online with a server: world board, and a live race with a friend in a room
     const bc = (event, payload) => ws.send(JSON.stringify({ topic, event: "broadcast", payload: { type: "broadcast", event, payload }, ref: null }));
     ws.onMessage((raw) => {
       const m = JSON.parse(raw);
-      if (m.event === "phx_join") { topic = m.topic; ws.send(JSON.stringify({ topic, event: "phx_reply", payload: { status: "ok", response: {} }, ref: m.ref })); setTimeout(() => bc("hi", { i: "mo", n: "Mo", c: "vanta" }), 200); }
+      if (m.event === "phx_join") { topic = m.topic; ws.send(JSON.stringify({ topic, event: "phx_reply", payload: { status: "ok", response: {} }, ref: m.ref })); const hi = () => bc("hi", { i: "mo", n: "Mo", c: "vanta" }); setTimeout(hi, 200); const hiT = setInterval(hi, 2000); ws.onClose(() => clearInterval(hiT)); } // like a real player: hello every 2 s
       if (m.event === "broadcast") {
         sent.push(m.payload.event);
         if (m.payload.event === "go") { let d = 0; const tick = setInterval(() => { d += 4; bc("s", { i: "mo", x: 5, y: 0.5, z: d, h: 0, d, v: 40 }); }, 100); ws.onClose(() => clearInterval(tick)); }
@@ -78,6 +78,13 @@ test("online with a server: world board, and a live race with a friend in a room
   await expect(page.locator("#oLobby")).toBeVisible();
   await expect(page.locator("#oRoomName")).toHaveText(/^[A-Z0-9]{5}$/);
   await expect(page.locator("#oPlayers")).toContainText("Mo", { timeout: 10_000 });
+  // still in the room, a normal quick race keeps its bots (they used to vanish while a room was open)
+  await page.click("#onlineBack"); await page.click("#raceBtn"); await page.click("#startBtn");
+  await page.waitForFunction(() => window.__apex.mode === "countdown" || window.__apex.mode === "race");
+  expect((await game(page, () => window.__apex.net)).standings).toBeGreaterThan(2);
+  await page.waitForFunction(() => window.__apex.mode === "race"); await page.click("#pauseBtn"); await page.click("#quitBtn");
+  await page.click("#onlineBtn"); await page.click('#online .seg [data-o="race"]');
+  await expect(page.locator("#oPlayers")).toContainText("Mo");
   await page.click("#oGo");
   await page.waitForFunction(() => window.__apex.mode === "race" || window.__apex.mode === "countdown");
   expect(sent).toContain("go");
