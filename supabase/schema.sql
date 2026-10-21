@@ -1,7 +1,7 @@
 -- Apex Ring online: run this once in your Supabase project (Dashboard > SQL Editor > New query > paste > Run).
 -- It creates the tables for driver profiles, lap times and friends, with row-level security so each player can only
 -- write their own rows. Live "Race with friends" rooms use Supabase Realtime broadcast and need no tables.
--- Safe to run again: everything is "if not exists" / "or replace".
+-- Safe to run again: everything is "if not exists" / "or replace". Then run schema-v2.sql (ghosts, last seen, names).
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
