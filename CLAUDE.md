@@ -421,14 +421,14 @@ commitsnap.sh pushes to `claude/bold-cray-7rck1e` and `main`. Plan (tick as done
       name "Racer####" (unique 4 digits), old "Driver" profiles renamed on next sign-in; "Driver" -> "Racer" wording.
 - [x] F2 Supabase v2 SQL (ghosts table, weekly board) written first and handed to the user to run.
 - [x] F3 Feel: bigger sparks, realistic exhaust flame (flickering core, glow, pops on lift-off), boost warp sound + effect.
-- [ ] F4 Friend races: Ready / Rematch, name tags over friends' cars, quick emoji reactions.
-- [ ] F5 Weekly online challenge (seeded week track, weekly world board) + badges section in Profile.
-- [ ] F6 Ghost races online: race the world record / a friend's uploaded lap.
-- [ ] F7 Zeus flight: rings to fly through for boost, updrafts, lightning strikes to dodge, near-miss bonus.
-- [ ] F8 Share replay: cinematic highlight clip (slow-mo, camera cuts, logo + time overlay) recorded to a video file,
+- [x] F4 Friend races: Ready / Rematch, name tags over friends' cars, quick emoji reactions.
+- [x] F5 Weekly online challenge (seeded week track, weekly world board) + badges section in Profile.
+- [x] F6 Ghost races online: race the world record / a friend's uploaded lap.
+- [x] F7 Zeus flight: rings to fly through for boost, updrafts, lightning strikes to dodge, near-miss bonus.
+- [x] F8 Share replay: cinematic highlight clip (slow-mo, camera cuts, logo + time overlay) recorded to a video file,
       shared via the share sheet or downloaded.
-- [ ] F9 Cars (a few hours, not all night): real glass, smoother bodywork, no clipping, proper door animation, wheels, paint.
-- [ ] F10 Extras agreed: photo-finish slow-mo (1), light rain drops on the camera in wet races (3, subtle), crowd + fireworks
+- [x] F9 Cars (a few hours, not all night): real glass, smoother bodywork, no clipping, proper door animation, wheels, paint.
+- [x] F10 Extras agreed: photo-finish slow-mo (1), light rain drops on the camera in wet races (3, subtle), crowd + fireworks
       at the finish when you win (4, subtle), second flight track "sky islands" with two chasms (5), wing skins unlocked by
       badges (6), daily login streak (7), friend online ping + room invites (8), spectate friends after you finish (9),
       seasonal titles next to names (10), showroom moments: doors open, lights flicker on, engine rev (11), underglow (12),
@@ -475,3 +475,5 @@ Order: F1+F3 -> F2/F4/F5/F6/7/8/9/10 -> F7/5/6 -> F8/1/3/4 -> F9/11/12/13/14/16.
 - Cars: tinted see-through glass (transparent physical, sky reflections) over a visible cabin (dark tub, dash, wheel,
   leather seat backs that fit under the roof), door cards so open doors are solid panels, eased door motion, smoother
   body (84x40 loft), aerofoil rear wing on slim struts, rounded mirrors, deeper clear-coat.
+- Published afa39f4 (big update). Online only connects (presence, uploads) once the player has opened Online
+  (save.wentOnline); the offline PWA test taps past the title screen.
