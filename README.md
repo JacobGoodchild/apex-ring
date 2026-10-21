@@ -41,6 +41,16 @@ player 2: ← → + ↑) or with two gamepads.
   and Frostbite Ridge (snowfall, ice patches).
 - **10 cars** in four classes (Compact, Muscle, Supercar, Prototype), upgrades (Engine, Tyres, ECU, Turbo, Weight),
   paints, finishes (matte, metallic, pearl, neon), rims, decals with your choice of livery colour, and boost flame colours.
+- **Flight tracks** (Daily screen): **Zeus's Fury** (thunderstorm, rings to fly through, updrafts, lightning to
+  dodge) and **Sky Islands** (two chasms, floating islands, a waterfall). Your car grows mech wings; badges unlock
+  wing skins.
+- **Online** (see ONLINE.md): world boards by season (with titles) and all time, a **weekly challenge**, online
+  **ghost races**, friends with online status and invites, and **live race rooms** with Ready, Rematch, reactions and
+  spectating. Badges and a daily login streak.
+- **Share replay:** after a race, your best 8 seconds are filmed with cinematic cameras and slow motion and saved as
+  a video to share.
+- Photo-finish slow motion, fireworks for a win, underglow and a livery editor (patterns, colour, race number),
+  a title screen and an optional 1-minute tutorial.
 - Procedural synthwave soundtrack and engine sounds, all made in code.
 
 ## Run it locally
