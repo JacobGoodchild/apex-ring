@@ -413,3 +413,19 @@ check of the canyon flight camera and the new message pill.
   and add_friend without sign-in are all refused. Hardening: schema.sql revokes update/delete/etc. the game never uses
   (user to re-run), CI Pages-write permission only on the deploy job, rooms cap at 8 drivers. Known limits: anyone can post
   a fake (but >= 10 s) lap for themselves; anyone with a room code can join that room.
+
+## Overnight run 4 (2026-10-21 20:05 UTC → 2026-10-22 06:00 UTC = 07:00 UK)
+Hourly routine "Apex Ring overnight run 4 check-in" wakes the session. Tested batches (scratchpad snaptest.sh, ~30 min),
+commitsnap.sh pushes to `claude/bold-cray-7rck1e` and `main`. Plan (tick as done):
+- [ ] F1 Bugs: Zeus wings fold away fast after landing; start/finish gantry text crisp and in proportion; default driver
+      name "Racer####" (unique 4 digits), old "Driver" profiles renamed on next sign-in; "Driver" -> "Racer" wording.
+- [ ] F2 Supabase v2 SQL (ghosts table, weekly board) written first and handed to the user to run.
+- [ ] F3 Feel: bigger sparks, realistic exhaust flame (flickering core, glow, pops on lift-off), boost warp sound + effect.
+- [ ] F4 Friend races: Ready / Rematch, name tags over friends' cars, quick emoji reactions.
+- [ ] F5 Weekly online challenge (seeded week track, weekly world board) + badges section in Profile.
+- [ ] F6 Ghost races online: race the world record / a friend's uploaded lap.
+- [ ] F7 Zeus flight: rings to fly through for boost, updrafts, lightning strikes to dodge, near-miss bonus.
+- [ ] F8 Share replay: cinematic highlight clip (slow-mo, camera cuts, logo + time overlay) recorded to a video file,
+      shared via the share sheet or downloaded.
+- [ ] F9 Cars (a few hours, not all night): real glass, smoother bodywork, no clipping, proper door animation, wheels, paint.
+- [ ] F10 If time: slow-mo photo-finish camera, daily login streak, "friend online" ping.
