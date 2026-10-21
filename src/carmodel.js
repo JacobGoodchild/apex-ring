@@ -79,7 +79,14 @@ function mats(paintHex) {
     MATS.dark = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.8 });
     MATS.head = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeeff, emissiveIntensity: 1.6, polygonOffset: true, polygonOffsetFactor: -3 });
     MATS.tyre = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.92 });
-    MATS.disc = new THREE.MeshStandardMaterial({ color: 0x5a5e66, metalness: 0.8, roughness: 0.35 });
+    // drilled brake discs: a ring of small dark holes on a brushed-metal disc
+    const dc = document.createElement("canvas"); dc.width = dc.height = 128; const dg = dc.getContext("2d");
+    dg.fillStyle = "#7a7e86"; dg.fillRect(0, 0, 128, 128); dg.fillStyle = "#2a2c30";
+    for (let ring = 0; ring < 3; ring++) for (let k = 0; k < 24; k++) { const a = (k / 24) * Math.PI * 2 + ring * 0.13, rr = 34 + ring * 9; dg.beginPath(); dg.arc(64 + Math.cos(a) * rr, 64 + Math.sin(a) * rr, 2.2, 0, Math.PI * 2); dg.fill(); }
+    dg.fillStyle = "#3a3d42"; dg.beginPath(); dg.arc(64, 64, 26, 0, Math.PI * 2); dg.fill();
+    const discTex = new THREE.CanvasTexture(dc); discTex.colorSpace = THREE.SRGBColorSpace;
+    MATS.disc = new THREE.MeshStandardMaterial({ color: 0xffffff, map: discTex, metalness: 0.75, roughness: 0.38 });
+    MATS.wall = new THREE.MeshStandardMaterial({ map: wallTex(), roughness: 0.9, transparent: true, alphaTest: 0.01, polygonOffset: true, polygonOffsetFactor: -2 });
   }
   return {
     paint: new THREE.MeshPhysicalMaterial({ color: paintHex, metalness: 0.5, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 }),
@@ -114,11 +121,25 @@ export function wheelBlur(model, speed) {
   model.blurMat.opacity = k; for (const b of model.blurs) b.visible = k > 0.02;
 }
 
+// sidewall lettering for the tyres (a made-up brand), drawn round a ring and shared by every car
+let _wallTex = null;
+function wallTex() {
+  if (_wallTex) return _wallTex;
+  const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d");
+  g.fillStyle = "#151515"; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = "#cfd3d8"; g.font = "bold 15px Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  const say = (txt, a0) => { [...txt].forEach((ch, i) => { const a = a0 + i * 0.075; g.save(); g.translate(128 + Math.cos(a) * 108, 128 + Math.sin(a) * 108); g.rotate(a + Math.PI / 2); g.fillText(ch, 0, 0); g.restore(); }); };
+  say("APEX RACING", -Math.PI / 2 - 0.4); say("APEX RACING", Math.PI / 2 - 0.4);
+  g.font = "bold 10px Arial, sans-serif"; [..."285/30 R20"].forEach((ch, i) => { const a = 0.2 + i * 0.055; g.save(); g.translate(128 + Math.cos(a) * 108, 128 + Math.sin(a) * 108); g.rotate(a + Math.PI / 2); g.fillText(ch, 0, 0); g.restore(); });
+  _wallTex = new THREE.CanvasTexture(c); _wallTex.colorSpace = THREE.SRGBColorSpace; _wallTex.anisotropy = 4;
+  return _wallTex;
+}
 function wheelGeos(r, wdt, rim) {
-  const tyre = new THREE.CylinderGeometry(r, r, wdt, 28, 1, false); tyre.rotateZ(Math.PI / 2);
-  const side = new THREE.TorusGeometry(r * 0.86, r * 0.14, 6, 28); side.rotateY(Math.PI / 2);
-  const s1 = side.clone().translate(wdt / 2 - 0.02, 0, 0), s2 = side.clone().translate(-wdt / 2 + 0.02, 0, 0);
-  const tyreG = mergeGeometries([strip(tyre), strip(s1), strip(s2)]);
+  // a tyre with rounded shoulders (a lathe of its cross-section), so it isn't a plain cylinder
+  const hw = wdt / 2, prof = [];
+  for (let i = 0; i <= 10; i++) { const a = -Math.PI / 2 + (i / 10) * Math.PI; prof.push(new THREE.Vector2(r - 0.045 + Math.cos(a) * 0.045, Math.sin(a) * (hw - 0.01) * 0.98)); }
+  prof.unshift(new THREE.Vector2(r * 0.7, -hw * 0.93)); prof.push(new THREE.Vector2(r * 0.7, hw * 0.93));
+  const tyreG = new THREE.LatheGeometry(prof, 32); tyreG.rotateZ(Math.PI / 2);
   const parts = [];
   const barrel = new THREE.CylinderGeometry(r * 0.7, r * 0.7, wdt * 0.9, 24, 1, true); barrel.rotateZ(Math.PI / 2); parts.push(strip(barrel));
   const hub = new THREE.CylinderGeometry(r * 0.13, r * 0.13, wdt * 0.98, 10); hub.rotateZ(Math.PI / 2); parts.push(strip(hub));
@@ -127,8 +148,11 @@ function wheelGeos(r, wdt, rim) {
       const g = new THREE.BoxGeometry(0.04, r * 0.6, 0.045); g.translate(wdt * 0.42, r * 0.38, 0); g.rotateX((k / rim.spokes) * Math.PI * 2 + o); parts.push(strip(g));
     }
   }
-  const disc = new THREE.CylinderGeometry(r * 0.6, r * 0.6, 0.04, 20); disc.rotateZ(Math.PI / 2);
-  return { tyre: tyreG, rim: mergeGeometries(parts), disc };
+  const cap = new THREE.CylinderGeometry(r * 0.1, r * 0.12, 0.03, 12); cap.rotateZ(Math.PI / 2); cap.translate(wdt * 0.47, 0, 0); parts.push(strip(cap)); // centre-lock nut
+  const disc = new THREE.CylinderGeometry(r * 0.6, r * 0.6, 0.04, 24); disc.rotateZ(Math.PI / 2);
+  // the lettered sidewall on the outside face of the tyre
+  const wall = new THREE.RingGeometry(r * 0.72, r * 0.97, 40); wall.rotateY(Math.PI / 2); wall.translate(hw * 0.95, 0, 0);
+  return { tyre: tyreG, rim: mergeGeometries(parts), disc, wall };
 }
 
 export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
@@ -245,6 +269,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
     const pivot = new THREE.Group(); pivot.position.set(s * (S.wid * 0.9), S.wheelR, z); car.add(pivot);
     const spin = new THREE.Group(); pivot.add(spin);
     const tm = new THREE.Mesh(wg.tyre, M.tyre); tm.castShadow = true; spin.add(tm);
+    const wl = new THREE.Mesh(wg.wall, M.wall); wl.scale.x = s; spin.add(wl);
     const rm = new THREE.Mesh(wg.rim, rimMat); rm.scale.x = s; spin.add(rm); rimMeshes.push(rm);
     const disc = new THREE.Mesh(wg.disc, M.disc); disc.position.x = -s * 0.05; pivot.add(disc);
     const bl = new THREE.Mesh(blurGeo, blurMat); bl.rotation.y = s * Math.PI / 2; bl.position.x = s * 0.17; bl.visible = false; pivot.add(bl); blurs.push(bl);
