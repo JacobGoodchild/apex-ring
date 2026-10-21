@@ -2196,7 +2196,7 @@ if (TEST) {
     get net() { const n = G.net; return n ? { code: n.code, racing: n.racing, peers: [...n.peers.values()].map((q) => ({ name: q.name, shown: !!(q.model && q.model.group.visible), x: q.model ? q.model.group.position.x : null })), standings: G.path ? standings().length : 0 } : null; },
     photo(a, e, d) { G.paused = true; G.photo = { a: G.player.h + a, e, d }; document.body.classList.add("photo"); $("pause").hidden = true; $("hud").hidden = true; },
     gapD() { return G.path.gaps.length ? G.path.gaps[0].d0 : -1; },
-    get flight() { const v = G.player; return { wing: +(v.wing || 0).toFixed(2), flying: !!v.flying, y: +v.y.toFixed(1), road: +v.p.y.toFixed(1), vF: +v.vF.toFixed(0), d: +v.p.d.toFixed(0) }; },
+    get flight() { const v = G.player; return { wing: +(v.wing || 0).toFixed(2), flying: !!v.flying, air: !!v.airborne, y: +v.y.toFixed(1), road: +v.p.y.toFixed(1), vF: +v.vF.toFixed(0), d: +v.p.d.toFixed(0) }; },
     rampD() { const r = G.path.ramps[0]; return r ? r.d - r.len - 45 : -1; },
     get airPops() { return G.airPops || 0; },
     // anything solid within car height above the road surface (should be nothing)
