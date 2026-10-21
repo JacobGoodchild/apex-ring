@@ -300,7 +300,7 @@ export class Fireworks {
     g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
     const dot = document.createElement("canvas"); dot.width = dot.height = 32;
     const x = dot.getContext("2d"), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, "#fff"); gr.addColorStop(0.4, "rgba(255,255,255,.6)"); gr.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = gr; x.fillRect(0, 0, 32, 32);
-    this.pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, map: new THREE.CanvasTexture(dot), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    this.pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 3.2, map: new THREE.CanvasTexture(dot), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     this.pts.frustumCulled = false; scene.add(this.pts); this.geo = g; this.rockets = []; this.t = 0;
   }
   show(x, y, z, seconds = 6) { this.at = [x, y, z]; this.t = seconds; this.next = 0; }

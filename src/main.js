@@ -658,7 +658,7 @@ function finishRace() {
   if (G.event && G.event.id === "sky" && !G.eliminated) badge("sky");
   if (G.tut) { $("tutBox").hidden = true; if (!save.tutDone) { save.tutDone = true; save.coins += 200; (G.trophyQ = G.trophyQ || []).push("Tutorial complete (+200 coins)"); } }
   // a win: fireworks over the start/finish gantry and the crowd roars
-  if (place === 1 && G.realRace && !G.eliminated) { const g = G.path.pointAt(0, 0, {}); fireworks.show(g.x, g.y + 22, g.z, 7); sfx.cheer(); }
+  if (place === 1 && G.realRace && !G.eliminated) { const d = camera.getWorldDirection(new THREE.Vector3()), k = 170 / Math.max(0.2, Math.hypot(d.x, d.z)); fireworks.show(camera.position.x + d.x * k, camera.position.y - 4, camera.position.z + d.z * k, 7); sfx.cheer(); } // far ahead of the camera, so they burst in view
   // photo finish: you won by less than a tenth of a second
   if (place === 1 && order[1] && order[1].finished != null && order[1].finished - G.playerFinish < 0.1) { badge("photo"); hlEvent(6); }
   $("clipBtn").hidden = !hlWindow() || typeof MediaRecorder === "undefined"; $("clipBtn").textContent = "🎬 Share replay"; G.clipFile = null;
@@ -1418,14 +1418,14 @@ function drawDrops(dt) {
   if (!on) { if (!c.hidden) { c.hidden = true; G.drops = null; } return; }
   if (c.hidden) { c.hidden = false; c.width = Math.round(innerWidth / 2); c.height = Math.round(innerHeight / 2); G.drops = []; }
   const g = c.getContext("2d"), W = c.width, H = c.height, v = G.player, sp = Math.min(1, Math.max(0, v.vF) / 70);
-  if (G.drops.length < 14 && Math.random() < dt * (3 - sp * 1.5)) G.drops.push({ x: Math.random() * W, y: Math.random() * H * 0.8, r: 2 + Math.random() * 5, life: 2 + Math.random() * 3, vx: 0, vy: 0 });
+  if (G.drops.length < 16 && Math.random() < dt * (4 - sp * 1.5)) G.drops.push({ x: Math.random() * W, y: Math.random() * H * 0.8, r: 3 + Math.random() * 6, life: 2 + Math.random() * 3, vx: 0, vy: 0 });
   g.clearRect(0, 0, W, H);
   for (const d of G.drops) {
     d.life -= dt;
     // at speed the airflow pushes drops outwards and up from the middle of the screen
     const ox = d.x - W / 2, oy = d.y - H * 0.55; d.vx += ox * sp * dt * 1.6; d.vy += (oy * sp * 0.6 - 4) * dt + 6 * dt * (1 - sp);
     d.x += d.vx * dt * 30; d.y += d.vy * dt * 30;
-    const a = Math.min(1, d.life) * 0.55, gr = g.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, 0, d.x, d.y, d.r);
+    const a = Math.min(1, d.life) * 0.7, gr = g.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, 0, d.x, d.y, d.r);
     gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(0.5, `rgba(200,220,235,${a * 0.35})`); gr.addColorStop(1, `rgba(40,50,60,${a * 0.5})`);
     g.fillStyle = gr; g.beginPath(); g.ellipse(d.x, d.y, d.r * (1 + sp * 0.8), d.r, Math.atan2(d.vy, d.vx), 0, Math.PI * 2); g.fill();
   }
@@ -2045,7 +2045,7 @@ function trophy(id) {
 }
 function flushTrophies() {
   const q = G.trophyQ || []; G.trophyQ = [];
-  if (q.length) setTimeout(() => toast(`Trophy${q.length > 1 ? "s" : ""}: ${q.join(", ")} · +${TROPHY_COINS * q.length}`, 3200), 400);
+  if (q.length) setTimeout(() => toast(`${q.length > 1 ? "Trophies" : "Trophy"}: ${q.join(", ")} · +${TROPHY_COINS * q.length}`, 3200), 400);
 }
 // lifetime stats shown on the career map
 // a "real" race has someone to beat (solo time trials and drift runs always finish "1st")
@@ -2195,6 +2195,7 @@ if ("serviceWorker" in navigator && location.protocol !== "file:" && (!TEST || Q
 addEventListener("error", (e) => errors.push(String(e.message)));
 if (TEST) {
   window.__apex = {
+    fw: () => ({ t: fireworks.t, live: fireworks.live, rockets: fireworks.rockets.length, at: fireworks.at, vis: fireworks.pts.visible }),
     get mode() { return G.mode; },
     get player() { const v = G.player; return { x: v.x, z: v.z, h: v.h, vF: v.vF, totalD: v.totalD, boost: v.boost, boosting: v.boosting, drifting: v.drifting, driftAngle: v.driftAngle, lat: v.lat, hErr: wrapA(v.h - v.p.h), bend: Math.abs(G.path.cs[v.p.i]) > 0.004 ? Math.sign(G.path.cs[v.p.i]) : 0 }; },
     get skidCount() { return skids.n; },
