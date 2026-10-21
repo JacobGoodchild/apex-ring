@@ -406,9 +406,25 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
     const gantry = new THREE.Group();
     const postMat = new THREE.MeshStandardMaterial({ color: 0x2b3240, metalness: 0.6, roughness: 0.4 });
     for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7.5, 0.5), postMat); p.position.set(s * (W + R - 0.5), 3.75, 0); p.castShadow = true; gantry.add(p); }
-    const beam = new THREE.Mesh(new THREE.BoxGeometry((W + R) * 2, 1.2, 0.6), postMat); beam.position.y = 7.2; gantry.add(beam);
-    const st = canvasTex(512, 64, (g, w, h) => { g.fillStyle = "#0b1220"; g.fillRect(0, 0, w, h); g.fillStyle = "#f2a65a"; g.font = "bold 40px 'Arial Narrow',Arial,sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText((theme.sign || "APEX RING") + "  ·  START / FINISH", w / 2, h / 2 + 2); });
-    for (const s of [-1, 1]) { const sign = new THREE.Mesh(new THREE.PlaneGeometry((W + R) * 2 - 1, 1.0), new THREE.MeshBasicMaterial({ map: st })); sign.position.set(0, 7.2, s * 0.31); if (s < 0) sign.rotation.y = Math.PI; gantry.add(sign); }
+    const beam = new THREE.Mesh(new THREE.BoxGeometry((W + R) * 2, 1.7, 0.6), postMat); beam.position.y = 7.2; gantry.add(beam);
+    // the sign is drawn at the panel's real proportions (so nothing is stretched): chequered ends, the track name, START · FINISH
+    const SW = (W + R) * 2 - 1, SH = 1.45, ch = 128, cw = Math.min(4096, Math.round((ch * SW) / SH));
+    const drawSign = (g, w, h) => {
+      g.fillStyle = "#0b1220"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#f2a65a"; g.fillRect(0, 6, w, 5); g.fillRect(0, h - 11, w, 5);
+      const sq = (h - 34) / 4;
+      for (const x0 of [12, w - 12 - sq * 6]) for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) { g.fillStyle = (i + j) % 2 ? "#111722" : "#f4f4f4"; g.fillRect(x0 + i * sq, 17 + j * sq, sq, sq); }
+      const font = (wt, px) => `${wt} ${px}px "Barlow Condensed", "Arial Narrow", Arial, sans-serif`;
+      g.textBaseline = "middle"; g.textAlign = "center";
+      g.font = "italic " + font(800, 84); g.fillStyle = "#ffffff"; g.fillText("START  ·  FINISH", w / 2, h / 2 + 3);
+      g.font = "italic " + font(800, 64); g.fillStyle = "#f2a65a";
+      const name = (theme.sign || "APEX RING").toUpperCase();
+      for (const x of [w * 0.22, w * 0.78]) if (w > 1600) g.fillText(name, x, h / 2 + 3);
+    };
+    const st = canvasTex(cw, ch, drawSign);
+    // redraw once the game's racing font has loaded (a race can be built before the font arrives)
+    if (document.fonts && document.fonts.load) document.fonts.load('italic 800 80px "Barlow Condensed"').then(() => { drawSign(st.image.getContext("2d"), cw, ch); st.needsUpdate = true; }, () => {});
+    for (const s of [-1, 1]) { const sign = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: st })); sign.position.set(0, 7.2, s * 0.31); if (s < 0) sign.rotation.y = Math.PI; gantry.add(sign); }
     gantry.position.set(tmp.x, tmp.y, tmp.z); gantry.rotation.y = tmp.h; group.add(gantry);
   }
   return group;

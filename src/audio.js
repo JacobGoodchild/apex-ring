@@ -145,6 +145,33 @@ export function whoosh() {
   const g = ctx.createGain(); g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
   s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 0.8);
 }
+// Boost "warp": a deep thump, a rising sweep and a bright shimmer as the turbo kicks in.
+export function warp() {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  const o = ctx.createOscillator(), og = ctx.createGain(); o.type = "sawtooth";
+  o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(420, t + 0.55);
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.setValueAtTime(400, t); lp.frequency.exponentialRampToValueAtTime(5200, t + 0.5);
+  og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.16, t + 0.06); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+  o.connect(lp); lp.connect(og); og.connect(master); o.start(t); o.stop(t + 0.95);
+  const b = ctx.createOscillator(), bg = ctx.createGain(); b.type = "sine"; b.frequency.setValueAtTime(110, t); b.frequency.exponentialRampToValueAtTime(38, t + 0.35);
+  bg.gain.setValueAtTime(0.32, t); bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.45); b.connect(bg); bg.connect(master); b.start(t); b.stop(t + 0.5);
+  const n = ctx.createBufferSource(); n.buffer = noiseBuffer(ctx);
+  const hp = ctx.createBiquadFilter(); hp.type = "bandpass"; hp.Q.value = 3; hp.frequency.setValueAtTime(800, t); hp.frequency.exponentialRampToValueAtTime(7000, t + 0.6);
+  const ng = ctx.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.18, t + 0.12); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+  n.connect(hp); hp.connect(ng); ng.connect(master); n.start(t); n.stop(t + 0.9);
+}
+// Exhaust crackle when you lift off at speed: a few sharp pops.
+export function crackle() {
+  if (!ctx || muted) return;
+  const t0 = ctx.currentTime, k = 2 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < k; i++) {
+    const t = t0 + i * (0.03 + Math.random() * 0.06), n = ctx.createBufferSource(); n.buffer = noiseBuffer(ctx);
+    const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 600 + Math.random() * 900; f.Q.value = 1.2;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    n.connect(f); f.connect(g); g.connect(master); n.start(t, Math.random()); n.stop(t + 0.06);
+  }
+}
 export const lapChime = () => { tone(784, 0.15, "triangle", 0.1); tone(1046, 0.25, "triangle", 0.1, 0.1); };
 export function fanfare(win) {
   const notes = win ? [523, 659, 784, 1046, 784, 1046] : [392, 440, 523];

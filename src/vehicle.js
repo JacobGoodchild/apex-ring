@@ -84,7 +84,7 @@ export class Vehicle {
     // wings: they unfurl on the approach to a chasm (a gap in the road), fly you across it, and fold away after landing
     const overGap = t.gaps.length ? t.gapAt(p.d) : null;
     this.wingWant = t.gaps.length && (overGap || t.toGap(p.d) < 260 || (this.airborne && this.wing > 0.3)) ? 1 : 0;
-    this.wing = (this.wing || 0) + (this.wingWant - (this.wing || 0)) * Math.min(1, dt * (this.wingWant ? 0.9 : 1.4));
+    this.wing = (this.wing || 0) + (this.wingWant - (this.wing || 0)) * Math.min(1, dt * (this.wingWant ? 0.9 : 3.2)); // unfurl slowly for the show, fold away briskly once you've landed
     this.flying = !!overGap && this.airborne && this.wing > 0.45;
     const metered = active && this.boostT > 0 && this.boost > 0.01;
     this.boosting = metered || sling || pad;

@@ -81,25 +81,68 @@ export class Smoke {
 // Exhaust flames for boost, attached to a car model.
 // Boost flame colours (outer flame; the core stays white-hot).
 export const TRAILS = [{ name: "Ice blue", hex: 0x4cc9f0 }, { name: "Inferno", hex: 0xff6a2a }, { name: "Toxic", hex: 0x7dff4a }, { name: "Magenta", hex: 0xff3fd2 }, { name: "Violet", hex: 0x9d6bff }, { name: "Ghost", hex: 0xe8f4ff }];
-export function setTrail(model, idx) { if (model.flameOuter) model.flameOuter.color.setHex(TRAILS[idx % TRAILS.length].hex); }
+export function setTrail(model, idx) { if (model.flameMat) model.flameMat.uniforms.uColor.value.setHex(TRAILS[idx % TRAILS.length].hex); }
+// Exhaust flames: three crossed planes per pipe with a flame shader (a white-hot core at the nozzle, the trail colour around it,
+// a flickering turbulent edge, shock diamonds when boosting) and a soft glow at the nozzle. Short orange pops on lift-off.
+const FLAME_VS = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const FLAME_FS = `uniform float uTime, uPower, uPop, uSeed; uniform vec3 uColor; varying vec2 vUv;
+float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+void main(){
+  float v = vUv.y, x = vUv.x - 0.5;
+  float len = mix(uPower, 0.45, uPop);
+  if (v > len) discard;
+  float s = v / len;
+  float n = n2(vec2(x * 6.0 + uSeed, s * 6.0 - uTime * 22.0)) * 0.6 + n2(vec2(x * 14.0, s * 14.0 - uTime * 37.0)) * 0.4;
+  float w = mix(0.44, 0.05, pow(s, 0.6)) * (0.6 + 0.8 * n);
+  float d = abs(x) / max(w, 0.001);
+  float body = smoothstep(1.0, 0.2, d) * smoothstep(1.0, 0.35 + 0.5 * n, s) * smoothstep(0.0, 0.04, s);
+  float core = smoothstep(0.55, 0.0, d) * smoothstep(0.5, 0.0, s);
+  float diamonds = (1.0 - uPop) * smoothstep(0.6, 1.0, uPower) * (0.5 + 0.5 * cos(s * 34.0)) * smoothstep(0.7, 0.1, s) * smoothstep(0.6, 0.0, d) * 0.6;
+  vec3 hot = vec3(1.0, 0.97, 0.88);
+  vec3 popc = mix(vec3(1.0, 0.45, 0.08), vec3(1.0, 0.85, 0.4), core);
+  vec3 c = mix(mix(uColor * 1.1, hot, core * 0.9), popc, uPop) + hot * diamonds;
+  c = mix(c, uColor * 0.6, smoothstep(0.5, 1.0, s) * (1.0 - uPop));
+  gl_FragColor = vec4(c, clamp(body * (0.9 + 0.4 * core) + diamonds, 0.0, 1.0));
+}`;
+let flameGeo = null, glowTex = null;
 export function addFlames(model) {
-  const g = new THREE.ConeGeometry(0.13, 0.9, 10, 1, true); g.rotateX(-Math.PI / 2); g.translate(0, 0, -0.45);
-  const outer = new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
-  const inner = new THREE.MeshBasicMaterial({ color: 0xfff1c4, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+  if (!flameGeo) {
+    // three planes through the flame's axis (z from the nozzle backwards), so it has body from every angle
+    const one = new THREE.PlaneGeometry(0.75, 1.25); one.translate(0, 0.625, 0); one.rotateX(-Math.PI / 2); // v runs along -z: backwards out of the pipe
+    const parts = [0, Math.PI / 3, (2 * Math.PI) / 3].map((r) => one.clone().rotateZ(r));
+    const pos = [], uv = [], idx = []; let off = 0;
+    for (const g of parts) { pos.push(...g.attributes.position.array); uv.push(...g.attributes.uv.array); idx.push(...g.index.array.map((i) => i + off)); off += g.attributes.position.count; }
+    flameGeo = new THREE.BufferGeometry(); flameGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); flameGeo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); flameGeo.setIndex(idx);
+    const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.3, "rgba(255,255,255,.45)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    glowTex = new THREE.CanvasTexture(c);
+  }
+  const mat = new THREE.ShaderMaterial({ vertexShader: FLAME_VS, fragmentShader: FLAME_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { uTime: { value: 0 }, uPower: { value: 1 }, uPop: { value: 0 }, uSeed: { value: Math.random() * 10 }, uColor: { value: new THREE.Color(0x4cc9f0) } } });
+  const glowMat = new THREE.SpriteMaterial({ map: glowTex, color: 0x9fe6ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
   const flames = [];
   for (const p of model.exhaust) {
     const f = new THREE.Group(); f.position.copy(p);
-    const o = new THREE.Mesh(g, outer); const i = new THREE.Mesh(g, inner); i.scale.set(0.5, 0.5, 0.6);
-    f.add(o, i); f.visible = false; model.body.add(f); flames.push(f);
+    const m = new THREE.Mesh(flameGeo, mat); m.frustumCulled = false; f.add(m);
+    const glow = new THREE.Sprite(glowMat); glow.scale.set(0.7, 0.7, 1); glow.position.z = -0.12; f.add(glow);
+    f.visible = false; model.body.add(f); flames.push(f);
   }
-  model.flames = flames; model.flameOuter = outer;
+  model.flames = flames; model.flameMat = mat; model.flameGlow = glowMat; model.popT = 0;
 }
-export function updateFlames(model, on, t) {
+// on: boosting; pop: lifting off the throttle at speed (short orange pops now and then)
+export function updateFlames(model, on, t, pop = false, dt = 1 / 60) {
   if (!model.flames) return;
-  for (const f of model.flames) {
-    f.visible = on;
-    if (on) { const k = 0.8 + Math.sin(t * 60 + f.position.x * 10) * 0.15 + Math.random() * 0.2; f.scale.set(1, 1, k * 1.4); }
-  }
+  if (pop && !on && model.popT <= 0 && Math.random() < 0.06) model.popT = 0.07 + Math.random() * 0.06;
+  model.popT -= dt;
+  const popping = !on && model.popT > 0, vis = on || popping;
+  const U = model.flameMat.uniforms;
+  U.uTime.value = t; U.uPop.value = popping ? 1 : 0;
+  U.uPower.value = on ? 0.78 + Math.sin(t * 47) * 0.08 + Math.random() * 0.16 : 0.55;
+  model.flameGlow.color.copy(popping ? new THREE.Color(0xffa040) : U.uColor.value).lerp(new THREE.Color(0xffffff), 0.35);
+  for (const f of model.flames) { f.visible = vis; if (vis) f.scale.setScalar(on ? 1 + Math.random() * 0.08 : 0.8); }
+  return popping && model.popT > 0.05; // true on the first frame of a pop (for the crackle sound)
 }
 
 // Speed lines: streaks in a tube around the camera that rush past at high speed or under boost.
@@ -200,38 +243,51 @@ export function updateContactShadow(model, carY, groundY) {
 
 // Sparks: short glowing streaks thrown off when a car scrapes a wall. One draw call (line segments), pooled.
 export class Sparks {
-  constructor(scene, max = 160) {
-    this.max = max; this.i = 0; this.p = new Float32Array(max * 3); this.v = new Float32Array(max * 3); this.life = new Float32Array(max);
+  // streaks (line segments, white-hot fading to orange) plus a glowing head on each spark, so they read on a phone screen
+  constructor(scene, max = 420) {
+    this.max = max; this.i = 0; this.p = new Float32Array(max * 3); this.v = new Float32Array(max * 3); this.life = new Float32Array(max); this.life0 = new Float32Array(max);
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(max * 6), 3).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 6), 3).setUsage(THREE.DynamicDrawUsage));
     this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     this.lines.frustumCulled = false; scene.add(this.lines); this.geo = g;
+    const hg = new THREE.BufferGeometry(); hg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    hg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    const dot = document.createElement("canvas"); dot.width = dot.height = 32;
+    const c = dot.getContext("2d"), gr = c.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.35, "rgba(255,220,150,.8)"); gr.addColorStop(1, "rgba(255,120,30,0)");
+    c.fillStyle = gr; c.fillRect(0, 0, 32, 32);
+    this.heads = new THREE.Points(hg, new THREE.PointsMaterial({ size: 0.32, map: new THREE.CanvasTexture(dot), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    this.heads.frustumCulled = false; scene.add(this.heads); this.hgeo = hg;
   }
   // a burst at (x, y, z), thrown along the car's velocity and away from the wall (nx, nz)
-  emit(x, y, z, vx, vz, nx, nz, n = 10) {
+  emit(x, y, z, vx, vz, nx, nz, n = 10, up = 1) {
     for (let k = 0; k < n; k++) {
       const i = this.i++ % this.max, s = 0.3 + Math.random() * 0.6;
-      this.p[i * 3] = x; this.p[i * 3 + 1] = y + 0.4; this.p[i * 3 + 2] = z;
-      this.v[i * 3] = vx * s + nx * (2 + Math.random() * 5) + (Math.random() - 0.5) * 6;
-      this.v[i * 3 + 1] = 1 + Math.random() * 5;
-      this.v[i * 3 + 2] = vz * s + nz * (2 + Math.random() * 5) + (Math.random() - 0.5) * 6;
-      this.life[i] = 0.25 + Math.random() * 0.35;
+      this.p[i * 3] = x + (Math.random() - 0.5) * 0.6; this.p[i * 3 + 1] = y + 0.3 + Math.random() * 0.3; this.p[i * 3 + 2] = z + (Math.random() - 0.5) * 0.6;
+      this.v[i * 3] = vx * s + nx * (3 + Math.random() * 7) + (Math.random() - 0.5) * 8;
+      this.v[i * 3 + 1] = (1.5 + Math.random() * 6) * up;
+      this.v[i * 3 + 2] = vz * s + nz * (3 + Math.random() * 7) + (Math.random() - 0.5) * 8;
+      this.life[i] = this.life0[i] = 0.35 + Math.random() * 0.5;
     }
   }
   update(dt) {
-    const pos = this.geo.attributes.position.array, col = this.geo.attributes.color.array;
+    const pos = this.geo.attributes.position.array, col = this.geo.attributes.color.array, hp = this.hgeo.attributes.position.array, hc = this.hgeo.attributes.color.array;
     for (let i = 0; i < this.max; i++) {
-      const o = i * 6;
-      if (this.life[i] <= 0) { for (let k = 0; k < 6; k++) { pos[o + k] = 0; col[o + k] = 0; } continue; }
-      this.life[i] -= dt; this.v[i * 3 + 1] -= 14 * dt;
-      const x = this.p[i * 3], y = this.p[i * 3 + 1], z = this.p[i * 3 + 2];
-      this.p[i * 3] += this.v[i * 3] * dt; this.p[i * 3 + 1] = Math.max(y + this.v[i * 3 + 1] * dt, 0.02); this.p[i * 3 + 2] += this.v[i * 3 + 2] * dt;
-      // streak from where it was a moment ago to where it is now; white-hot fading to orange
-      pos[o] = x - this.v[i * 3] * 0.03; pos[o + 1] = y - this.v[i * 3 + 1] * 0.03; pos[o + 2] = z - this.v[i * 3 + 2] * 0.03;
-      pos[o + 3] = this.p[i * 3]; pos[o + 4] = this.p[i * 3 + 1]; pos[o + 5] = this.p[i * 3 + 2];
-      const h = Math.min(1, this.life[i] * 3);
-      col[o] = 1; col[o + 1] = 0.45 + 0.4 * h; col[o + 2] = 0.1 + 0.5 * h; col[o + 3] = 1; col[o + 4] = 0.6 + 0.4 * h; col[o + 5] = 0.3 + 0.6 * h;
+      const o = i * 6, q = i * 3;
+      if (this.life[i] <= 0) { for (let k = 0; k < 6; k++) { pos[o + k] = 0; col[o + k] = 0; } hp[q] = hp[q + 1] = hp[q + 2] = 0; hc[q] = hc[q + 1] = hc[q + 2] = 0; continue; }
+      this.life[i] -= dt; this.v[q + 1] -= 14 * dt;
+      const x = this.p[q], y = this.p[q + 1], z = this.p[q + 2];
+      this.p[q] += this.v[q] * dt; this.p[q + 2] += this.v[q + 2] * dt;
+      let ny = y + this.v[q + 1] * dt;
+      if (ny < 0.03) { ny = 0.03; this.v[q + 1] *= -0.35; this.v[q] *= 0.7; this.v[q + 2] *= 0.7; } // skitter along the road
+      this.p[q + 1] = ny;
+      // a longer streak behind each spark: where it was a moment ago to where it is now
+      pos[o] = x - this.v[q] * 0.05; pos[o + 1] = y - this.v[q + 1] * 0.05; pos[o + 2] = z - this.v[q + 2] * 0.05;
+      pos[o + 3] = this.p[q]; pos[o + 4] = ny; pos[o + 5] = this.p[q + 2];
+      const h = Math.min(1, this.life[i] / this.life0[i] * 1.6);
+      col[o] = h; col[o + 1] = 0.35 * h; col[o + 2] = 0.05 * h; col[o + 3] = 1; col[o + 4] = 0.55 + 0.45 * h; col[o + 5] = 0.25 + 0.65 * h;
+      hp[q] = this.p[q]; hp[q + 1] = ny; hp[q + 2] = this.p[q + 2]; hc[q] = 1; hc[q + 1] = 0.5 + 0.45 * h; hc[q + 2] = 0.2 + 0.6 * h;
     }
     this.geo.attributes.position.needsUpdate = true; this.geo.attributes.color.needsUpdate = true;
+    this.hgeo.attributes.position.needsUpdate = true; this.hgeo.attributes.color.needsUpdate = true;
   }
 }

@@ -798,6 +798,12 @@ $("dailyGo").addEventListener("click", () => startEvent(dailyEvent()));
 function soon(msg) { sfx.click(); if (msg) $("soonMsg").textContent = msg; $("soon").hidden = false; }
 $("soonOk").addEventListener("click", () => { sfx.click(); $("soon").hidden = true; });
 G.oTrack = 0;
+// everyone has a name online: the one they chose, or their own Racer#### (made once, kept in the save)
+function myName() {
+  if (save.driverName) return save.driverName.slice(0, 16);
+  if (!/^Racer\d{4}$/.test(save.racerName || "")) { save.racerName = "Racer" + (1000 + Math.floor(Math.random() * 9000)); writeSave(); }
+  return save.racerName;
+}
 function friendCode() {
   if (!save.friendCode) { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < 4; i++) c += a[Math.floor(Math.random() * a.length)]; save.friendCode = "APX-" + c; writeSave(); }
   return save.friendCode;
@@ -805,10 +811,10 @@ function friendCode() {
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const boardRow = (r, i, me) => `<li class="${r.user_id === me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="nm">${esc(r.name)}</span><span class="tm">${fmt(r.ms / 1000)}</span></li>`;
 function refreshOnline(fetchNow = true) {
-  const t = TRACKS[G.oTrack], best = save.best[t.id], name = save.driverName || "You";
+  const t = TRACKS[G.oTrack], best = save.best[t.id], name = myName();
   $("oTrackName").textContent = t.name;
   $("oCode").textContent = friendCode();
-  $("oName").value = save.driverName || "";
+  $("oName").value = save.driverName || ""; $("oName").placeholder = myName();
   const st = save.stats || { races: 0, wins: 0, podiums: 0 };
   $("oStats").innerHTML = [["Races", st.races], ["Wins", st.wins], ["Podiums", st.podiums]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("");
   if (onlineReady() && fetchNow) {
@@ -831,14 +837,14 @@ function refreshOnline(fetchNow = true) {
 }
 // the server needs a profile (name + friend code) before it takes laps or friends; made once per session
 function ensureProfile(force = false) {
-  if (!G.profileP || force) G.profileP = saveProfile((save.driverName || "Driver").slice(0, 16), friendCode()).catch((e) => { G.profileP = null; throw e; });
+  if (!G.profileP || force) G.profileP = saveProfile(myName(), friendCode()).catch((e) => { G.profileP = null; throw e; });
   return G.profileP;
 }
 function uploadLap(track, lap) { if (onlineReady() && !TEST) ensureProfile().then(() => postLap(track, lap, save.car)).catch(() => {}); }
 function doAddFriend() {
   const code = $("oFriendCode").value.trim().toUpperCase(); if (!code) return;
   sfx.click();
-  ensureProfile().then(() => addFriend(code)).then((n) => { sfx.chime(); toast(`${n || "Driver"} is now your friend`, 2000); $("oFriendCode").value = ""; refreshOnline(); })
+  ensureProfile().then(() => addFriend(code)).then((n) => { sfx.chime(); toast(`${n || "Racer"} is now your friend`, 2000); $("oFriendCode").value = ""; refreshOnline(); })
     .catch((e) => toast(e.message.includes("No driver") ? "No driver has that code" : e.message.includes("own code") ? "That's your own code" : "Couldn't add: " + e.message, 2400));
 }
 function onlineTab(o) {
@@ -874,14 +880,14 @@ function leaveRoom() {
   clearInterval(n.helloT); for (const q of n.peers.values()) if (q.model) q.model.group.removeFromParent();
   G.net = null; drawLobby();
 }
-function netHello() { const n = G.net; if (n && n.room) n.room.send("hi", { i: n.me, n: (save.driverName || "Driver").slice(0, 16), c: save.car, h: n.host ? 1 : 0, t: n.host ? n.track : undefined }); }
+function netHello() { const n = G.net; if (n && n.room) n.room.send("hi", { i: n.me, n: myName(), c: save.car, h: n.host ? 1 : 0, t: n.host ? n.track : undefined }); }
 function netMsg(e, p) {
   const n = G.net; if (!n || !p || p.i === n.me) return;
   let q = n.peers.get(p.i);
   if (!q && e !== "bye" && n.peers.size >= 7) return; // rooms hold 8 drivers; anyone past that (or someone flooding the room with fake players) is ignored
-  if (!q && e !== "bye") { q = { id: p.i, name: "Driver", car: CARS[0].id, color: NET_COLORS[n.peers.size % NET_COLORS.length], veh: { totalD: 0, vF: 0 }, finished: null, racing: false, seen: 0, at: null, model: null }; n.peers.set(p.i, q); }
+  if (!q && e !== "bye") { q = { id: p.i, name: "Racer", car: CARS[0].id, color: NET_COLORS[n.peers.size % NET_COLORS.length], veh: { totalD: 0, vF: 0 }, finished: null, racing: false, seen: 0, at: null, model: null }; n.peers.set(p.i, q); }
   if (q) q.seen = performance.now();
-  if (e === "hi") { q.name = esc(String(p.n || "Driver").slice(0, 16)); if (CARS.some((c) => c.id === p.c)) q.car = p.c; if (p.h && p.t && !n.host && trackById(p.t)) n.track = p.t; if (G.mode === "menu") drawLobby(); }
+  if (e === "hi") { q.name = esc(String(p.n || "Racer").slice(0, 16)); if (CARS.some((c) => c.id === p.c)) q.car = p.c; if (p.h && p.t && !n.host && trackById(p.t)) n.track = p.t; if (G.mode === "menu") drawLobby(); }
   else if (e === "trk" && !n.host && trackById(p.t)) { n.track = p.t; drawLobby(); }
   else if (e === "go" && !n.host && trackById(p.t) && G.mode === "menu") { n.track = p.t; netStart(); }
   else if (e === "s" && n.racing) { q.racing = true; q.prev = q.at; q.at = { x: +p.x, y: +p.y, z: +p.z, h: +p.h, t: performance.now() }; q.veh.totalD = +p.d || 0; q.veh.vF = +p.v || 0; }
@@ -1232,7 +1238,7 @@ function step(dt) {
       if (G.driftPts > 20) { const pts = Math.round(G.driftPts * (G.mult || 1)); G.totalDrift += pts; G.bestDrift = Math.max(G.bestDrift || 0, pts); if (pts >= 1000) trophy("drift1k"); if (G.mult >= 5) trophy("combo5"); popDrift(pts + (G.mult > 1 ? "  x" + G.mult : ""), "DRIFT +"); sfx.chime(); G.lastBank = G.raceTime; }
       G.driftPts = 0;
     }
-    if (v.boosting && !G.wasBoosting) { sfx.whoosh(); const f = $("boostFlash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+    if (v.boosting && !G.wasBoosting) { sfx.warp(); if (fxOn()) chase.punch = 1; const f = $("boostFlash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
     // first time the meter has charge, explain how to boost
     if (v.boost > 0.3 && !save.boostHint && !TEST) {
       save.boostHint = true; writeSave();
@@ -1307,6 +1313,8 @@ function flightFx(dt) {
     G.wingCalled = true; sfx.servo(); G.voiceT = setTimeout(() => sfx.voice("wings"), 450);
     subtitle("WELCOME ABOARD, CAPTAIN. ALL SYSTEMS ONLINE.", 600);
   }
+  if (!v.wingWant && G.wingCalled && !G.wingFold && (v.wing || 0) > 0.4) { G.wingFold = true; sfx.servo(); } // wings fold away with the same servo whirr
+  if (v.wingWant) G.wingFold = false;
   if (!v.wingWant && (v.wing || 0) < 0.05) G.wingCalled = false;
   const hud = $("flightHud"), on = (v.wing || 0) > 0.55;
   if (hud.hidden === on) hud.hidden = !on;
@@ -1369,7 +1377,9 @@ function lightning(dt) {
 // Smoke + skid marks from the rear wheels when a car slides or brakes hard. Runs every physics tick (so a short
 // slide still marks the road on a slow phone); the wheel positions come from the car's state, not its model.
 function tyreFx(key, v, dt) {
-  if (v.wallHit > 2.5 && !v.airborne) { const s = Math.sign(v.lat) || 1, nx = Math.cos(v.p.h) * s, nz = -Math.sin(v.p.h) * s; sparks.emit(v.x - nx * 0.9, v.y, v.z - nz * 0.9, v.vx, v.vz, nx, nz, Math.min(14, 3 + v.wallHit)); }
+  if (v.wallHit > 2.5 && !v.airborne) { const s = Math.sign(v.lat) || 1, nx = Math.cos(v.p.h) * s, nz = -Math.sin(v.p.h) * s; sparks.emit(v.x - nx * 0.9, v.y, v.z - nz * 0.9, v.vx, v.vz, nx, nz, Math.min(34, 8 + v.wallHit * 2)); }
+  // a hard landing scrapes the underbody: a shower of sparks from under the car
+  if (v.landed > 9) { const fx = Math.sin(v.h), fz = Math.cos(v.h); sparks.emit(v.x - fx * 1.2, v.y - 0.2, v.z - fz * 1.2, v.vx * 0.8, v.vz * 0.8, -fx, -fz, Math.min(40, Math.round(v.landed * 2)), 0.6); }
   if (v.airborne) { skids.mark(key + 2, 0, 0, 0, 0, 0); skids.mark(key + 3, 0, 0, 0, 0, 0); return; }
   const slide = Math.abs(v.driftAngle) > 0.12 && v.vF > 12 ? Math.min(1, (Math.abs(v.driftAngle) - 0.08) * 4) : 0;
   const lock = v.lonAcc < -18 && v.vF > 15 ? 0.6 : 0;
@@ -1392,7 +1402,7 @@ function poseCar(m, v, dt) {
   // cheap level of detail: far-away rivals drop their small parts
   const dx = v.x - camera.position.x, dz = v.z - camera.position.z, far = dx * dx + dz * dz > 110 * 110;
   if (far !== m.far) { m.far = far; m.body.children.forEach((c, i) => { if (i > 2 && c !== m.tailMesh) c.visible = !far; }); m.wheels.forEach((w) => (w.parent.visible = !far)); }
-  updateFlames(m, v.boosting, performance.now() / 1000);
+  updateFlames(m, v.boosting, performance.now() / 1000, !far && v.lonAcc < -5 && v.vF > 30, dt);
   m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
   updateContactShadow(m, v.y, v.groundPrev ?? v.y); brakeLights(m, v); if (!far) wheelBlur(m, v.vF);
   m.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06); m.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
@@ -1425,7 +1435,7 @@ function render(dt) {
   for (const r of G.field) poseCar(r.model, r.veh, dt);
   // in the garage, picking a flame colour shows the flames for a moment
   const showFlames = G.mode === "menu" && (G.trailShow = Math.max(0, (G.trailShow || 0) - dt)) > 0;
-  updateFlames(car, v.boosting || showFlames, performance.now() / 1000);
+  if (updateFlames(car, v.boosting || showFlames, performance.now() / 1000, G.mode === "race" && v.lonAcc < -5 && v.vF > 28, dt)) sfx.crackle();
   if (G.path && G.path.gaps.length && G.mode !== "menu") flightFx(dt); else { if (car.wings && car.wings.rig.visible) setWings(car, 0); for (const r of G.rivals) if (r.model.wings && r.model.wings.rig.visible) setWings(r.model, 0); }
   if (G.lightning) lightning(dt);
   if (car.beams) car.beams.visible = false; // the player has a real spotlight at night instead

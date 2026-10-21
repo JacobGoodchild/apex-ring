@@ -6,7 +6,7 @@ const wrapA = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI
 const pos = new THREE.Vector3(), look = new THREE.Vector3();
 
 export class ChaseCam {
-  constructor(camera) { this.cam = camera; this.yaw = 0; this.mode = "chase"; this.kick = 0; this.y = 0; this.shake = 0; this.ready = false; }
+  constructor(camera) { this.cam = camera; this.yaw = 0; this.mode = "chase"; this.kick = 0; this.punch = 0; this.y = 0; this.shake = 0; this.ready = false; }
 
   snap(v) { this.yaw = v.h; this.y = v.y; this.ready = false; }
 
@@ -18,6 +18,8 @@ export class ChaseCam {
     this.yaw += wrapA(aim - this.yaw) * Math.min(1, dt * 5.5);
     this.y += (v.y - this.y) * Math.min(1, dt * 6);
     this.kick += (boostAmt - this.kick) * Math.min(1, dt * 4);
+    this.punch = Math.max(0, this.punch - dt * 2.2); // the warp punch as a boost fires: a quick widening that settles
+
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     const speedF = Math.min(1, Math.max(0, v.vF) / 80);
 
@@ -27,7 +29,7 @@ export class ChaseCam {
       pos.set(v.x + hx * 0.4, v.y + 1.12, v.z + hz * 0.4);
       look.set(v.x + hx * 20, v.y + 0.9, v.z + hz * 20);
       cam.position.copy(pos);
-      fov = (portrait ? 78 : 62) + speedF * 8 + this.kick * 10;
+      fov = (portrait ? 78 : 62) + speedF * 8 + this.kick * 10 + this.punch * this.punch * 9;
     } else {
       const low = this.mode === "low"; // low chase: closer and nearer the road, like a racing-game TV cam
       const back = (low ? (portrait ? 6.2 : 5.0) : portrait ? 7.4 : 5.9) + speedF * 0.9 - this.kick * 0.6;
@@ -36,7 +38,7 @@ export class ChaseCam {
       if (!this.ready) { cam.position.copy(pos); this.ready = true; }
       cam.position.lerp(pos, 1 - Math.exp(-dt * 12));
       look.set(v.x + fx * 5, this.y + (low ? (portrait ? 0.9 : 0.8) : portrait ? 0.7 : 0.95), v.z + fz * 5);
-      fov = (portrait ? 72 : 58) + speedF * 10 + this.kick * 12;
+      fov = (portrait ? 72 : 58) + speedF * 10 + this.kick * 12 + this.punch * this.punch * 9;
     }
     if (this.shake > 0) {
       cam.position.x += (Math.random() - 0.5) * this.shake * 0.25;

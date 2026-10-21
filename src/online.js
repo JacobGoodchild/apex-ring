@@ -45,7 +45,7 @@ export const token = () => (sess ? sess.access_token : undefined); // a publisha
 // creates or updates this driver's profile (name + friend code)
 export async function saveProfile(name, code) {
   const id = await signIn();
-  await call("/rest/v1/profiles?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id, name: name || "Driver", friend_code: code }) });
+  await call("/rest/v1/profiles?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id, name: name || "Racer", friend_code: code }) });
 }
 export async function postLap(track, seconds, car) {
   await signIn();
