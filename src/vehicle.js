@@ -17,6 +17,7 @@ export class Vehicle {
     this.vx = 0; this.vz = 0; this.vF = 0; this.vL = 0;
     this.yawRate = 0; this.steer = 0; this.latAcc = 0; this.lonAcc = 0;
     this.drifting = false; this.driftAngle = 0; this.driftTime = 0; this.driftScore = 0;
+    this.wing = 0; this.wingWant = 0; this.flying = false; this.padT = 0; this.overGapPrev = false;
     this.boost = this.boost ?? 0.25; this.boosting = false;
     this.offTrack = false; this.wallHit = 0; this.stuckT = 0;
     this.hint = -1;

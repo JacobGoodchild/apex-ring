@@ -29,6 +29,7 @@ import { Driver, RIVALS, collide, STYLE_NAMES } from "./ai.js";
 import { makeRng } from "./rng.js";
 import { Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
+import { addWings, setWings } from "./wings.js";
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -81,6 +82,8 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
   if (theme.snowfall && !G.snow) G.snow = new Rain(scene, 900, true);
   if (G.snow) G.snow.lines.visible = !!theme.snowfall && !theme.rain;
   sfx.setWeatherSound(theme.rain ? "rain" : theme.snowfall ? "snow" : theme.wetRoad ? "wet" : "");
+  G.ltFlash = 0; $("flash").style.opacity = 0; if (G.bolt) { G.bolt.removeFromParent(); G.bolt = null; } // setTheme has reset the light
+  G.lightning = !!theme.lightning;
   if (G.car && G.car.beams) G.car.beams.visible = G.night;
   for (const r of G.rivals || []) if (r.model.beams) r.model.beams.visible = G.night;
   if (G.player) { G.player.track = G.path; gridUp(); }
@@ -97,7 +100,7 @@ function refreshLock() {
   if (!G.track) return;
   const open = G.cupMode ? cupOpen(CUPS[G.cupIdx]) : TEST || trackUnlocked(save, baseId(G.track.id));
   // layout tabs (Normal / Reverse / Mirror); Reverse is hidden on tracks with cliff drops
-  const lay = layoutOf(G.track.id), base = TRACKS.find((t) => t.id === baseId(G.track.id));
+  const lay = layoutOf(G.track.id), base = trackById(baseId(G.track.id));
   document.querySelectorAll("#layoutTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.l === lay)); b.hidden = b.dataset.l === "r" && !canReverse(base); });
   $("startBtn").disabled = !open;
   $("trackPick").classList.toggle("locked", !open);
@@ -238,7 +241,7 @@ $("trackNext").addEventListener("click", () => pickTrack(1));
 function buildPlayer(id = save.car) {
   const def = carById(id), cs = carSave(def.id);
   if (G.car) G.car.group.removeFromParent();
-  G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex, cs.rims, cs.decal || 0);
+  G.car = makeCar(def, PAINTS[cs.paint % PAINTS.length].hex, cs.rims, cs.decal || 0); G.car.paintHex = PAINTS[cs.paint % PAINTS.length].hex;
   sfx.setEngine(def.engine);
   addFlames(G.car); addBeams(G.car); addContactShadow(G.car); G.car.beams.visible = !!G.night;
   setFinish(G.car, cs.finish || 0, PAINTS[cs.paint % PAINTS.length].hex); setTrail(G.car, cs.trail || 0);
@@ -338,7 +341,7 @@ function setRaceUI(on) {
   const pro = save.settings.drive === "pro" && matchMedia("(pointer: coarse)").matches;
   $("proPads").hidden = !(on && pro); if (on && pro) $("pads").hidden = true; $("proSteer").hidden = input.tiltOn; $("tags").hidden = !on; if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; } }
 
-const SCREENS = ["menu", "setup", "garage", "settings", "career", "help"];
+const SCREENS = ["menu", "setup", "garage", "settings", "career", "help", "daily", "online"];
 function show(id) {
   sfx.click();
   SCREENS.forEach((s) => ($(s).hidden = s !== id));
@@ -350,6 +353,8 @@ function show(id) {
   if (id === "menu") { if (G.garageCar && G.garageCar !== save.car) buildPlayer(); refreshLobby(); }
   if (id === "settings") refreshSettings();
   if (id === "career") buildCareer();
+  if (id === "daily") refreshDaily();
+  if (id === "online") refreshOnline();
   if (id === "setup") {
     G.event = null;
     const base = THEMES[G.track.theme], wantNight = (G.wantTime || "day") === "night" || !!base.stars;
@@ -767,7 +772,53 @@ function startEvent(ev) {
   }
   startRace();
 }
-["setupBack", "garageBack", "settingsBack"].forEach((id) => $(id).addEventListener("click", () => show("menu")));
+["setupBack", "garageBack", "settingsBack", "dailyBack", "onlineBack"].forEach((id) => $(id).addEventListener("click", () => show("menu")));
+
+// ---------- daily challenge screen: Zeus's Fury, open to anyone, plus the dated daily event ----------
+const ZEUS_EVENT = { id: "zeus", name: "Zeus's Fury", type: "race", track: "zeus", laps: 2, target: 3, weather: "rain", special: true,
+  reward: { coins: 3000, gems: 2 }, desc: "Fly the chasm and finish in the top three." };
+function refreshDaily() {
+  const d = dailyEvent(), st = save.career[d.id];
+  $("dailyName").textContent = d.name; $("dailyDesc").textContent = d.desc;
+  $("dailyReward").innerHTML = st && st.done ? `Done today: <b>${"★".repeat(st.stars)}${"☆".repeat(3 - st.stars)}</b>` : `Reward <b>+900</b> <b class="gem">+1 gem</b>`;
+  $("zeusBest").textContent = fmt(save.best.zeus);
+}
+$("dailyBtn").addEventListener("click", () => show("daily"));
+$("zeusGo").addEventListener("click", () => { sfx.startAudio(); sfx.preloadVoice("wings"); startEvent(ZEUS_EVENT); });
+$("dailyGo").addEventListener("click", () => startEvent(dailyEvent()));
+
+// ---------- online: leaderboards, friends and profile. The screens are real; anything that needs the server says so. ----------
+function soon(msg) { sfx.click(); if (msg) $("soonMsg").textContent = msg; $("soon").hidden = false; }
+$("soonOk").addEventListener("click", () => { sfx.click(); $("soon").hidden = true; });
+G.oTrack = 0;
+function friendCode() {
+  if (!save.friendCode) { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < 4; i++) c += a[Math.floor(Math.random() * a.length)]; save.friendCode = "APX-" + c; writeSave(); }
+  return save.friendCode;
+}
+function refreshOnline() {
+  const t = TRACKS[G.oTrack], best = save.best[t.id], name = save.driverName || "You";
+  $("oTrackName").textContent = t.name;
+  // your own best lap is real; the world's rows are placeholders until the server exists
+  const rows = [`<li class="me"><span class="pos">–</span><span class="nm">${name} <small>this device</small></span><span class="tm">${best ? fmt(best) : "no lap yet"}</span></li>`];
+  for (let i = 1; i <= 6; i++) rows.push(`<li class="ghostrow"><span class="pos">${i}</span><span class="nm"><i></i></span><span class="tm"><i></i></span></li>`);
+  $("oBoard").innerHTML = rows.join("");
+  $("oFriendBoard").innerHTML = `<li class="me"><span class="pos">1</span><span class="nm">${name}</span><span class="tm">${best ? fmt(best) : "–"}</span></li><li class="empty">Add friends to see their times here.</li>`;
+  $("oCode").textContent = friendCode();
+  $("oName").value = save.driverName || "";
+  const st = save.stats || { races: 0, wins: 0, podiums: 0 };
+  $("oStats").innerHTML = [["Races", st.races], ["Wins", st.wins], ["Podiums", st.podiums]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("");
+}
+document.querySelectorAll("#online .seg .tab").forEach((b) => b.addEventListener("click", () => {
+  sfx.click(); document.querySelectorAll("#online .seg .tab").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  $("oGlobal").hidden = b.dataset.o !== "global"; $("oFriends").hidden = b.dataset.o !== "friends"; $("oProfile").hidden = b.dataset.o !== "profile";
+}));
+$("oPrev").addEventListener("click", () => { sfx.click(); G.oTrack = (G.oTrack + TRACKS.length - 1) % TRACKS.length; refreshOnline(); });
+$("oNext").addEventListener("click", () => { sfx.click(); G.oTrack = (G.oTrack + 1) % TRACKS.length; refreshOnline(); });
+$("oRefresh").addEventListener("click", () => soon("World leaderboards are under construction. Your laps are saved on this device and will be uploaded when online play arrives."));
+$("oAdd").addEventListener("click", () => soon("Adding friends is under construction. Keep your friend code handy: it'll work as soon as online play is switched on."));
+$("oSignIn").addEventListener("click", () => soon("Syncing across devices is under construction."));
+$("oSaveName").addEventListener("click", () => { const n = $("oName").value.trim().slice(0, 16); save.driverName = n; writeSave(); sfx.chime(); toast(n ? "Name saved: " + n : "Name cleared", 1500); refreshOnline(); });
+$("onlineBtn").addEventListener("click", () => show("online"));
 function setMode(trial, cup = false) {
   G.trial = trial; G.cupMode = cup;
   const m = cup ? "cup" : trial ? "trial" : "race";
@@ -1112,6 +1163,75 @@ function dropLast(per) {
   if (!G.field.length) { toast("Last one standing!", 2000); finishRace(); } // knockout won
 }
 
+// ---------- Zeus's Fury: wings, flight HUD, the captain's welcome, lightning ----------
+const smoothK = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+function flightFx(dt) {
+  const v = G.player, T = performance.now() / 1000;
+  if (!G.car.wings) addWings(G.car, G.car.paintHex || 0x3a4250, 1);
+  setWings(G.car, v.wing || 0, T, v.flying, v.steer, v.boosting);
+  for (const r of G.field) { if (!r.model.wings) addWings(r.model, r.color || 0x3a4250, 0); setWings(r.model, r.veh.wing || 0, T, r.veh.flying, r.veh.steer, r.veh.boosting); }
+  if (G.mode !== "race") return;
+  // the wings start to unfurl: servos, then the ship's computer welcomes you aboard
+  if (v.wingWant && !G.wingCalled) {
+    G.wingCalled = true; sfx.servo(); setTimeout(() => sfx.voice("wings"), 450);
+    subtitle("WELCOME ABOARD, CAPTAIN. ALL SYSTEMS ONLINE.", 600);
+  }
+  if (!v.wingWant && (v.wing || 0) < 0.05) G.wingCalled = false;
+  const hud = $("flightHud"), on = (v.wing || 0) > 0.55;
+  if (hud.hidden === on) hud.hidden = !on;
+  if (on) {
+    const alt = v.y - (G.path.gapAt(v.p.d) ? v.p.y : v.p.y), far = G.path.gapAt(v.p.d);
+    $("fltAlt").textContent = (alt >= 0 ? "+" : "") + alt.toFixed(0) + " m";
+    $("fltState").textContent = v.flying ? (v.boosting ? "THRUSTERS" : "GLIDING") : v.airborne ? "AIRBORNE" : "WINGS OUT";
+    $("fltBar").style.width = Math.round(Math.max(0, Math.min(1, (alt + 20) / 40)) * 100) + "%";
+    hud.classList.toggle("warn", !!far && alt < -6);
+  }
+  if (v.landed && G.flewGap) { G.flewGap = false; popDrift("", "CHASM CLEARED"); sfx.chime(); trophy("wings"); }
+  if (v.flying) G.flewGap = true;
+}
+function subtitle(text, delay = 0) {
+  const el = $("subtitle"); clearInterval(subtitle._i); clearTimeout(subtitle._t);
+  setTimeout(() => {
+    el.textContent = ""; el.hidden = false; let k = 0;
+    subtitle._i = setInterval(() => { el.textContent = text.slice(0, ++k); if (k >= text.length) { clearInterval(subtitle._i); subtitle._t = setTimeout(() => (el.hidden = true), 2200); } }, 55);
+  }, delay);
+}
+// Lightning: every few seconds a jagged bolt cracks down somewhere round the horizon, the world flashes, thunder follows.
+const boltMat = new THREE.MeshBasicMaterial({ color: 0xe6eeff, fog: false, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+function lightning(dt) {
+  G.ltT = (G.ltT ?? 2.5) - dt;
+  if (G.ltFlash > 0) {
+    G.ltFlash = Math.max(0, G.ltFlash - dt * 2.4);
+    const f = G.ltFlash * (0.6 + 0.4 * Math.sin(G.ltFlash * 40)); // flickers as it fades
+    world.hemi.intensity = G.ltBase + f * 2.2; $("flash").style.opacity = (f * 0.28).toFixed(3);
+    if (G.bolt) G.bolt.material.opacity = Math.min(1, G.ltFlash * 1.6);
+    if (G.ltFlash <= 0) { world.hemi.intensity = G.ltBase; $("flash").style.opacity = 0; if (G.bolt) { G.bolt.removeFromParent(); G.bolt.geometry.dispose(); G.bolt = null; } }
+  }
+  if (G.ltT > 0 || G.mode === "menu") return;
+  G.ltT = 3 + Math.random() * 7;
+  if (!(G.ltFlash > 0)) G.ltBase = world.hemi.intensity;
+  G.ltFlash = 1;
+  // the bolt: a jagged ribbon from the cloud base to the ground, facing the camera, with a branch
+  const a = Math.random() * Math.PI * 2, dist = 350 + Math.random() * 700, cx = camera.position.x + Math.sin(a) * dist, cz = camera.position.z + Math.cos(a) * dist;
+  const pts = []; let x = cx, y = 420, z = cz;
+  while (y > -5) { pts.push([x, y, z]); x += (Math.random() - 0.5) * 50; z += (Math.random() - 0.5) * 50; y -= 18 + Math.random() * 30; }
+  pts.push([x, -10, z]);
+  const pos = [], toCam = new THREE.Vector3(), seg = new THREE.Vector3(), side = new THREE.Vector3();
+  const ribbon = (P, w) => { for (let i = 0; i < P.length - 1; i++) {
+    const [a1, b1, c1] = P[i], [a2, b2, c2] = P[i + 1];
+    seg.set(a2 - a1, b2 - b1, c2 - c1); toCam.set(camera.position.x - a1, camera.position.y - b1, camera.position.z - c1); side.crossVectors(seg, toCam).normalize().multiplyScalar(w);
+    pos.push(a1 - side.x, b1 - side.y, c1 - side.z, a1 + side.x, b1 + side.y, c1 + side.z, a2 + side.x, b2 + side.y, c2 + side.z, a1 - side.x, b1 - side.y, c1 - side.z, a2 + side.x, b2 + side.y, c2 + side.z, a2 - side.x, b2 - side.y, c2 - side.z);
+  } };
+  ribbon(pts, 2.2);
+  const k = Math.floor(pts.length * 0.4), br = [pts[k]]; let [bx, by, bz] = pts[k];
+  for (let j = 0; j < 5; j++) { bx += (Math.random() - 0.3) * 60; bz += (Math.random() - 0.3) * 60; by -= 25 + Math.random() * 20; br.push([bx, by, bz]); }
+  ribbon(br, 1.2);
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  if (G.bolt) { G.bolt.removeFromParent(); G.bolt.geometry.dispose(); }
+  G.bolt = new THREE.Mesh(g, boltMat.clone()); G.bolt.frustumCulled = false; scene.add(G.bolt);
+  sfx.thunder(dist);
+}
+
 // Smoke + skid marks from the rear wheels when a car slides or brakes hard. Runs every physics tick (so a short
 // slide still marks the road on a slow phone); the wheel positions come from the car's state, not its model.
 function tyreFx(key, v, dt) {
@@ -1171,13 +1291,15 @@ function render(dt) {
   // in the garage, picking a flame colour shows the flames for a moment
   const showFlames = G.mode === "menu" && (G.trailShow = Math.max(0, (G.trailShow || 0) - dt)) > 0;
   updateFlames(car, v.boosting || showFlames, performance.now() / 1000);
+  if (G.path && G.path.gaps.length && G.mode !== "menu") flightFx(dt); else if (car.wings && car.wings.rig.visible) setWings(car, 0);
+  if (G.lightning) lightning(dt);
   if (car.beams) car.beams.visible = false; // the player has a real spotlight at night instead
   if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.friend) G.friend.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight);
   drawRocks();
   if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
-  speedLines.update(dt, v.vF, G.mode === "race" && fxOn() ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
+  speedLines.update(dt, v.vF, G.mode === "race" && fxOn() && !G.photo ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
   if (!fxOn()) chase.shake = 0;
 
   car.group.position.y += Math.sin(G.bob = (G.bob || 0) + dt * v.vF * 0.9) * 0.006 * Math.min(1, v.vF / 30);
@@ -1195,7 +1317,12 @@ function render(dt) {
     const P = G.photo, c = Math.cos(P.e);
     camera.position.set(v.x + Math.sin(P.a) * P.d * c, v.y + 0.6 + Math.sin(P.e) * P.d, v.z + Math.cos(P.a) * P.d * c);
     camera.lookAt(v.x, v.y + 0.7, v.z);
-  } else chase.update(v, dt, v.boosting ? 1 : 0);
+  } else {
+    chase.update(v, dt, v.boosting ? 1 : 0);
+    // flight camera: up and back with the wings out, so you see them and the chasm
+    const k = G.mode === "race" || G.mode === "done" ? smoothK(v.wing || 0) : 0;
+    if (k > 0.01) { camera.position.y += 3 * k; camera.position.x -= Math.sin(v.h) * 4.5 * k; camera.position.z -= Math.cos(v.h) * 4.5 * k; camera.lookAt(v.x + Math.sin(v.h) * 14 * k, v.y + 1.2, v.z + Math.cos(v.h) * 14 * k); } // look ahead down the chasm
+  }
   if (G.splitRace && G.p2 && G.mode !== "menu") {
     chase2.update(G.p2.veh, dt, G.p2.veh.boosting ? 1 : 0);
     const order = standings(), L = G.path.length, n = laps();
@@ -1444,6 +1571,8 @@ if (TEST) {
     warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
     // freeze the race and frame the car from a photo-mode camera (angle relative to the car's heading); used for track previews
     photo(a, e, d) { G.paused = true; G.photo = { a: G.player.h + a, e, d }; document.body.classList.add("photo"); $("pause").hidden = true; $("hud").hidden = true; },
+    gapD() { return G.path.gaps.length ? G.path.gaps[0].d0 : -1; },
+    get flight() { const v = G.player; return { wing: +(v.wing || 0).toFixed(2), flying: !!v.flying, y: +v.y.toFixed(1), road: +v.p.y.toFixed(1), vF: +v.vF.toFixed(0), d: +v.p.d.toFixed(0) }; },
     rampD() { const r = G.path.ramps[0]; return r ? r.d - r.len - 45 : -1; },
     get airPops() { return G.airPops || 0; },
     // anything solid within car height above the road surface (should be nothing)

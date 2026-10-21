@@ -47,11 +47,11 @@ export const THEMES = {
   },
   // Zeus's Fury: a thunderstorm over black rock. Lightning flashes and thunder are added in main.js (theme.lightning).
   thunder: {
-    sky: [0x0a0d14, 0x1c2230, 0x3a4250], sunDir: [0.3, 0.5, -0.8], sunColor: 0x9fb0d0, sunIntensity: 0.65,
-    hemi: [0x7a8aa8, 0x1a1c22, 0.75], fog: 0x262c38, fogNear: 120, fogFar: 900, ground: 0x2a2a2e, rock: 0x3a3a40,
-    runoff: "#3a3a3e", asphalt: "#2a2c30", embankment: 0x2e2e34, scenery: "mountain", stars: 0.01, label: "Thunderstorm · Night", clouds: 1, cloudColor: 0x2a3040,
+    sky: [0x0a0d14, 0x1c2230, 0x3a4250], sunDir: [0.3, 0.5, -0.8], sunColor: 0xb0c0dc, sunIntensity: 0.9,
+    hemi: [0x9aa8c4, 0x3a3c44, 1.2], fog: 0x3e4654, fogNear: 140, fogFar: 1000, ground: 0x2a2a2e, rock: 0x3a3a40,
+    runoff: "#3a3a3e", asphalt: "#2a2c30", embankment: 0x2e2e34, scenery: "mountain", skyImg: "kloofendal_overcast", skyGain: 0.55, skyFogMix: 0.5, label: "Thunderstorm", clouds: 1, cloudColor: 0x2a3040,
     groundTex: "darkrock", runTex: "gravel", embTex: "darkrock", groundTint: 0x8a8a90, rain: true, wetRoad: true, lightning: true, envIntensity: 0.6,
-    wallA: "#f2c230", wallB: "#0b0d12", tree: 0x24302a, sign: "ZEUS'S FURY", bloom: 0.9, exposure: 1.1,
+    wallA: "#f2c230", wallB: "#0b0d12", tree: 0x24302a, sign: "ZEUS'S FURY", bloom: 0.9, exposure: 1.3,
   },
   xtreme: {
     sky: [0x1b1030, 0x6b3a5a, 0xff9a4a], sunDir: [0.7, 0.18, -0.6], sunColor: 0xffa860, sunIntensity: 1.7,

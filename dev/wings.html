@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Wings viewer</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js", "three/addons/": "../vendor/three/addons/" } }</script>
+<style>body{margin:0;background:#222}canvas{display:block}</style></head><body>
+<script type="module">
+// Dev-only: the car with mech wings at four stages of unfolding (top row) and from the chase camera (bottom row).
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { makeCar } from "../src/carmodel.js";
+import { carById } from "../src/cars.js";
+import { addWings, setWings } from "../src/wings.js";
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(1200, 600); document.body.appendChild(r.domElement);
+r.toneMapping = THREE.ACESFilmicToneMapping; r.setScissorTest(true);
+const s = new THREE.Scene(); s.background = new THREE.Color(0x2a3040);
+s.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+s.add(new THREE.HemisphereLight(0xffffff, 0x333333, 1)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(3, 6, 4); s.add(d);
+const car = makeCar(carById("vanta"), 0x0f8b8d); s.add(car.group); addWings(car, 0x0f8b8d, 1);
+const cam = new THREE.PerspectiveCamera(35, 300 / 300, 0.1, 100);
+const ws = [0.15, 0.4, 0.7, 1];
+ws.forEach((w, k) => { setWings(car, w, 1, true, 0, false); cam.position.set(7, 5, 6); cam.lookAt(0, 0.6, 0); r.setViewport(k * 300, 300, 300, 300); r.setScissor(k * 300, 300, 300, 300); r.render(s, cam); });
+cam.aspect = 600 / 300; cam.updateProjectionMatrix();
+setWings(car, 1, 1, true, 0.4, true);
+for (const [k, p] of [[0, [0, 3.2, -8.5]], [1, [-6, 2, 6]]]) { cam.position.set(...p); cam.lookAt(0, 0.8, 0); r.setViewport(k * 600, 0, 600, 300); r.setScissor(k * 600, 0, 600, 300); r.render(s, cam); }
+window.done = true;
+</script></body></html>

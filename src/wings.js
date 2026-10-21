@@ -24,7 +24,7 @@ function parts(paintHex) {
     };
     const edge = (len, chord) => {
       // the glowing trailing-edge strip of a feather
-      const g = new THREE.BoxGeometry(len * 0.82, 0.03, 0.035);
+      const g = new THREE.BoxGeometry(len * 0.86, 0.045, 0.07);
       g.translate(len * 0.45, 0.02, -chord * 0.72);
       g.rotateY(-0.13);
       return g;
@@ -64,7 +64,7 @@ export function addWings(model, paintHex = 0x0f8b8d, detail = 1) {
       const F = P.feathers[detail ? k : k * 2], fg = new THREE.Group();
       // first two feathers ride on the inner arm, the rest on the outer arm
       const onB = k >= 2, host = onB ? armB : armA;
-      fg.position.set(sg * (onB ? 0.25 + (k - 2) * 0.5 : 0.35 + k * 0.6), 0.06 - k * 0.012, 0.02);
+      fg.position.set(sg * (onB ? 0.15 + (k - 2) * 0.55 : 0.3 + k * 0.62), 0.06 - k * 0.018, 0.02);
       host.add(fg);
       const m = new THREE.Mesh(F.blade, P.plate); m.scale.x = sg; fg.add(m);
       if (detail) { const e = new THREE.Mesh(F.edge, P.glow); e.scale.x = sg; fg.add(e); }
@@ -96,7 +96,7 @@ export function setWings(model, w, t = 0, flying = false, steer = 0, boost = fal
     // 3: feathers fan out one by one from folded along the arm into a swept wing
     S.feathers.forEach((f, k) => {
       const e = settle(s3 * 1.6 - k * 0.14);
-      f.rotation.y = sg * lerp(1.3, -0.05 + k * 0.1, e);
+      f.rotation.y = sg * lerp(1.35, 0.28 + k * 0.17, e); // fanned: each feather sweeps further back than the last
       f.rotation.z = sg * lerp(0, -0.04 * k, e);
       f.scale.setScalar(lerp(0.55, 1, e));
     });

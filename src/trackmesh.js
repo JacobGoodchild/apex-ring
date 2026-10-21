@@ -169,15 +169,14 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
   // chasm: sheer rock walls either side from the approach to beyond the far edge, a rock shelf on top of them, and the
   // cliff faces under both lips. The terrain is carved away below (see Terrain).
   if (path.gaps.length) {
-    const rock = surface("darkrock", theme.groundTint || 0x9a9aa0, [6, 1], { side: THREE.DoubleSide });
-    const geos = [], top = 32, deep = 240, wlat = W + R + 0.5, shelf = 70;
+    const rock = surface("rock", 0xb8bcc6, [10, 1], { side: THREE.DoubleSide });
+    const geos = [], top = 70, deep = 240, wlat = W + R + 0.5;
     for (const g of path.gaps) {
       const i0 = Math.floor((g.d0 - 150) / path.ds), i1 = Math.ceil((g.d1 + 70) / path.ds);
       const inR = (i) => { const k = ((i - i0) % N + N) % N; return k < (i1 - i0); };
       const face = (lat) => (i, side) => { path.pointAt(i * path.ds, lat, tmp); const over = path.gap[i]; return { lat, y: side ? tmp.y + top : tmp.y - (over || 1) * deep * (over ? 1 : 0.02) }; };
       for (const sg of [-1, 1]) {
         geos.push(strip(path, 0, 0, { mask: inR, edgeFn: face(sg * wlat), vScale: 30, gaps: true }));
-        geos.push(strip(path, 0, 0, { mask: inR, edgeFn: (i, side) => { const lat = sg * (side ? wlat + shelf : wlat); path.pointAt(i * path.ds, lat, tmp); return { lat, y: path.y[i] + top }; }, vScale: 30, gaps: true }));
       }
       // the faces under the two lips
       for (const [d, y] of [[g.d0, 0], [g.d1, 0]]) {
@@ -188,6 +187,10 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
       }
     }
     const canyon = new THREE.Mesh(merge(geos), rock); canyon.name = "chasm"; canyon.receiveShadow = true; group.add(canyon);
+    // the abyss: a black void 70 m down (fog makes it fade to the storm colour), so the floor never shows
+    const voidGeo = merge(path.gaps.map((g) => { const i0 = Math.floor((g.d0 - 5) / path.ds), n = Math.ceil((g.d1 - g.d0 + 10) / path.ds);
+      return strip(path, 0, 0, { mask: (i) => ((i - i0) % N + N) % N < n, gaps: true, edgeFn: (i, side) => { const lat = side ? wlat : -wlat; path.pointAt(i * path.ds, lat, tmp); return { lat, y: tmp.y - 70 }; } }); }));
+    group.add(new THREE.Mesh(voidGeo, new THREE.MeshBasicMaterial({ color: 0x050608, side: THREE.DoubleSide })));
     // a glowing edge line at both lips so you can see where the road ends, and warning chevrons on the walls
     const lipMat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
     for (const g of path.gaps) for (const d of [g.d0, g.d1]) {

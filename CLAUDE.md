@@ -338,3 +338,17 @@ yet (Supabase), build the screens and show an "under construction" message. Plan
   one instanced draw call for all trees, 2 triangles each, so forests are 2-3x denser than before. Desert gets quiver trees.
 - Skid marks and tyre smoke now run every physics tick from the car's state (the per-frame version missed short slides on
   slow frames, which made the skid test flaky).
+- Zeus's Fury (`SPECIAL_TRACKS` in src/tracks.js: raced only from the new Daily challenge screen, not in quick race / cups /
+  career / the TRACKS sweeps). 4.6 km storm track: huge ramps, boost pads (hazard type "pad": a free 1.4 s burst + kick),
+  a split island, and a 280 m chasm (`gaps: [[0.376, 0.437]]`): TrackPath.gap/gapAt/toGap; nothing is built over a gap
+  (strip() skips it), 70 m rock walls line it, the terrain is carved out and a black void sits 70 m down. Vehicle: wings
+  unfurl from 260 m out (v.wing 0..1), over the gap the car glides (0.18 g, settles to -2.2 m/s sink, thrusters hold speed,
+  boost climbs, storm gusts push you sideways, grip 0.6 so steering flies it); falling 35 m or hitting the far cliff face
+  respawns you past the gap with the distance still counted. src/wings.js: mech wings (pod slides out, two-part spar
+  unfolds, five armour feathers fan out with glowing edges, thrusters); rivals get a 3-feather version. On deploy: servo
+  whine + clicks, the robot voice "Welcome aboard, Captain. All systems online." (assets/sfx/wings.mp3 from espeak-ng via
+  scripts/dev/robotvoice.py), typed subtitle, a flight HUD (state, altitude, steer/boost tips), a raised look-ahead camera,
+  "CHASM CLEARED" + trophy on landing. Thunderstorm theme: dimmed overcast photo sky, rain, lightning (jagged additive
+  ribbon bolt, world flash, thunder delayed by distance). Dev: dev/wings.html + scripts/dev/wingshot.mjs, zeusshot.mjs.
+- Online screen (Global top-100 per track with your own lap and placeholder rows, Friends with a friend code and add
+  friend, Profile with driver name and stats). Anything that needs the server opens an "Under construction" card.

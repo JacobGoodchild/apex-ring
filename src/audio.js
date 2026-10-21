@@ -150,3 +150,37 @@ export function fanfare(win) {
   const notes = win ? [523, 659, 784, 1046, 784, 1046] : [392, 440, 523];
   notes.forEach((f, i) => tone(f, 0.28, "triangle", 0.12, i * 0.13));
 }
+
+// Recorded voice lines (assets/sfx/*.mp3, made by scripts/dev/robotvoice.py), decoded once and played through the mix.
+const voices = {};
+export function voice(name) {
+  if (!ctx || muted) return;
+  const play = (buf) => { const s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = 1.1; s.buffer = buf; s.connect(g); g.connect(master); s.start(); };
+  if (voices[name] instanceof AudioBuffer) return play(voices[name]);
+  if (voices[name]) return;
+  voices[name] = fetch(new URL(`../assets/sfx/${name}.mp3`, import.meta.url)).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b))
+    .then((buf) => { voices[name] = buf; play(buf); }).catch(() => { voices[name] = null; });
+}
+export function preloadVoice(name) { if (ctx && !voices[name]) { voices[name] = fetch(new URL(`../assets/sfx/${name}.mp3`, import.meta.url)).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)).then((buf) => (voices[name] = buf)).catch(() => (voices[name] = null)); } }
+
+// Thunder: a sharp crack (close strikes) and a long low rumble, delayed by the distance to the strike.
+export function thunder(dist = 600) {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime + Math.min(3, dist / 340), near = Math.max(0, 1 - dist / 1500);
+  const s = ctx.createBufferSource(); s.buffer = noiseBuffer(ctx); s.loop = true;
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.setValueAtTime(1800 * near + 300, t); lp.frequency.exponentialRampToValueAtTime(90, t + 2.5);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.5 * (0.4 + near), t + 0.05 + (1 - near) * 0.4);
+  g.gain.setTargetAtTime(0.18 * (0.5 + near), t + 0.4, 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.5);
+  s.connect(lp); lp.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + 4.6);
+}
+
+// The wings unfolding: a servo whine that climbs, with mechanical clicks as each section locks.
+export function servo() {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+  o.type = "sawtooth"; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(520, t + 1.6); o.frequency.exponentialRampToValueAtTime(380, t + 2.4);
+  f.type = "bandpass"; f.frequency.value = 900; f.Q.value = 3;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.06, t + 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+  o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 2.7);
+  [0.35, 0.8, 1.25, 1.6, 1.9, 2.2].forEach((d) => tone(2400, 0.04, "square", 0.05, d));
+}

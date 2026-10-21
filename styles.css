@@ -342,7 +342,7 @@ body:has(#hud.split) #gapV { display: none; }
 #photoBar { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6; display: flex; gap: 8px; align-items: center; background: rgba(9,14,25,.8); padding: 8px 10px; border-radius: 12px; }
 #photoBar .btn { width: auto; padding: 10px 16px; margin: 0; }
 #photoBar .hint { font-size: 12px; max-width: 160px; }
-body.photo #hud, body.photo #speedo, body.photo #topbtns, body.photo #minimap, body.photo #tags, body.photo #pads, body.photo #proPads, body.photo #gapV, body.photo #eventTag, body.photo #drift, body.photo #splitHud, body.photo #vignette { display: none !important; }
+body.photo #hud, body.photo #speedo, body.photo #topbtns, body.photo #minimap, body.photo #tags, body.photo #pads, body.photo #proPads, body.photo #gapV, body.photo #eventTag, body.photo #drift, body.photo #splitHud, body.photo #vignette, body.photo #flightHud, body.photo #subtitle, body.photo #toast, body.photo #driftPop { display: none !important; }
 .tlist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
 .tlist li { display: flex; flex-direction: column; font: 600 11px var(--display); color: var(--muted); opacity: .6; }
 .tlist li b { font: 700 12px var(--display); color: var(--text); } .tlist li.got { opacity: 1; } .tlist li.got b { color: #ffd479; }

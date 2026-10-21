@@ -269,7 +269,7 @@ test.describe("Apex Ring", () => {
     const problems = await openGame(page, "autopilot=1&speed=12");
     await page.click("#careerBtn");
     await expect(page.locator(".chapter:not(.daily):not(.trophies):not(.stats)")).toHaveCount(4);
-    await expect(page.locator(".chapter.trophies li")).toHaveCount(17);
+    await expect(page.locator(".chapter.trophies li")).toHaveCount(18);
     await page.click("#ev-a1");
     await expect(page.locator("#evDDesc")).toContainText("60 s");
     await page.click("#evGo");

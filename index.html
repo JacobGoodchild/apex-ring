@@ -56,6 +56,9 @@
 <div id="driftPop" hidden></div>
 <div id="boostFlash" aria-hidden="true"></div>
 <div id="offtrack" hidden>OFF TRACK</div>
+<div id="flash" aria-hidden="true"></div>
+<div id="subtitle" hidden></div>
+<div id="flightHud" hidden><div class="fh-k">Flight systems</div><div class="fh-row"><b id="fltState">WINGS OUT</b><span id="fltAlt">+0 m</span></div><div class="fh-bar"><i id="fltBar"></i></div><div class="fh-tip">Steer to fly · Boost to climb</div></div>
 
 <div class="pads" id="pads" hidden>
   <div class="zone" id="zoneL" aria-label="Steer left"></div><div class="zone" id="zoneR" aria-label="Steer right"></div>
@@ -106,6 +109,8 @@
       <button class="tile primary" id="raceBtn" type="button"><img class="tile-img" id="raceTileImg" alt="" src="assets/previews/gp.jpg"><span class="tile-body"><span class="tile-k">Quick race · Time trial · Cups</span><span class="tile-t">Race</span><span class="tile-s" id="raceTileSub"></span></span></button>
       <button class="tile" id="careerBtn" type="button"><svg class="tile-i"><use href="#i-trophy"/></svg><span class="tile-body"><span class="tile-t">Career</span><span class="tile-s" id="careerTileSub"></span></span></button>
       <button class="tile" id="garageBtn" type="button"><svg class="tile-i"><use href="#i-car"/></svg><span class="tile-body"><span class="tile-t">Garage</span><span class="tile-s" id="garageTileSub"></span></span></button>
+      <button class="tile hot" id="dailyBtn" type="button"><svg class="tile-i"><use href="#i-bolt"/></svg><span class="tile-body"><span class="tile-k">New · Zeus's Fury</span><span class="tile-t">Daily challenge</span><span class="tile-s" id="dailyTileSub">Fly the chasm</span></span></button>
+      <button class="tile" id="onlineBtn" type="button"><svg class="tile-i"><use href="#i-globe"/></svg><span class="tile-body"><span class="tile-t">Online</span><span class="tile-s">Leaderboards · Friends</span></span></button>
     </div>
     <div class="menufoot">
       <button class="linkbtn" id="helpBtn" type="button"><svg><use href="#i-help"/></svg>How to play</button>
@@ -216,6 +221,65 @@
     </div>
   </div>
 </div>
+
+<!-- daily challenge: Zeus's Fury and the dated daily event -->
+<div class="overlay screen full" id="daily" hidden>
+  <div class="card setupwrap">
+    <header class="scrhead"><button class="backbtn" id="dailyBack" type="button" aria-label="Back"><svg><use href="#i-back"/></svg></button><div class="scrtitle">Daily challenge</div></header>
+    <div class="dailygrid">
+      <section class="hero zeus">
+        <img class="hero-img" src="assets/previews/zeus.jpg" alt="" onerror="this.style.visibility='hidden'">
+        <div class="hero-shade"></div>
+        <div class="storm" aria-hidden="true"></div>
+        <div class="heroinfo">
+          <div class="label">Only for the bold · Thunderstorm · Hard</div>
+          <div class="trackName">Zeus's Fury</div>
+          <div class="hint">Huge ramps, boost pads and a chasm where the road just ends. Hold your nerve: your car grows wings. Steer the flight, boost to climb.</div>
+          <div class="tstats"><div><b>4.6 km</b><span>Length</span></div><div><b>2</b><span>Laps</span></div><div><b id="zeusBest">–</b><span>Your record</span></div><div><b>+3,000</b><span>Reward</span></div></div>
+          <button class="btn go" id="zeusGo" type="button">Fly Zeus's Fury</button>
+        </div>
+      </section>
+      <aside class="setupside">
+        <div class="label">Today's event</div>
+        <div class="trackName small" id="dailyName"></div>
+        <div class="hint" id="dailyDesc"></div>
+        <div class="evdr" id="dailyReward"></div>
+        <button class="btn" id="dailyGo" type="button">Start</button>
+        <div class="hint">A new event every day, the same for every player.</div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- online: leaderboards and friends (needs a server; the screens are here, the actions say so) -->
+<div class="overlay screen full" id="online" hidden>
+  <div class="card setupwrap">
+    <header class="scrhead"><button class="backbtn" id="onlineBack" type="button" aria-label="Back"><svg><use href="#i-back"/></svg></button><div class="scrtitle">Online</div>
+      <div class="seg" role="tablist"><button class="tab" data-o="global" type="button" aria-pressed="true">Global</button><button class="tab" data-o="friends" type="button">Friends</button><button class="tab" data-o="profile" type="button">Profile</button></div></header>
+    <div class="onlinegrid">
+      <section class="opanel" id="oGlobal">
+        <div class="row between"><div class="label">World top 100 · <span id="oTrackName"></span></div><div class="tabs mini"><button class="tab" id="oPrev" type="button">‹</button><button class="tab" id="oNext" type="button">›</button></div></div>
+        <ol class="lboard" id="oBoard"></ol>
+        <button class="btn ghost" id="oRefresh" type="button">Refresh</button>
+      </section>
+      <section class="opanel" id="oFriends" hidden>
+        <div class="label">Your friend code</div><div class="code" id="oCode"></div>
+        <div class="label">Add a friend</div>
+        <div class="addrow"><input id="oFriendCode" placeholder="Friend code, e.g. APX-7K2Q" maxlength="12" autocomplete="off"><button class="btn" id="oAdd" type="button">Add</button></div>
+        <div class="label">Friends leaderboard</div><ol class="lboard" id="oFriendBoard"></ol>
+      </section>
+      <section class="opanel" id="oProfile" hidden>
+        <div class="label">Driver name</div>
+        <div class="addrow"><input id="oName" maxlength="16" autocomplete="off"><button class="btn" id="oSaveName" type="button">Save</button></div>
+        <div class="statgrid" id="oStats"></div>
+        <button class="btn ghost" id="oSignIn" type="button">Sync progress across devices</button>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="overlay center" id="soon" hidden><div class="card soon"><svg class="soon-i"><use href="#i-globe"/></svg><div class="brand small">Under construction</div>
+  <div class="hint" id="soonMsg">This part of Apex Ring is still being built. Online leaderboards, friends and multiplayer are coming in an update.</div>
+  <button class="btn" id="soonOk" type="button">Got it</button></div></div>
 
 <!-- garage -->
 <div class="overlay screen" id="garage" hidden>
