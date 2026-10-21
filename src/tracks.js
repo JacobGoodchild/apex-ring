@@ -120,12 +120,12 @@ function track(def, verts, opts) { const r = rounded(verts, opts); return { ...d
 export const SPECIAL_TRACKS = [
   track({ id: "zeus", name: "Zeus's Fury", theme: "thunder", difficulty: 3, laps: 2, width: 24, runoff: 9, banking: 0.08, mult: 1.6, special: true,
     blurb: "A storm track for the bold: huge ramps, boost pads, and a chasm with no road at all. Your car grows wings. Fly it.",
-    heights: [[0, 0], [0.12, 2], [0.22, 8], [0.3, 20], [0.372, 20], [0.46, 11], [0.56, 10], [0.68, 4], [0.85, 0], [1, 0]],
-    gaps: [[0.372, 0.46]],
+    heights: [[0, 0], [0.12, 2], [0.22, 8], [0.3, 20], [0.376, 20], [0.437, 12], [0.56, 10], [0.68, 4], [0.85, 0], [1, 0]],
+    gaps: [[0.376, 0.437]],
     // over the chasm: golden rings to fly through (fraction, lateral m, height above the road line m) and a column of rising air
-    rings: [[0.384, -5, 6], [0.397, 5, 9], [0.41, -2, 12], [0.423, 7, 10], [0.436, -4, 8], [0.449, 2, 7]],
-    updrafts: [[0.403, 11, 7], [0.43, -10, 7]],
-    ramps: [{ at: 0.18, h: 4.2, len: 30 }, { at: 0.372, h: 4.5, len: 36 }, { at: 0.63, h: 3.6, len: 26 }, { at: 0.9, lat: -6, half: 5, h: 2, len: 16 }],
+    rings: [[0.389, -5, 6], [0.401, 5, 8], [0.413, -1, 10], [0.425, 6, 7]],
+    updrafts: [[0.397, 10, 7]],
+    ramps: [{ at: 0.18, h: 4.2, len: 30 }, { at: 0.376, h: 4.5, len: 36 }, { at: 0.63, h: 3.6, len: 26 }, { at: 0.9, lat: -6, half: 5, h: 2, len: 16 }],
     hazards: [{ type: "pad", at: 0.06, lat: 0, len: 10, w: 8 }, { type: "pad", at: 0.33, lat: -4, len: 10, w: 7 }, { type: "pad", at: 0.35, lat: 4, len: 10, w: 7 },
       { type: "pad", at: 0.6, lat: 0, len: 10, w: 8 }, { type: "pad", at: 0.8, lat: 5, len: 10, w: 7 }, { type: "split", at: 0.75, lat: 0, len: 120, w: 4 },
       { type: "wet", at: 0.5, lat: -3, len: 24, w: 9 }] },
