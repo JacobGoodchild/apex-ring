@@ -464,3 +464,14 @@ Order: F1+F3 -> F2/F4/F5/F6/7/8/9/10 -> F7/5/6 -> F8/1/3/4 -> F9/11/12/13/14/16.
   colour, race number stepper cs.number), showroom moment on picking a car (doors, headlight flicker, sfx.rev).
 - Title screen fly-by (not in test mode) and an optional tutorial (Tutorial link on the home screen, one-time hint,
   1 guided lap of Dusk Oval, +200 coins once).
+- Review pass (subagent) fixes: supabase/schema-v3.sql (user to run after v2): column-level grants so lap/ghost dates
+  come from the server (no backdated or future laps pinned to weekly boards), profiles readable only as (id, name),
+  my_profile() / my_friends() / touch_seen() RPCs, a private invite inbox uuid per player (invites go to channel
+  "I"+inbox, reconnecting when the socket drops). saveProfile inserts once (ignore-duplicates) then PATCHes the name.
+  Ghost codes are size-limited while decompressing (400 KB), checked for track and time; rematch waits for everyone;
+  spectate pill cleared on a new race; no flight challenges while paused; clip mode snapshots and restores the race;
+  Fireworks idle when empty and stop on a new race; names kept raw and escaped only into HTML; season title only goes
+  up; weekly / ghost tracks open even if not unlocked (G.openTrack); reactions bar moved to the right edge.
+- Cars: tinted see-through glass (transparent physical, sky reflections) over a visible cabin (dark tub, dash, wheel,
+  leather seat backs that fit under the roof), door cards so open doors are solid panels, eased door motion, smoother
+  body (84x40 loft), aerofoil rear wing on slim struts, rounded mirrors, deeper clear-coat.
