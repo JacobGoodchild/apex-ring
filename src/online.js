@@ -45,7 +45,9 @@ export const token = () => (sess ? sess.access_token : undefined); // a publisha
 // creates or updates this driver's profile (name + friend code)
 export async function saveProfile(name, code) {
   const id = await signIn();
-  await call("/rest/v1/profiles?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id, name: name || "Racer", friend_code: code }) });
+  // make the profile once (an existing one is left alone), then set the name: players may only change their name
+  await call("/rest/v1/profiles?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({ id, name: name || "Racer", friend_code: code }) });
+  await call(`/rest/v1/profiles?id=eq.${id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ name: name || "Racer" }) });
 }
 export async function postLap(track, seconds, car) {
   await signIn();
@@ -69,7 +71,7 @@ export async function addFriend(code) {
 export async function postGhost(track, seconds, car, data) {
   await signIn();
   await call("/rest/v1/ghosts?on_conflict=user_id,track", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify({ track, ms: Math.round(seconds * 1000), car, data, updated_at: new Date().toISOString() }) });
+    body: JSON.stringify({ track, ms: Math.round(seconds * 1000), car, data }) });
 }
 export async function getGhost(userId, track) {
   const r = await call(`/rest/v1/ghosts?user_id=eq.${enc(userId)}&track=eq.${enc(track)}&select=ms,data`, {}, !!sess);
@@ -79,18 +81,24 @@ export async function ghostOwners(track) { // which drivers on a board have a gh
   return call(`/rest/v1/ghosts?track=eq.${enc(track)}&select=user_id,ms`, {}, !!sess);
 }
 // laps on a track since a date (weekly challenge, season board), with names; best per driver is picked by the caller
-export async function lapsSince(track, sinceISO, limit = 500) {
-  return call(`/rest/v1/laps?track=eq.${enc(track)}&created_at=gte.${enc(sinceISO)}&order=ms.asc&limit=${limit}&select=user_id,ms,car,profiles(name)`, {}, !!sess);
+export async function lapsSince(track, sinceISO, untilISO, limit = 500) {
+  return call(`/rest/v1/laps?track=eq.${enc(track)}&created_at=gte.${enc(sinceISO)}&created_at=lt.${enc(untilISO)}&order=ms.asc&limit=${limit}&select=user_id,ms,car,profiles(name)`, {}, !!sess);
 }
 // friends with their names, codes and when they were last seen in the game
+// (part 3 of the server setup: only friends see each other's code, last seen and invite inbox)
 export async function friendsList() {
   await signIn();
-  return call("/rest/v1/friends?select=friend_id,profiles!friends_friend_id_fkey(name,friend_code,last_seen)");
+  return call("/rest/v1/rpc/my_friends", { method: "POST", body: "{}" });
+}
+export async function myInbox() {
+  await signIn();
+  const r = await call("/rest/v1/rpc/my_profile", { method: "POST", body: "{}" });
+  return r && r[0] && r[0].inbox;
 }
 // "I'm here": refreshed every minute while the game is open, so friends see you online
 export async function touchSeen() {
-  const id = await signIn();
-  await call(`/rest/v1/profiles?id=eq.${id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ last_seen: new Date().toISOString() }) });
+  await signIn();
+  await call("/rest/v1/rpc/touch_seen", { method: "POST", body: "{}" });
 }
 export const myId = () => (sess && sess.user ? sess.user.id : null);
 

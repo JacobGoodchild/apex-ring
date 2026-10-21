@@ -57,6 +57,7 @@ test("online with a server: world board, and a live race with a friend in a room
     if (u.includes("/rest/v1/friends")) return json([]);
     if (u.includes("/rest/v1/laps") && r.request().method() === "GET") return json([{ user_id: "x", ms: 61234, car: "vanta", profiles: { name: "Ace" } }, { user_id: "me-1", ms: 65000, car: "vanta", profiles: { name: "Jake" } }, { user_id: "x", ms: 70000, car: "vanta", profiles: { name: "Ace" } }]);
     if (u.includes("/rest/v1/ghosts")) return json([{ user_id: "x", ms: 61234 }]);
+    if (u.includes("/rpc/my_friends")) return json([]);
     if (u.includes("/rest/v1/leaderboard")) return json([{ user_id: "x", name: "Ace", ms: 61234, car: "vanta" }, { user_id: "me-1", name: "Jake", ms: 65000, car: "vanta" }]);
     return json({});
   });

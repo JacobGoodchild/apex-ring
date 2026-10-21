@@ -30,7 +30,7 @@ import { makeRng } from "./rng.js";
 import { Sparks, Fireworks, Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
 import { addWings, setWings, setWingSkin, WING_SKINS } from "./wings.js";
-import { onlineReady, signIn, saveProfile, postLap, topLaps, friendLaps, addFriend, myId, Room, roomCode, postGhost, getGhost, ghostOwners, lapsSince, friendsList, touchSeen } from "./online.js";
+import { onlineReady, signIn, saveProfile, postLap, topLaps, friendLaps, addFriend, myId, Room, roomCode, postGhost, getGhost, ghostOwners, lapsSince, friendsList, touchSeen, myInbox } from "./online.js";
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -104,7 +104,7 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
 }
 function refreshLock() {
   if (!G.track) return;
-  const open = G.cupMode ? cupOpen(CUPS[G.cupIdx]) : TEST || trackUnlocked(save, baseId(G.track.id));
+  const open = G.cupMode ? cupOpen(CUPS[G.cupIdx]) : TEST || trackUnlocked(save, baseId(G.track.id)) || G.openTrack === baseId(G.track.id); // the weekly challenge / an online ghost opens its track
   // layout tabs (Normal / Reverse / Mirror); Reverse is hidden on tracks with cliff drops
   const lay = layoutOf(G.track.id), base = trackById(baseId(G.track.id));
   document.querySelectorAll("#layoutTabs .tab").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.l === lay)); b.hidden = b.dataset.l === "r" && !canReverse(base); });
@@ -555,6 +555,7 @@ function buildPaints() {
 
 function startRace() {
   sfx.startAudio(); sfx.click(); if (G.photo) endPhoto();
+  fireworks.stop(); $("spectate").hidden = true; G.spectate = -1;
   if (G.car.def && G.car.def !== save.car) buildPlayer();
   G.mode = "countdown";
   scene.add(G.car.group); setDoors(G.car, 0); G.doors = 0;
@@ -617,7 +618,7 @@ function finishRace() {
   let html = `<div class="place">${ordinal(place)}<small> of ${order.length}</small></div>`;
   if (order.length >= 3) {
     const pod = [order[1], order[0], order[2]], hx = (c) => "#" + c.toString(16).padStart(6, "0");
-    html += `<div class="podium">${pod.map((e, i) => `<div class="step s${[2, 1, 3][i]}${e.me ? " me" : ""}"><span class="who" style="--c:${hx(e.color)}">${e.name}</span><span class="blk">${[2, 1, 3][i]}</span></div>`).join("")}</div>`;
+    html += `<div class="podium">${pod.map((e, i) => `<div class="step s${[2, 1, 3][i]}${e.me ? " me" : ""}"><span class="who" style="--c:${hx(e.color)}">${esc(e.name)}</span><span class="blk">${[2, 1, 3][i]}</span></div>`).join("")}</div>`;
   }
   html += `<ol class="standings">`;
   const L = G.path.length;
@@ -628,7 +629,7 @@ function finishRace() {
     if (t == null) t = Math.max(prevT + 0.1, G.raceTime + Math.max(0.5, (laps() * L - e.veh.totalD) / Math.max(25, e.veh.totalD / Math.max(1, G.raceTime))));
     prevT = Math.max(prevT, t);
     const gap = (e.finished != null ? "" : "~") + fmt(t);
-    html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${e.name}${e.boss ? ' <small class="sty boss">Boss</small>' : e.driver ? ` <small class="sty">${STYLE_NAMES[e.driver.style] || ""}</small>` : ""}</span><span class="tm">${gap}</span></li>`;
+    html += `<li class="${e.me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="sw" style="background:#${e.color.toString(16).padStart(6, "0")}"></span><span class="nm">${esc(e.name)}${e.boss ? ' <small class="sty boss">Boss</small>' : e.driver ? ` <small class="sty">${STYLE_NAMES[e.driver.style] || ""}</small>` : ""}</span><span class="tm">${gap}</span></li>`;
   });
   html += `</ol><div class="laps">Best lap <b>${fmt(fastest)}</b> · Record <b>${fmt(save.best[G.track.id])}</b></div>`;
   if (G.lapTimes.length > 1) html += `<div class="laplist">${G.lapTimes.map((t, i) => `<span class="${t === fastest ? "best" : ""}">L${i + 1} ${fmt(t)}</span>`).join("")}</div>`;
@@ -872,14 +873,19 @@ function refreshOnline(fetchNow = true) {
     $("oSeasonHint").textContent = season ? "Top 10 at the end of the month earn a title: Apex Legend, Gold or Silver." : "";
     $("oSeason").setAttribute("aria-pressed", String(season)); $("oAll").setAttribute("aria-pressed", String(!season));
     $("oBoard").innerHTML = `<li class="empty">Loading…</li>`;
-    ensureProfile().catch(() => {}).then(() => Promise.all([season ? lapsSince(id, seasonStart().toISOString()).then(bestPer) : topLaps(id), friendLaps(id).catch(() => []), ghostOwners(id).catch(() => [])])).then(([top, fr, gh]) => {
+    ensureProfile().catch(() => {}).then(() => Promise.all([season ? lapsSince(id, seasonStart().toISOString(), new Date(Date.now() + 36e5).toISOString()).then(bestPer) : topLaps(id), friendLaps(id).catch(() => []), ghostOwners(id).catch(() => [])])).then(([top, fr, gh]) => {
       if (TRACKS[G.oTrack].id !== id) return;
       const me = myId(), ghosts = new Set((gh || []).map((g) => g.user_id));
       top = top.slice(0, 100);
       $("oBoard").innerHTML = top.length ? top.map((r, i) => boardRow(r, i, me, { season, ghosts })).join("") : `<li class="empty">No laps yet${season ? " this season" : ""}. Set one and you're first!</li>`;
       $("oFriendBoard").innerHTML = fr.length ? fr.map((r, i) => boardRow(r, i, me, { ghosts })).join("") : `<li class="empty">No laps from you or your friends on this track yet.</li>`;
       const mine = top.findIndex((r) => r.user_id === me);
-      if (season && mine >= 0 && mine < 10) { save.title = { name: seasonTitle(mine), season: seasonName() }; if (mine === 0) badge("legend"); writeSave(); }
+      // your title this season is the best rank you hold on any board (it only goes up, and resets with the season)
+      if (season && mine >= 0 && mine < 10) {
+        const cur = save.title && save.title.season === seasonName() ? save.title.rank : 99;
+        if (mine < cur) { save.title = { name: seasonTitle(mine), season: seasonName(), rank: mine }; writeSave(); }
+        if (mine === 0) badge("legend");
+      }
     }).catch((e) => { $("oBoard").innerHTML = `<li class="empty">Couldn't reach the server: ${esc(e.message)}</li>`; });
     return;
   }
@@ -929,6 +935,8 @@ async function raceGhost(userId, name, track) {
   try {
     const g = await getGhost(userId, track); if (!g) { toast("That ghost isn't available", 1600); return; }
     const r = await decodeGhost(g.data);
+    if (r.track !== track) throw new Error("wrong track");
+    G.openTrack = baseId(track);
     save.friendGhosts = save.friendGhosts || {}; save.friendGhosts[track] = { ...r.ghost, n: String(name || r.name).slice(0, 16), online: true }; writeSave();
     if (!G.track || G.track.id !== track) loadTrack(track);
     setMode(true); show("setup"); toast(`Ghost loaded: ${String(name).slice(0, 16)} · ${fmt(g.ms / 1000)}`, 2200);
@@ -951,14 +959,14 @@ function drawWeekly() {
     `<span>Ends in ${d}d ${h}h · Your best ${mine ? fmt(mine) : "–"}</span></div>`;
   if (!onlineReady()) { $("oWkBoard").innerHTML = `<li class="empty">The weekly world board needs online play.</li>`; return; }
   $("oWkBoard").innerHTML = `<li class="empty">Loading…</li>`;
-  ensureProfile().catch(() => {}).then(() => Promise.all([lapsSince(t.id, weekStart().toISOString()).then(bestPer), ghostOwners(t.id).catch(() => [])])).then(([top, gh]) => {
+  ensureProfile().catch(() => {}).then(() => Promise.all([lapsSince(t.id, weekStart().toISOString(), new Date(weekStart().getTime() + 6048e5).toISOString()).then(bestPer), ghostOwners(t.id).catch(() => [])])).then(([top, gh]) => {
     const me = myId(), ghosts = new Set((gh || []).map((g) => g.user_id));
     top = top.slice(0, 50);
     $("oWkBoard").innerHTML = top.length ? top.map((r, i) => boardRow(r, i, me, { ghosts })).join("") : `<li class="empty">Nobody has raced it yet this week. Be first!</li>`;
     const i = top.findIndex((r) => r.user_id === me); if (i >= 0 && i < 10) badge("weekly10");
   }).catch((e) => { $("oWkBoard").innerHTML = `<li class="empty">Couldn't reach the server: ${esc(e.message)}</li>`; });
 }
-$("oWkGo").addEventListener("click", () => { sfx.click(); const t = weeklyTrack(); loadTrack(t.id); setMode(true); show("setup"); });
+$("oWkGo").addEventListener("click", () => { sfx.click(); const t = weeklyTrack(); G.openTrack = t.id; loadTrack(t.id); setMode(true); show("setup"); });
 
 // ---------- friends list: who's online (seen in the last 2.5 minutes), and invites into your race room ----------
 function drawFriends() {
@@ -967,17 +975,17 @@ function drawFriends() {
   ensureProfile().catch(() => {}).then(friendsList).then((list) => {
     save.friendCount = list.length; if (list.length) badge("social"); writeSave();
     const now = Date.now(), room = G.net && G.net.room && G.net.room.open;
-    const rows = list.map((f) => f.profiles || {}).sort((a, b) => Date.parse(b.last_seen || 0) - Date.parse(a.last_seen || 0)).map((p) => {
+    const rows = list.sort((a, b) => Date.parse(b.last_seen || 0) - Date.parse(a.last_seen || 0)).map((p) => {
       const on = p.last_seen && now - Date.parse(p.last_seen) < 150000;
       return `<li><span class="pos"><i class="dot${on ? " on" : ""}"></i></span><span class="nm">${esc(p.name)} <small>${on ? "online" : "offline"}</small></span>` +
-        `<span class="tm">${room && on ? `<button class="tab" type="button" data-c="${esc(p.friend_code)}">Invite</button>` : ""}</span></li>`;
+        `<span class="tm">${room && on && p.inbox ? `<button class="tab" type="button" data-c="${esc(String(p.inbox).replace(/[^a-f0-9]/gi, ""))}">Invite</button>` : ""}</span></li>`;
     });
     $("oFriendList").innerHTML = rows.length ? rows.join("") : `<li class="empty">No friends yet: share your code above.</li>`;
   }).catch(() => { $("oFriendList").innerHTML = `<li class="empty">Couldn't load your friends. Has the part 2 setup been run?</li>`; });
 }
 $("oFriendList").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-c]"); if (!b || !G.net) return;
-  sfx.click(); const code = G.net.code, to = new Room("U" + b.dataset.c.replace(/[^A-Z0-9]/g, ""), () => {}, (st) => { if (st === "open") { to.send("inv", { n: myName(), r: code }); setTimeout(() => to.close(), 800); } });
+  sfx.click(); const code = G.net.code, to = new Room("I" + b.dataset.c, () => {}, (st) => { if (st === "open") { to.send("inv", { n: myName(), r: code }); setTimeout(() => to.close(), 800); } else to.close(); });
   b.disabled = true; b.textContent = "Sent"; toast("Invite sent", 1200);
 });
 // presence: while the game is open, say "I'm here" every minute and listen on your own channel for invites
@@ -988,9 +996,17 @@ function startPresence() {
   const beat = () => { if (!document.hidden) touchSeen().catch(() => clearInterval(timer)); }; // stop if the server doesn't have "last seen" yet
   ensureProfile().then(() => {
     beat(); timer = setInterval(beat, 60000);
-    G.inbox = new Room("U" + friendCode().replace(/[^A-Z0-9]/g, ""), (e, p) => {
-      if (e !== "inv" || !p || !/^[A-Z0-9]{5}$/.test(p.r || "")) return;
-      G.invite = p.r; $("inviteMsg").textContent = `${String(p.n || "A friend").slice(0, 16)} invites you to race`; $("invite").hidden = false; sfx.chime();
+    // invites arrive on a private inbox only your friends know about; reopened if the phone drops the connection
+    return myInbox().then((box) => {
+      if (!box) return;
+      const open = () => {
+        G.inbox = new Room("I" + String(box).replace(/[^a-f0-9]/gi, ""), (e, p) => {
+          if (e !== "inv" || !p || !/^[A-Z0-9]{5}$/.test(p.r || "")) return;
+          G.invite = p.r; $("inviteMsg").textContent = `${String(p.n || "A friend").slice(0, 16)} invites you to race`; $("invite").hidden = false; sfx.chime();
+        }, (st) => { if (st === "closed" || st === "error") { clearTimeout(G.inboxT); G.inboxT = setTimeout(() => { if (!document.hidden) open(); }, 5000); } });
+      };
+      open();
+      document.addEventListener("visibilitychange", () => { if (!document.hidden && G.inbox && !G.inbox.open) { clearTimeout(G.inboxT); open(); } });
     });
   }).catch(() => { G.presence = false; });
 }
@@ -1081,7 +1097,7 @@ function netMsg(e, p) {
   if (!q && e !== "bye" && n.peers.size >= 7) return; // rooms hold 8 drivers; anyone past that (or someone flooding the room with fake players) is ignored
   if (!q && e !== "bye") { q = { id: p.i, name: "Racer", car: CARS[0].id, color: NET_COLORS[n.peers.size % NET_COLORS.length], veh: { totalD: 0, vF: 0 }, finished: null, racing: false, seen: 0, at: null, model: null }; n.peers.set(p.i, q); }
   if (q) q.seen = performance.now();
-  if (e === "hi") { q.name = esc(String(p.n || "Racer").slice(0, 16)); if (CARS.some((c) => c.id === p.c)) q.car = p.c; q.ready = !!p.r; if (p.h && p.t && !n.host && trackById(p.t)) n.track = p.t; if (G.mode === "menu") drawLobby(); }
+  if (e === "hi") { q.name = String(p.n || "Racer").slice(0, 16); if (CARS.some((c) => c.id === p.c)) q.car = p.c; q.ready = !!p.r; if (p.h && p.t && !n.host && trackById(p.t)) n.track = p.t; if (G.mode === "menu") drawLobby(); }
   else if (e === "trk" && !n.host && trackById(p.t)) { n.track = p.t; drawLobby(); }
   else if (e === "go" && !n.host && trackById(p.t) && (G.mode === "menu" || (G.mode === "done" && G.netRace))) { n.track = p.t; $("finish").hidden = true; netStart(); }
   else if (e === "re" && typeof p.e === "string" && REACTS.includes(p.e)) showReact(p.e, q.name);
@@ -1104,7 +1120,7 @@ function drawLobby() {
   const peers = [...n.peers.values()], ready = peers.filter((q) => q.ready).length + (n.ready ? 1 : 0);
   $("oReady").textContent = n.ready ? "Not ready" : "I'm ready"; $("oReady").classList.toggle("on", !!n.ready);
   if (n.host) $("oGo").textContent = peers.length ? `Start race · ${ready}/${peers.length + 1} ready` : "Start race";
-  $("oPlayers").innerHTML = me + peers.map((q) => `<li><span class="pos">·</span><span class="nm">${q.name} ${tick(q.ready)}</span><span class="tm">${carDef(q.car).name}</span></li>`).join("") + (n.peers.size ? "" : `<li class="empty">Send your friends the code <b>${n.code}</b> to join.</li>`);
+  $("oPlayers").innerHTML = me + peers.map((q) => `<li><span class="pos">·</span><span class="nm">${esc(q.name)} ${tick(q.ready)}</span><span class="tm">${carDef(q.car).name}</span></li>`).join("") + (n.peers.size ? "" : `<li class="empty">Send your friends the code <b>${n.code}</b> to join.</li>`);
 }
 const carDef = (id) => CARS.find((c) => c.id === id) || CARS[0];
 function netPickTrack(dir) {
@@ -1119,7 +1135,7 @@ function netStart() {
   n.racing = true; n.sendT = 0;
   G.event = null; G.cup = null; G.trial = false; G.split = false;
   loadTrack(n.track, "dry"); G.netGo = true; startRace();
-  n.ready = false; G.spectate = -1; $("againBtn").hidden = true; $("react").hidden = false;
+  n.ready = false; G.spectate = -1; $("spectate").hidden = true; $("againBtn").hidden = true; $("react").hidden = false;
 }
 // ---------- quick reactions in a friends race: tap an emoji, everyone sees it float up with your name ----------
 const REACTS = ["🔥", "😂", "👋", "😮"];
@@ -1245,7 +1261,12 @@ $("resetBtn").addEventListener("click", () => {
 });
 $("clipBtn").addEventListener("click", () => clipShare());
 $("watchBtn").addEventListener("click", () => { sfx.click(); G.spectate = 0; G.specPos = null; $("finish").hidden = true; $("spectate").hidden = false; });
-$("againBtn").addEventListener("click", () => { if (G.netRace && G.net && G.net.host) { $("finish").hidden = true; netStart(); } else startRace(); });
+$("againBtn").addEventListener("click", () => {
+  if (G.netRace && G.net && G.net.host) {
+    if ([...G.net.peers.values()].some((q) => q.racing && q.finished == null && performance.now() - q.seen < 5000)) return toast("Wait until everyone has finished", 1600);
+    $("finish").hidden = true; netStart();
+  } else startRace();
+});
 $("nextBtn").addEventListener("click", () => { if (G.cup) { G.cup.i++; startCupRace(); return; } const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
 $("menuBtn").addEventListener("click", () => { const ev = G.event; G.cup = null; $("againBtn").hidden = false; const wasNet = G.netRace; toMenu(); if (ev) show("career"); else if (wasNet && G.net) { show("online"); onlineTab("race"); } });
 // share a one-line result through the phone's share sheet, or copy it (nothing is sent anywhere by the game)
@@ -1449,6 +1470,8 @@ function clipStart() {
   sfx.click();
   G.clip = { ...w, T: w.t0, shot: -1, shotT: 0, slow: false, chunks: [], at: 0 };
   G.mode = "clip"; $("finish").hidden = true; setRaceUI(false); $("clipBar").hidden = false; $("clipBar").textContent = "● REC · filming your highlight";
+  // remember the real race state (cars and which models were showing) so filming doesn't disturb it
+  G.clip.saved = G.hl.cars.map((v) => ({ ...v })); G.clip.vis = G.hl.models.map((m) => m && m.group && m.group.visible);
   for (const m of G.hl.models) if (m && m.group) m.group.visible = true;
   // the picture plus logo/result overlay is drawn into a 2D canvas, which is what gets recorded (with the game's sound)
   const src = world.renderer.domElement, W = Math.min(1280, src.width), H = Math.round((W * src.height) / src.width) & ~1;
@@ -1497,6 +1520,7 @@ function clipCompose() {
 }
 function clipEnd() {
   const C = G.clip; G.mode = "done"; $("clipBar").hidden = true; $("finish").hidden = false;
+  G.hl.cars.forEach((v, i) => Object.assign(v, C.saved[i])); G.hl.models.forEach((m, i) => { if (m && m.group) m.group.visible = C.vis[i]; });
   const done = (blob) => {
     G.clip = null;
     if (!blob || !blob.size) { $("clipBtn").textContent = "🎬 Replay again"; return; }
@@ -1705,7 +1729,7 @@ function flightFx(dt) {
   if (!G.car.wings) { addWings(G.car, G.car.paintHex || 0x3a4250, 1); setWingSkin(G.car, save.wingSkin || "paint"); }
   setWings(G.car, v.wing || 0, T, v.flying, v.steer, v.boosting);
   for (const r of G.field) { if (!r.model.wings) addWings(r.model, r.color || 0x3a4250, 0); setWings(r.model, r.veh.wing || 0, T, r.veh.flying, r.veh.steer, r.veh.boosting); }
-  if (G.mode !== "race") return;
+  if (G.mode !== "race" || G.paused) return;
   flightChallenge(dt, v);
   // the wings start to unfurl: servos, then the ship's computer welcomes you aboard
   if (v.wingWant && !G.wingCalled) {
@@ -1896,7 +1920,7 @@ function render(dt) {
     else {
       const g = t.model.group, h = g.rotation.y, want = tagPos.set(g.position.x - Math.sin(h) * 7, g.position.y + 2.6, g.position.z - Math.cos(h) * 7);
       G.specPos = G.specPos ? G.specPos.lerp(want, Math.min(1, dt * 6)) : want.clone(); camera.position.copy(G.specPos); camera.lookAt(g.position.x + Math.sin(h) * 8, g.position.y + 1, g.position.z + Math.cos(h) * 8);
-      $("spectate").textContent = `Watching ${t.name.replace(/&amp;/g, "&")} · tap for the next car`;
+      $("spectate").textContent = `Watching ${t.name} · tap for the next car`;
     }
   }
   if (G.splitRace && G.p2 && G.mode !== "menu") {
@@ -2064,7 +2088,8 @@ const TUT = [["Steer", "Hold the LEFT or RIGHT side of the screen (or ← →) t
   ["Boost", "Tap BOTH sides of the screen together, twice (or Space) to boost"], ["Finish", "Brilliant! Now finish the lap. The car brakes for corners by itself"]];
 function startTutorial() {
   sfx.startAudio(); sfx.click(); save.tutHint = true; writeSave();
-  G.tut = { step: 0, t: 0 }; G.event = null; G.cup = null; G.split = false; loadTrack("oval", "dry"); setMode(true); G.lapsOverride = 1; startRace();
+  const was = save.settings.raceMode;
+  G.tut = { step: 0, t: 0 }; G.event = null; G.cup = null; G.split = false; loadTrack("oval", "dry"); setMode(true); save.settings.raceMode = was; writeSave(); G.lapsOverride = 1; startRace();
 }
 function tutorialStep(dt) {
   const T = G.tut, v = G.player; if (!T || G.mode !== "race") return;
@@ -2078,7 +2103,8 @@ $("tutBtn").addEventListener("click", startTutorial);
 function afterTitle() { if (!save.tutHint && !save.tutDone && !TEST) { save.tutHint = true; writeSave(); setTimeout(() => toast("New here? Tap Tutorial at the bottom of the home screen for a 1-minute guided lap", 5000), 900); } }
 
 // daily streak reward, and (with online play) "I'm online" + listening for race invites
-if (!TEST) checkStreak(); syncBadges();
+if (!TEST) { checkStreak(); document.addEventListener("visibilitychange", () => { if (!document.hidden) checkStreak(); }); }
+syncBadges();
 setTimeout(() => { if (G.mode === "menu") startTitle(); else afterTitle(); }, 50);
 setTimeout(startPresence, 2500);
 

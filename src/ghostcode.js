@@ -2,9 +2,11 @@
 // the browser's built-in CompressionStream when there is one, and written as base64. Paste a friend's code to race it.
 const PREFIX = "APXG1";
 
-async function pipe(bytes, Stream, fmt) {
-  const s = new Blob([bytes]).stream().pipeThrough(new Stream(fmt));
-  return new Uint8Array(await new Response(s).arrayBuffer());
+// max: give up if the output grows past this many bytes (a real lap is ~20-60 KB unpacked; a "zip bomb" isn't)
+async function pipe(bytes, Stream, fmt, max = Infinity) {
+  const r = new Blob([bytes]).stream().pipeThrough(new Stream(fmt)).getReader(), parts = []; let n = 0;
+  for (;;) { const { done, value } = await r.read(); if (done) break; n += value.length; if (n > max) { r.cancel(); throw new Error("bad code"); } parts.push(value); }
+  const out = new Uint8Array(n); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out;
 }
 const b64 = (u8) => { let s = ""; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); };
 const unb64 = (s) => { const bin = atob(s), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return u8; };
@@ -23,10 +25,11 @@ export async function encodeGhost(ghost, track, car, name = "Friend") {
 export async function decodeGhost(code) {
   const m = String(code).trim().match(/^APXG1([01])\.([A-Za-z0-9+/=]+)$/);
   if (!m) throw new Error("bad code");
+  if (m[2].length > 60000) throw new Error("bad code");
   let bytes = unb64(m[2]);
-  if (m[1] === "1") { if (typeof DecompressionStream !== "function") throw new Error("bad code"); bytes = await pipe(bytes, DecompressionStream, "deflate-raw"); }
+  if (m[1] === "1") { if (typeof DecompressionStream !== "function") throw new Error("bad code"); bytes = await pipe(bytes, DecompressionStream, "deflate-raw", 400000); }
   const o = JSON.parse(new TextDecoder().decode(bytes));
-  if (!o || typeof o.k !== "string" || !Array.isArray(o.d) || o.d.length % 4 || !(o.t > 0)) throw new Error("bad code");
+  if (!o || typeof o.k !== "string" || !Array.isArray(o.d) || o.d.length % 4 || o.d.length > 48000 || !(o.t >= 5 && o.t < 1800)) throw new Error("bad code");
   const s = [], last = [0, 0, 0, 0], sc = [10, 10, 10, 100];
   o.d.forEach((dv, i) => { const k = i % 4; last[k] += Number(dv) || 0; s.push(last[k] / sc[k]); });
   return { track: o.k, car: String(o.c || ""), name: String(o.n || "Friend").slice(0, 16), ghost: { t: o.t, s } };
