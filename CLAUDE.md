@@ -371,3 +371,10 @@ Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Pla
   the road, stepped rock terraces with strata colours, sheer faces under both road ends, a river ~250 m down). The old
   walls along the road, the black void plane and the floating amber lip bar are gone. Flight camera sits close behind
   and a little above the car so you see the wings and the drop.
+- Review pass (subagent): no invisible walls or OFF TRACK over the chasm (a soft crosswind eases you back instead);
+  flight camera offset is taken off before the chase cam eases, so its distance no longer depends on frame rate;
+  "CHASM CLEARED" is latched in Vehicle.step (crossedGap -> gapCleared) so a crash-respawn can't fake it; far-cliff
+  crash is checked before the landing snaps you up; canyon mesh reaches 150 m past the rims and 130 m past its ends
+  (no trench where the coarse terrain was carved); flight HUD / subtitle / voice / rival wings cleared on leaving a
+  race (stopFlightFx); no lightning while paused; bolt materials disposed; pop-ups sit below the flight panel.
+- The suite is ~30 min locally now: snaptest timeout 50 min, CI job timeout 50 min.
