@@ -2,6 +2,9 @@
 // Realtime broadcast (live race rooms). Everything is off until src/onlineconfig.js has a URL and key (see ONLINE.md).
 // Sign-in is anonymous (no email or password): the session token is kept in localStorage on this device.
 import { ONLINE } from "./onlineconfig.js";
+import { TEST } from "./env.js";
+// tests never talk to the real server: only to a stand-in when the page asks for one with ?online=1
+const TEST_OFF = TEST && !new URLSearchParams(location.search).has("online");
 
 // A secret key (sb_secret_..., or an old-style service_role JWT) gives full control of the database to whoever has it.
 // It must never be in the game; if one is pasted in by mistake, online play stays off rather than use it.
@@ -9,7 +12,7 @@ export function isSecretKey(k) {
   if (/^sb_secret_/.test(k)) return true;
   try { return JSON.parse(atob(String(k).split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).role === "service_role"; } catch (_) { return false; }
 }
-export const onlineReady = () => !!(ONLINE.url && ONLINE.anonKey) && !isSecretKey(ONLINE.anonKey);
+export const onlineReady = () => !TEST_OFF && !!(ONLINE.url && ONLINE.anonKey) && !isSecretKey(ONLINE.anonKey);
 const KEY = "apexOnline";
 let sess = null;
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (_) { return null; } };
