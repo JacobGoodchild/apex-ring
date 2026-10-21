@@ -25,7 +25,9 @@ throttle, brake and handbrake.
 - Never use real car brands, logos or exact copies of real car designs.
 - Only use 3D models, textures and sounds with a licence that allows reuse (CC0 or CC-BY). Record each one in `CREDITS.md`.
 - Must run smoothly on a mid-range phone (aim for 60fps on a Pixel 7). Watch polygon and draw-call counts; instance repeated things.
-- No external network requests at runtime (only files in this repo), no tracking, no eval, no remote code, no secrets, no cookies. Only localStorage (always in try/catch).
+- No external network requests at runtime except the user's own Supabase project for online play (src/online.js, off until
+  src/onlineconfig.js is filled in; see ONLINE.md). No tracking, no eval, no remote code, no secrets (the anon key is public by
+  design; never the service_role key), no cookies. Only localStorage (always in try/catch).
 - Only well-known npm dependencies (three, @playwright/test).
 - Keep it playable after every commit. If something breaks, revert it rather than piling fixes on top.
 
@@ -385,3 +387,10 @@ Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Pla
   and "Sound: On/Off".
 - Don't `pkill -f "serve.mjs 4174"` inside a longer command: the pattern matches the shell running it and kills the
   whole command (exit 144). Use `pgrep -f "[s]erve.mjs"`.
+- Online play (src/online.js, no SDK: fetch for anonymous sign-in + PostgREST, a small Phoenix WebSocket client for Realtime
+  broadcast). supabase/schema.sql = profiles / laps / friends + leaderboard view + add_friend() RPC with row-level security.
+  Online > Global / Friends read real boards when configured; personal bests upload (uploadLap, not in test mode). New
+  Online > Race tab: Make a room (5-letter code) / Join; lobby lists players and cars; the host picks the track and starts;
+  no AI rivals; cars send their state 10x a second and friends' cars are drawn eased toward an extrapolated position; they
+  count in the position chip and results; Menu returns to the room. ONLINE.md = setup steps for the user. Test:
+  tests/zeus.spec.js fakes the server (page.route + routeWebSocket) and races a fake friend.

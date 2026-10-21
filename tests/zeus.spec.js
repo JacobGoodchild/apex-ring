@@ -41,3 +41,49 @@ test("online: leaderboards, friends and profile screens open; server actions say
   expect((await game(page, () => window.__apex.save)).driverName).toBe("Jake");
   await page.screenshot({ path: "screenshots/online-portrait.png" });
 });
+
+// Online play against a stand-in server: the config is swapped for a fake project, REST calls are answered here, and the
+// Realtime WebSocket is played by a fake friend ("Mo") who joins the room and then drives alongside.
+test("online with a server: world board, and a live race with a friend in a room", async ({ page }) => {
+  test.setTimeout(120_000);
+  const URL = "https://fake.supabase.test", sent = [];
+  await page.route("**/src/onlineconfig.js", (r) => r.fulfill({ contentType: "text/javascript", body: `export const ONLINE = { url: "${URL}", anonKey: "anon" };` }));
+  await page.route(URL + "/**", (r) => {
+    const u = r.request().url(), json = (b, status = 200) => r.fulfill({ status, contentType: "application/json", body: JSON.stringify(b), headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
+    if (r.request().method() === "OPTIONS") return json(null);
+    if (u.includes("/auth/v1/signup")) return json({ access_token: "tok", refresh_token: "ref", expires_at: Date.now() / 1000 + 3600, user: { id: "me-1" } });
+    if (u.includes("/rest/v1/profiles")) return r.fulfill({ status: 201, body: "", headers: { "access-control-allow-origin": "*" } });
+    if (u.includes("/rest/v1/friends")) return json([]);
+    if (u.includes("/rest/v1/leaderboard")) return json([{ user_id: "x", name: "Ace", ms: 61234, car: "vanta" }, { user_id: "me-1", name: "Jake", ms: 65000, car: "vanta" }]);
+    return json({});
+  });
+  await page.routeWebSocket(/fake\.supabase\.test\/realtime/, (ws) => {
+    let topic = "";
+    const bc = (event, payload) => ws.send(JSON.stringify({ topic, event: "broadcast", payload: { type: "broadcast", event, payload }, ref: null }));
+    ws.onMessage((raw) => {
+      const m = JSON.parse(raw);
+      if (m.event === "phx_join") { topic = m.topic; ws.send(JSON.stringify({ topic, event: "phx_reply", payload: { status: "ok", response: {} }, ref: m.ref })); setTimeout(() => bc("hi", { i: "mo", n: "Mo", c: "vanta" }), 200); }
+      if (m.event === "broadcast") {
+        sent.push(m.payload.event);
+        if (m.payload.event === "go") { let d = 0; const tick = setInterval(() => { d += 4; bc("s", { i: "mo", x: 5, y: 0.5, z: d, h: 0, d, v: 40 }); }, 100); ws.onClose(() => clearInterval(tick)); }
+      }
+    });
+  });
+  await openGame(page);
+  await page.click("#onlineBtn");
+  await expect(page.locator("#oBoard li")).toHaveCount(2);
+  await expect(page.locator("#oBoard")).toContainText("Ace");
+  await page.click('#online .seg [data-o="race"]');
+  await page.click("#oMakeRoom");
+  await expect(page.locator("#oLobby")).toBeVisible();
+  await expect(page.locator("#oRoomName")).toHaveText(/^[A-Z0-9]{5}$/);
+  await expect(page.locator("#oPlayers")).toContainText("Mo", { timeout: 10_000 });
+  await page.click("#oGo");
+  await page.waitForFunction(() => window.__apex.mode === "race" || window.__apex.mode === "countdown");
+  expect(sent).toContain("go");
+  await page.waitForFunction(() => { const n = window.__apex.net; return n && n.peers.length === 1 && n.peers[0].shown; }, null, { timeout: 20_000 });
+  expect((await game(page, () => window.__apex.net)).standings).toBe(2); // you and Mo, no AI rivals
+  await page.waitForFunction(() => window.__apex.mode === "race");
+  await page.waitForTimeout(500);
+  expect(sent).toContain("s");
+});

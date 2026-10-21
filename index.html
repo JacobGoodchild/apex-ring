@@ -251,7 +251,7 @@
 <div class="overlay screen full" id="online" hidden>
   <div class="card setupwrap">
     <header class="scrhead"><button class="backbtn" id="onlineBack" type="button" aria-label="Back"><svg><use href="#i-back"/></svg></button><div class="scrtitle">Online</div>
-      <div class="seg" role="tablist"><button class="tab" data-o="global" type="button" aria-pressed="true">Global</button><button class="tab" data-o="friends" type="button">Friends</button><button class="tab" data-o="profile" type="button">Profile</button></div></header>
+      <div class="seg" role="tablist"><button class="tab" data-o="global" type="button" aria-pressed="true">Global</button><button class="tab" data-o="friends" type="button">Friends</button><button class="tab" data-o="race" type="button">Race</button><button class="tab" data-o="profile" type="button">Profile</button></div></header>
     <div class="onlinegrid">
       <section class="opanel" id="oGlobal">
         <div class="row between"><div class="label">World top 100 · <span id="oTrackName"></span></div><div class="tabs mini"><button class="tab" id="oPrev" type="button">‹</button><button class="tab" id="oNext" type="button">›</button></div></div>
@@ -263,6 +263,21 @@
         <div class="label">Add a friend</div>
         <div class="addrow"><input id="oFriendCode" placeholder="Friend code, e.g. APX-7K2Q" maxlength="12" autocomplete="off"><button class="btn" id="oAdd" type="button">Add</button></div>
         <div class="label">Friends leaderboard</div><ol class="lboard" id="oFriendBoard"></ol>
+      </section>
+      <section class="opanel" id="oRace" hidden>
+        <div class="label">Race friends live</div>
+        <div class="hint">Make a room and send its code to your friends. The host picks the track and starts; everyone races together.</div>
+        <div id="oRoomStart">
+          <button class="btn" id="oMakeRoom" type="button">Make a room</button>
+          <div class="addrow"><input id="oRoomCode" placeholder="Room code, e.g. K7Q2M" maxlength="5" autocomplete="off" autocapitalize="characters"><button class="btn" id="oJoin" type="button">Join</button></div>
+        </div>
+        <div id="oLobby" hidden>
+          <div class="row between"><div class="label">Room <b class="code" id="oRoomName"></b></div><button class="tab" id="oLeave" type="button">Leave</button></div>
+          <div class="row between"><div class="label">Track · <span id="oRoomTrack"></span></div><div class="tabs mini" id="oRoomPick"><button class="tab" id="oRPrev" type="button">‹</button><button class="tab" id="oRNext" type="button">›</button></div></div>
+          <ol class="lboard" id="oPlayers"></ol>
+          <button class="btn" id="oGo" type="button">Start race</button>
+          <div class="hint" id="oWait">Waiting for the host to start the race…</div>
+        </div>
       </section>
       <section class="opanel" id="oProfile" hidden>
         <div class="label">Driver name</div>
