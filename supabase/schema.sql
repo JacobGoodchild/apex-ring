@@ -61,6 +61,12 @@ grant insert, update on public.profiles to authenticated;
 grant insert on public.laps to authenticated;
 grant select, delete on public.friends to authenticated;
 revoke insert, update, delete on public.profiles, public.laps, public.friends from anon;
+-- belt and braces: Supabase grants everything by default, so take back what the game never does (the row rules already
+-- block these; this makes them fail at the door too)
+revoke update, delete, truncate, references, trigger on public.laps from anon, authenticated;
+revoke delete, truncate, references, trigger on public.profiles from anon, authenticated;
+revoke insert, update, truncate, references, trigger on public.friends from anon, authenticated;
+revoke insert, update, delete, truncate, references, trigger on public.leaderboard from anon, authenticated;
 
 -- add a friend by their code: makes the friendship both ways and returns their name
 create or replace function public.add_friend(code text) returns text

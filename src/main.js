@@ -878,6 +878,7 @@ function netHello() { const n = G.net; if (n && n.room) n.room.send("hi", { i: n
 function netMsg(e, p) {
   const n = G.net; if (!n || !p || p.i === n.me) return;
   let q = n.peers.get(p.i);
+  if (!q && e !== "bye" && n.peers.size >= 7) return; // rooms hold 8 drivers; anyone past that (or someone flooding the room with fake players) is ignored
   if (!q && e !== "bye") { q = { id: p.i, name: "Driver", car: CARS[0].id, color: NET_COLORS[n.peers.size % NET_COLORS.length], veh: { totalD: 0, vF: 0 }, finished: null, racing: false, seen: 0, at: null, model: null }; n.peers.set(p.i, q); }
   if (q) q.seen = performance.now();
   if (e === "hi") { q.name = esc(String(p.n || "Driver").slice(0, 16)); if (CARS.some((c) => c.id === p.c)) q.car = p.c; if (p.h && p.t && !n.host && trackById(p.t)) n.track = p.t; if (G.mode === "menu") drawLobby(); }

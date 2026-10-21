@@ -407,3 +407,9 @@ Lost ~2.5 h to a stalled session worker (08:00–10:30). Next ideas: race-room n
 button,
 name tags over friends' cars, ghost of the room winner), sync progress across devices (needs email accounts), a real-phone
 check of the canyon flight camera and the new message pill.
+- Security audit (2026-10-21): whole git history (all branches) has no secret keys/tokens/passwords, only the publishable
+  key; the live Pages site serves only game files (ONLINE.md, supabase/, scripts, .git, .env all 404). Supabase probed as
+  a stranger: renaming another profile, posting a lap as someone else, a 1 s lap, joining friends directly, admin user list
+  and add_friend without sign-in are all refused. Hardening: schema.sql revokes update/delete/etc. the game never uses
+  (user to re-run), CI Pages-write permission only on the deploy job, rooms cap at 8 drivers. Known limits: anyone can post
+  a fake (but >= 10 s) lap for themselves; anyone with a room code can join that room.
