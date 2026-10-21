@@ -359,7 +359,7 @@ Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Pla
       (shown once on the countdown only); smaller flight panel; only position, time, lap, minimap, speed and pause stay.
 - [x] E2 Real chasm on Zeus's Fury: a canyon that crosses the road (sheer cliff faces where the road ends and resumes,
       stepped rock terraces, a river far below) instead of walls along the road; flight camera close behind the car.
-- [ ] E3 Land the WIP (sparks, verge grass atlas bake, results styling) through the full suite.
+- [x] E3 Land the WIP (sparks, verge grass atlas bake, results styling) through the full suite.
 - [ ] E4 Bug hunt (subagent review) and polish.
 
 ### Run 3 progress log
@@ -378,3 +378,10 @@ Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Pla
   (no trench where the coarse terrain was carved); flight HUD / subtitle / voice / rival wings cleared on leaving a
   race (stopFlightFx); no lightning while paused; bolt materials disposed; pop-ups sit below the flight panel.
 - The suite is ~30 min locally now: snaptest timeout 50 min, CI job timeout 50 min.
+- Verge: grass tufts (grass_medium_01/02) and bushes (shrub_02/03, Poly Haven CC0) baked as single clumps into the
+  tree atlas (cells 9-13), sized by their real height (~0.6 m tufts, ~1.3 m bushes) along both sides beyond the run-off.
+- Less text in races: messages are a slim pill under the timer; trophies won mid-race are queued (G.trophyQ) and shown
+  on the results (flushTrophies); shorter "Boost empty" / "You're out!". Pause menu reads "Camera: Chase/Low/Bonnet"
+  and "Sound: On/Off".
+- Don't `pkill -f "serve.mjs 4174"` inside a longer command: the pattern matches the shell running it and kills the
+  whole command (exit 144). Use `pgrep -f "[s]erve.mjs"`.
