@@ -362,7 +362,7 @@ Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Pla
 - [x] E2 Real chasm on Zeus's Fury: a canyon that crosses the road (sheer cliff faces where the road ends and resumes,
       stepped rock terraces, a river far below) instead of walls along the road; flight camera close behind the car.
 - [x] E3 Land the WIP (sparks, verge grass atlas bake, results styling) through the full suite.
-- [ ] E4 Bug hunt (subagent review) and polish.
+- [x] E4 Bug hunt (subagent review) and polish.
 
 ### Run 3 progress log
 - Race screen decluttered: only position, time, lap, round minimap, speedo and a round pause button stay on screen.
@@ -394,3 +394,16 @@ Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Pla
   no AI rivals; cars send their state 10x a second and friends' cars are drawn eased toward an extrapolated position; they
   count in the position chip and results; Menu returns to the room. ONLINE.md = setup steps for the user. Test:
   tests/zeus.spec.js fakes the server (page.route + routeWebSocket) and races a fake friend.
+- Online play is live on the user's Supabase project (Frankfurt, URL + publishable key in src/onlineconfig.js; schema
+  applied, anonymous sign-ins and Realtime public access on). Checked from here: leaderboard reads, anonymous writes are
+  refused (RLS), guest sign-in works, a Realtime room joins and broadcasts round-trip. Tests never touch it: in test mode
+  online is off unless the page has ?online=1 (only the fake-server test). tests/safety.spec.js fails the deploy if a
+  secret key (sb_secret_ / service_role JWT) is anywhere in the repo, and the game refuses one at runtime.
+
+### Run 3 summary (2026-10-21 06:50 → 12:20 UTC)
+Three tested releases to `main`, all deployed by CI: uncluttered race screen + real canyon on Zeus's Fury + review fixes;
+roadside grass/bushes + quieter race messages; online play (world / friends leaderboards, friend codes, live race rooms).
+Lost ~2.5 h to a stalled session worker (08:00–10:30). Next ideas: race-room niceties (ready flags, kick, rematch
+button,
+name tags over friends' cars, ghost of the room winner), sync progress across devices (needs email accounts), a real-phone
+check of the canyon flight camera and the new message pill.
