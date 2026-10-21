@@ -172,30 +172,6 @@ export function crackle() {
     n.connect(f); f.connect(g); g.connect(master); n.start(t, Math.random()); n.stop(t + 0.06);
   }
 }
-// the game's sound (engine, effects and music) as a stream, for recording a replay clip with audio
-let recDest = null;
-export function audioStream() { if (!ctx) return null; if (!recDest) { recDest = ctx.createMediaStreamDestination(); master.connect(recDest); } return recDest.stream; }
-// the crowd roars for a win: layered filtered noise swelling and fading, with a few whistles
-export function cheer() {
-  if (!ctx || muted) return;
-  const t = ctx.currentTime, n = ctx.createBufferSource(); n.buffer = noiseBuffer(ctx); n.loop = true;
-  const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 900; f.Q.value = 0.7;
-  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.5);
-  n.connect(f); f.connect(g); g.connect(master); n.start(t); n.stop(t + 4.6);
-  for (let i = 0; i < 3; i++) tone(1800 + Math.random() * 900, 0.35, "sine", 0.03, 0.4 + i * 0.5 + Math.random() * 0.3);
-}
-// a showroom engine rev: starter whirr, catch, two throttle blips settling to idle
-export function rev() {
-  if (!ctx || muted) return;
-  const t = ctx.currentTime, o = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
-  o.type = "sawtooth"; o2.type = "square"; lp.type = "lowpass"; lp.Q.value = 3;
-  const f = [[0, 38], [0.25, 42], [0.32, 70], [0.55, 150], [0.8, 62], [1.05, 175], [1.4, 58], [2.2, 52]];
-  o.frequency.setValueAtTime(30, t); o2.frequency.setValueAtTime(15, t);
-  for (const [dt, hz] of f) { o.frequency.linearRampToValueAtTime(hz, t + dt); o2.frequency.linearRampToValueAtTime(hz / 2, t + dt); lp.frequency.linearRampToValueAtTime(hz * 9, t + dt); }
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.2); g.gain.exponentialRampToValueAtTime(0.16, t + 0.35);
-  g.gain.setValueAtTime(0.16, t + 1.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
-  o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(master); o.start(t); o2.start(t); o.stop(t + 2.5); o2.stop(t + 2.5);
-}
 export const lapChime = () => { tone(784, 0.15, "triangle", 0.1); tone(1046, 0.25, "triangle", 0.1, 0.1); };
 export function fanfare(win) {
   const notes = win ? [523, 659, 784, 1046, 784, 1046] : [392, 440, 523];

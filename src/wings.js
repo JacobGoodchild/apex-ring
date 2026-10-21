@@ -42,8 +42,7 @@ function parts(paintHex) {
     };
   }
   const plate = new THREE.MeshStandardMaterial({ color: paintHex, metalness: 0.6, roughness: 0.28 });
-  // each car's glowing edges and thruster fire are its own, so a wing skin can recolour them
-  return { ...shared, plate, glow: shared.glow.clone(), fire: shared.fire.clone() };
+  return { ...shared, plate };
 }
 
 export function addWings(model, paintHex = 0x0f8b8d, detail = 1) {
@@ -74,23 +73,8 @@ export function addWings(model, paintHex = 0x0f8b8d, detail = 1) {
     sides.push({ sg, pod, armA, armB, feathers, fire, j });
   }
   (model.body || model.group).add(rig);
-  model.wings = { rig, sides, plate: P.plate, glow: P.glow, fire: P.fire, paint: paintHex };
+  model.wings = { rig, sides, plate: P.plate };
   setWings(model, 0, 0);
-}
-
-// Wing skins (unlocked by badges): plate colour and finish, glowing edge colour, thruster fire colour.
-export const WING_SKINS = [
-  { id: "paint", name: "Body colour", badge: null },
-  { id: "gold", name: "Gold", badge: "rings", plate: 0xd4a017, metal: 1, rough: 0.18, glow: 0xffe08a, fire: 0xffc060 },
-  { id: "neon", name: "Neon", badge: "weekly10", plate: 0x111827, metal: 0.4, rough: 0.3, glow: 0xff3fd2, fire: 0xff7af0 },
-  { id: "dragon", name: "Dragon", badge: "wings", plate: 0x7a1010, metal: 0.5, rough: 0.35, glow: 0xff6a1a, fire: 0xff8a2a },
-  { id: "carbon", name: "Carbon", badge: "sky", plate: 0x1c1f24, metal: 0.3, rough: 0.55, glow: 0x6ff6ff, fire: 0x8fd8ff },
-];
-export function setWingSkin(model, id) {
-  const W = model.wings; if (!W) return;
-  const k = WING_SKINS.find((x) => x.id === id) || WING_SKINS[0];
-  W.plate.color.setHex(k.plate ?? W.paint); W.plate.metalness = k.metal ?? 0.6; W.plate.roughness = k.rough ?? 0.28;
-  W.glow.color.setHex(k.glow ?? 0x6ff6ff); W.fire.color.setHex(k.fire ?? 0x8fd8ff);
 }
 
 // w: deploy amount 0..1; t: time (s) for idle motion; steer -1..1 banks the feathers; boost lights the thrusters

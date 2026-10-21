@@ -54,8 +54,6 @@ test("online with a server: world board, and a live race with a friend in a room
     if (u.includes("/auth/v1/signup")) return json({ access_token: "tok", refresh_token: "ref", expires_at: Date.now() / 1000 + 3600, user: { id: "me-1" } });
     if (u.includes("/rest/v1/profiles")) return r.fulfill({ status: 201, body: "", headers: { "access-control-allow-origin": "*" } });
     if (u.includes("/rest/v1/friends")) return json([]);
-    if (u.includes("/rest/v1/laps") && r.request().method() === "GET") return json([{ user_id: "x", ms: 61234, car: "vanta", profiles: { name: "Ace" } }, { user_id: "me-1", ms: 65000, car: "vanta", profiles: { name: "Jake" } }, { user_id: "x", ms: 70000, car: "vanta", profiles: { name: "Ace" } }]);
-    if (u.includes("/rest/v1/ghosts")) return json([{ user_id: "x", ms: 61234 }]);
     if (u.includes("/rest/v1/leaderboard")) return json([{ user_id: "x", name: "Ace", ms: 61234, car: "vanta" }, { user_id: "me-1", name: "Jake", ms: 65000, car: "vanta" }]);
     return json({});
   });
@@ -75,8 +73,6 @@ test("online with a server: world board, and a live race with a friend in a room
   await page.click("#onlineBtn");
   await expect(page.locator("#oBoard li")).toHaveCount(2);
   await expect(page.locator("#oBoard")).toContainText("Ace");
-  await expect(page.locator("#oBoard .ttl").first()).toHaveText("Apex Legend"); // season titles by rank
-  await expect(page.locator("#oBoard .gbtn")).toHaveCount(1); // Ace has a ghost to race (not you)
   await page.click('#online .seg [data-o="race"]');
   await page.click("#oMakeRoom");
   await expect(page.locator("#oLobby")).toBeVisible();
@@ -97,16 +93,4 @@ test("online with a server: world board, and a live race with a friend in a room
   await page.waitForFunction(() => window.__apex.mode === "race");
   await page.waitForTimeout(500);
   expect(sent).toContain("s");
-});
-
-test("Sky Islands: the second flight track starts from Daily challenge and has two chasms with rings", async ({ page }) => {
-  test.setTimeout(120_000);
-  await openGame(page, "autopilot=1&rivals=2");
-  await page.click("#dailyBtn");
-  await page.click("#skyGo");
-  await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 60_000 });
-  expect(await game(page, () => window.__apex.track)).toBe("sky");
-  await page.evaluate(() => window.__apex.warp(window.__apex.gapD() - 300));
-  await page.waitForFunction(() => window.__apex.flight.flying, null, { timeout: 30_000 });
-  await page.screenshot({ path: "screenshots/sky-flight.png" });
 });

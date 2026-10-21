@@ -54,7 +54,7 @@ export class Terrain {
     // canyons: a gap in the road (Zeus's Fury) is a real canyon running across the track, built as its own detailed mesh
     this.canyons = (P.gaps || []).map((g) => {
       const mid = (g.d0 + g.d1) / 2, c = P.pointAt(mid, 0, {});
-      return { cx: c.x, cz: c.z, fx: Math.sin(c.h), fz: Math.cos(c.h), half: (g.d1 - g.d0) / 2, vmax: (P.def && P.def.canyonLen) || 1000 };
+      return { cx: c.x, cz: c.z, fx: Math.sin(c.h), fz: Math.cos(c.h), half: (g.d1 - g.d0) / 2, vmax: 1000 };
     });
     this.res = { low: 100, medium: 140, high: 180 }[quality] || 140;
     this.spacing = (this.inner * 2) / (this.res * 0.7);

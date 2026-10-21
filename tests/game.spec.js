@@ -237,7 +237,10 @@ test.describe("Apex Ring", () => {
     await page.waitForFunction(() => window.__apex.p2.vF > 15 && window.__apex.player.vF > 15, null, { timeout: 20_000 });
     // player 2 steers with the arrows (moves across the road); player 1 is unaffected
     const l1 = (await game(page, () => window.__apex.player)).lat, l2 = (await game(page, () => window.__apex.p2)).lat;
-    await page.keyboard.down("ArrowLeft"); await page.waitForTimeout(1200); await page.keyboard.up("ArrowLeft");
+    // hold until player 2 has clearly moved across (on a busy machine the game runs fewer ticks per second)
+    await page.keyboard.down("ArrowLeft");
+    await page.waitForFunction((l2) => Math.abs(window.__apex.p2.lat - l2) > 1.5, l2, { timeout: 6_000 }).catch(() => {});
+    await page.keyboard.up("ArrowLeft");
     const d2 = Math.abs((await game(page, () => window.__apex.p2)).lat - l2), d1 = Math.abs((await game(page, () => window.__apex.player)).lat - l1);
     expect(d2).toBeGreaterThan(1.5);
     expect(d1).toBeLessThan(d2);

@@ -46,12 +46,6 @@ export const THEMES = {
     asphaltTint: 0.7, snowfall: true, tree: 0x4f6a5e, wallA: "#e6ebf0", wallB: "#2a6fd6", scenery: "winter", skyImg: "snow_field", label: "Winter valley · Snow", sign: "FROSTBITE RIDGE",
   },
   // Zeus's Fury: a thunderstorm over black rock. Lightning flashes and thunder are added in main.js (theme.lightning).
-  skyisle: {
-    sky: [0x2c6fc2, 0x7fb2e8, 0xdfeaf5], sunDir: [0.5, 0.6, 0.45], sunColor: 0xfff3e0, sunIntensity: 2.0,
-    hemi: [0xbfd8ff, 0x50604a, 0.85], fog: 0xc4d6ea, fogNear: 260, fogFar: 1700, ground: 0x56704a,
-    runoff: "#7d7a70", embankment: 0x6b6a5c, scenery: "mountain", skyImg: "kloofendal_48d_partly_cloudy", label: "Sky Islands · Day", clouds: 0.6,
-    groundTex: "grass", runTex: "gravel", embTex: "rock", tree: 0x24452f, sign: "SKY ISLANDS", floating: true,
-  },
   thunder: {
     sky: [0x0a0d14, 0x1c2230, 0x3a4250], sunDir: [0.3, 0.5, -0.8], sunColor: 0xb0c0dc, sunIntensity: 0.9,
     hemi: [0x9aa8c4, 0x3a3c44, 1.2], fog: 0x3e4654, fogNear: 140, fogFar: 1000, ground: 0x2a2a2e, rock: 0x3a3a40,
@@ -122,23 +116,11 @@ export const SPECIAL_TRACKS = [
     blurb: "A storm track for the bold: huge ramps, boost pads, and a chasm with no road at all. Your car grows wings. Fly it.",
     heights: [[0, 0], [0.12, 2], [0.22, 8], [0.3, 20], [0.376, 20], [0.437, 12], [0.56, 10], [0.68, 4], [0.85, 0], [1, 0]],
     gaps: [[0.376, 0.437]],
-    // over the chasm: golden rings to fly through (fraction, lateral m, height above the road line m) and a column of rising air
-    rings: [[0.389, -5, 6], [0.401, 5, 8], [0.413, -1, 10], [0.425, 6, 7]],
-    updrafts: [[0.397, 10, 7]],
     ramps: [{ at: 0.18, h: 4.2, len: 30 }, { at: 0.376, h: 4.5, len: 36 }, { at: 0.63, h: 3.6, len: 26 }, { at: 0.9, lat: -6, half: 5, h: 2, len: 16 }],
     hazards: [{ type: "pad", at: 0.06, lat: 0, len: 10, w: 8 }, { type: "pad", at: 0.33, lat: -4, len: 10, w: 7 }, { type: "pad", at: 0.35, lat: 4, len: 10, w: 7 },
       { type: "pad", at: 0.6, lat: 0, len: 10, w: 8 }, { type: "pad", at: 0.8, lat: 5, len: 10, w: 7 }, { type: "split", at: 0.75, lat: 0, len: 120, w: 4 },
       { type: "wet", at: 0.5, lat: -3, len: 24, w: 9 }] },
     [[0, -600, 110], [760, -600, 120], [980, -320, 140], [980, 480, 130], [560, 720, 120], [-220, 700, 110], [-480, 320, 100], [-320, -120, 120]]),
-  track({ id: "sky", name: "Sky Islands", theme: "skyisle", difficulty: 2, laps: 2, width: 24, runoff: 9, banking: 0.08, mult: 1.5, special: true, canyonLen: 650,
-    blurb: "A road strung between floating islands high in the sky. Two chasms to fly, rings to thread, a waterfall to dive past.",
-    heights: [[0, 10], [0.1, 14], [0.14, 18], [0.185, 12], [0.3, 16], [0.5, 20], [0.62, 24], [0.665, 16], [0.8, 12], [1, 10]],
-    gaps: [[0.14, 0.185], [0.62, 0.665]],
-    rings: [[0.151, -4, 6], [0.163, 5, 8], [0.175, 0, 6], [0.631, 4, 7], [0.643, -5, 10], [0.655, 2, 8]],
-    updrafts: [[0.158, -10, 7], [0.648, 10, 7]],
-    ramps: [{ at: 0.14, h: 4.2, len: 34 }, { at: 0.62, h: 4.5, len: 36 }, { at: 0.43, lat: 6, half: 5, h: 1.6, len: 16 }],
-    hazards: [{ type: "pad", at: 0.11, lat: 0, len: 10, w: 8 }, { type: "pad", at: 0.59, lat: 0, len: 10, w: 8 }, { type: "pad", at: 0.86, lat: -5, len: 10, w: 7 }] },
-    [[0, -500, 130], [1000, -500, 130], [1150, 100, 140], [800, 650, 130], [-250, 650, 120], [-550, 150, 110], [-350, -420, 120]]),
 ];
 
 export const DIFFICULTY_NAMES = ["", "Easy", "Medium", "Hard"];

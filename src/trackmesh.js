@@ -2,7 +2,6 @@
 // Everything long and continuous is one ribbon mesh so the draw-call count stays low on phones.
 import * as THREE from "three";
 import { canvasTex } from "./textures.js";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { photo, overlayMarkings } from "./photo.js";
 
 const tmp = { x: 0, y: 0, z: 0, h: 0 };
@@ -185,55 +184,6 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
       }
     }
     const canyon = new THREE.Mesh(merge(geos), rock); canyon.name = "chasm"; canyon.receiveShadow = true; group.add(canyon);
-  }
-
-  // flight rings over a chasm (gold hoops facing along the track) and updraft columns (rising specks, animated by the game)
-  const def = path.def || {};
-  if (def.rings && def.rings.length) {
-    const ringGeo = new THREE.TorusGeometry(3.4, 0.2, 8, 40), ringMat = new THREE.MeshBasicMaterial({ color: 0xffc43a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
-    const haloGeo = new THREE.TorusGeometry(3.4, 0.55, 6, 40), haloMat = new THREE.MeshBasicMaterial({ color: 0xff9a1a, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
-    const rings = new THREE.Group(); rings.name = "rings";
-    def.rings.forEach(([f, lat, h], i) => {
-      path.pointAt(f * path.length, lat, tmp);
-      const r = new THREE.Group(); r.position.set(tmp.x, tmp.y + h, tmp.z); r.rotation.y = tmp.h; r.userData = { i, d: f * path.length, lat, h };
-      r.add(new THREE.Mesh(ringGeo, ringMat), new THREE.Mesh(haloGeo, haloMat)); rings.add(r);
-    });
-    group.add(rings);
-  }
-  if (def.updrafts && def.updrafts.length) {
-    for (const [f, lat, rad] of def.updrafts) {
-      path.pointAt(f * path.length, lat, tmp);
-      const n = 220, pos = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * rad; pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = -60 + Math.random() * 80; pos[i * 3 + 2] = Math.sin(a) * r; }
-      const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
-      const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xbfe9ff, size: 0.35, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
-      pts.position.set(tmp.x, tmp.y, tmp.z); pts.name = "updraft"; pts.frustumCulled = false; group.add(pts);
-    }
-  }
-
-  // Sky Islands: floating rock islands around the chasms (each a rock with a tapering underside), and a waterfall
-  // pouring off the far cliff of the first chasm. One mesh for all the islands; the waterfall's texture is scrolled by the game.
-  if (theme.floating && path.gaps.length) {
-    let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const geos = [];
-    for (const g of path.gaps) for (let k = 0; k < 9; k++) {
-      const d = g.d0 - 120 + rnd() * (g.d1 - g.d0 + 240), side = rnd() < 0.5 ? -1 : 1, lat = side * (W + R + 25 + rnd() * 140);
-      path.pointAt(d, lat, tmp);
-      const r = 4 + rnd() * 10, top = new THREE.IcosahedronGeometry(r, 1), under = new THREE.ConeGeometry(r * 0.9, r * (1.8 + rnd()), 7, 1);
-      top.scale(1, 0.45, 1); under.rotateX(Math.PI); under.translate(0, -r * (0.9 + rnd() * 0.4), 0);
-      const y = tmp.y + 6 + rnd() * 40;
-      for (const q of [top, under]) { const m = q.index ? q.toNonIndexed() : q; m.rotateY(rnd() * 6); m.translate(tmp.x, y, tmp.z); m.deleteAttribute("normal"); geos.push(m); }
-    }
-    const isl = mergeGeometries(geos, false); isl.computeVertexNormals();
-    const isles = new THREE.Mesh(isl, surface("rock", 0xb0a898, [0.2, 0.2], { flatShading: true })); isles.name = "isles"; isles.castShadow = true; group.add(isles);
-    // the waterfall
-    const g0 = path.gaps[0]; path.pointAt(g0.d1 + 2, W + R + 6, tmp);
-    const fallTex = canvasTex(64, 256, (c, w, h) => {
-      c.fillStyle = "rgba(220,240,255,0.0)"; c.clearRect(0, 0, w, h);
-      for (let i = 0; i < 90; i++) { const x = Math.random() * w, a = 0.25 + Math.random() * 0.5; c.fillStyle = `rgba(235,246,255,${a})`; c.fillRect(x, Math.random() * h, 1 + Math.random() * 2.5, 20 + Math.random() * 80); }
-    }, { repeat: [3, 2] });
-    const fall = new THREE.Mesh(new THREE.PlaneGeometry(16, 220), new THREE.MeshBasicMaterial({ map: fallTex, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, color: 0xdff2ff }));
-    fall.position.set(tmp.x, tmp.y - 108, tmp.z); fall.rotation.y = tmp.h; fall.name = "waterfall"; group.add(fall);
   }
 
   // boost pads: glowing chevrons set into the road
