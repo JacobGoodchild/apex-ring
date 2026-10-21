@@ -33,10 +33,6 @@
 </div>
 <div class="topbtns" id="topbtns" hidden>
   <button class="pill" id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
-  <button class="pill" id="muteBtn" type="button" aria-label="Sound">♪ On</button>
-  <button class="pill" id="tiltBtn" type="button" aria-label="Calibrate tilt: set straight ahead" hidden>Centre</button>
-  <button class="pill" id="camBtn" type="button" aria-label="Camera">Cam 1</button>
-  <button class="pill" id="respawnBtn" type="button" aria-label="Back on track">↺</button>
 </div>
 
 <canvas id="minimap" hidden aria-hidden="true"></canvas>
@@ -58,7 +54,7 @@
 <div id="offtrack" hidden>OFF TRACK</div>
 <div id="flash" aria-hidden="true"></div>
 <div id="subtitle" hidden></div>
-<div id="flightHud" hidden><div class="fh-k">Flight systems</div><div class="fh-row"><b id="fltState">WINGS OUT</b><span id="fltAlt">+0 m</span></div><div class="fh-bar"><i id="fltBar"></i></div><div class="fh-tip">Steer to fly · Boost to climb</div></div>
+<div id="flightHud" hidden><div class="fh-row"><b id="fltState">WINGS OUT</b><span id="fltAlt">+0 m</span></div><div class="fh-bar"><i id="fltBar"></i></div></div>
 
 <div class="pads" id="pads" hidden>
   <div class="zone" id="zoneL" aria-label="Steer left"></div><div class="zone" id="zoneR" aria-label="Steer right"></div>
@@ -382,7 +378,12 @@
 <div class="overlay center" id="pause" hidden>
   <div class="card">
     <div class="brand small">PAUSED</div>
-    <div class="hint">Steer: hold the left or right half of the screen, or ← → / A D. Drifting and braking happen by themselves; steer hard into fast corners to drift and fill the boost bar. Boost: tap both halves together twice, or Space (do it just before GO for a perfect start). Camera: C. Back on track: ↺ or R.</div>
+    <div class="pauseopts">
+      <button class="chipbtn" id="camBtn" type="button" aria-label="Camera">Cam 1</button>
+      <button class="chipbtn" id="muteBtn" type="button" aria-label="Sound">♪ On</button>
+      <button class="chipbtn" id="tiltBtn" type="button" aria-label="Calibrate tilt: set straight ahead" hidden>Centre tilt</button>
+      <button class="chipbtn" id="respawnBtn" type="button" aria-label="Back on track">Back on track</button>
+    </div>
     <button class="btn" id="resumeBtn" type="button">Resume</button>
     <button class="btn ghost" id="photoBtn" type="button">Photo mode</button>
     <button class="btn ghost" id="restartBtn" type="button">Restart</button>

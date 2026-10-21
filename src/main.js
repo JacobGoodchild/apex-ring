@@ -934,7 +934,7 @@ document.querySelectorAll("#ctrlTabs .tab").forEach((b) => b.addEventListener("c
 // tilt needs a tap before some browsers allow the sensor, so re-enable it on the first tap after loading
 if (save.settings.controls === "tilt") addEventListener("pointerdown", function once() { removeEventListener("pointerdown", once); useControls("tilt"); });
 
-$("respawnBtn").addEventListener("click", () => { if (G.mode === "race") G.player.respawn(); });
+$("respawnBtn").addEventListener("click", () => { if (G.mode === "race") { G.player.respawn(); pause(false); } });
 bindZones($("zoneL"), $("zoneR"));
 bindPads($("proPads"));
 // Pro driving: manual throttle, brake and handbrake; touch gets on-screen pedals instead of the half-screen zones
@@ -1058,6 +1058,7 @@ function step(dt) {
     else if (ctl.boost && c > 2.6 && c <= 3.55) G.launch = "early";
     if (c >= 4) {
       G.mode = "race";
+      if (!(G.event && G.event.type === "attack")) $("eventTag").hidden = true; // the event brief shows on the grid only
       const v = G.player;
       if (G.launch === "perfect") { v.vx += Math.sin(v.h) * 22; v.vz += Math.cos(v.h) * 22; toast("Perfect start!", 1500); sfx.whoosh(); }
       else if (G.launch === "early") { G.bog = 0.8; toast("Too early: wheelspin!", 1500); }
@@ -1322,7 +1323,7 @@ function render(dt) {
     chase.update(v, dt, v.boosting ? 1 : 0);
     // flight camera: up and back with the wings out, so you see them and the chasm
     const k = G.mode === "race" || G.mode === "done" ? smoothK(v.wing || 0) : 0;
-    if (k > 0.01) { camera.position.y += 3 * k; camera.position.x -= Math.sin(v.h) * 4.5 * k; camera.position.z -= Math.cos(v.h) * 4.5 * k; camera.lookAt(v.x + Math.sin(v.h) * 14 * k, v.y + 1.2, v.z + Math.cos(v.h) * 14 * k); } // look ahead down the chasm
+    if (k > 0.01) { camera.position.y += 0.9 * k; camera.position.x -= Math.sin(v.h) * 1.6 * k; camera.position.z -= Math.cos(v.h) * 1.6 * k; camera.lookAt(v.x + Math.sin(v.h) * 6 * k, v.y + 0.9, v.z + Math.cos(v.h) * 6 * k); } // close behind, wings filling the frame
   }
   if (G.splitRace && G.p2 && G.mode !== "menu") {
     chase2.update(G.p2.veh, dt, G.p2.veh.boosting ? 1 : 0);
@@ -1344,7 +1345,7 @@ function render(dt) {
       $("posV").textContent = ordinal(i + 1) + "/" + o.length;
       // gap to the car ahead (or behind when leading), in seconds at current speed
       const other = i > 0 ? o[i - 1] : o[1];
-      if (other && G.mode === "race") {
+      if (other && G.mode === "race" && $("flightHud").hidden) {
         const gap = Math.abs(other.veh.totalD - v.totalD) / Math.max(15, v.vF);
         $("gapV").hidden = false; $("gapV").className = i > 0 ? "behind" : "ahead";
         $("gapV").textContent = (i > 0 ? "+" : "−") + gap.toFixed(1) + "s " + (i > 0 ? "to " : "over ") + other.name.split(" ")[0];

@@ -352,3 +352,22 @@ yet (Supabase), build the screens and show an "under construction" message. Plan
   ribbon bolt, world flash, thunder delayed by distance). Dev: dev/wings.html + scripts/dev/wingshot.mjs, zeusshot.mjs.
 - Online screen (Global top-100 per track with your own lap and placeholder rows, Friends with a friend code and add
   friend, Profile with driver name and stats). Anything that needs the server opens an "Under construction" card.
+
+## Run 3 (2026-10-21 06:50 → 12:50 UTC), from the user's phone playtest
+Hourly routine "Apex Ring 6-hour run check-in" (:07 past) wakes the session. Plan (tick as done):
+- [x] E1 Uncluttered race screen: music / camera / centre / respawn move into the pause menu; no event text in a race
+      (shown once on the countdown only); smaller flight panel; only position, time, lap, minimap, speed and pause stay.
+- [x] E2 Real chasm on Zeus's Fury: a canyon that crosses the road (sheer cliff faces where the road ends and resumes,
+      stepped rock terraces, a river far below) instead of walls along the road; flight camera close behind the car.
+- [ ] E3 Land the WIP (sparks, verge grass atlas bake, results styling) through the full suite.
+- [ ] E4 Bug hunt (subagent review) and polish.
+
+### Run 3 progress log
+- Race screen decluttered: only position, time, lap, round minimap, speedo and a round pause button stay on screen.
+  Camera, music, tilt centre and "Back on track" live in the pause menu. The event name shows as a banner during the
+  countdown only (Drift Attack keeps its score line). The flight panel is one small bar (state, altitude); the gap chip
+  hides while flying.
+- Zeus's Fury chasm rebuilt: Terrain.canyonAt / canyonMesh carve a real canyon across the road (meanders away from
+  the road, stepped rock terraces with strata colours, sheer faces under both road ends, a river ~250 m down). The old
+  walls along the road, the black void plane and the floating amber lip bar are gone. Flight camera sits close behind
+  and a little above the car so you see the wings and the drop.

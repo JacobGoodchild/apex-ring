@@ -175,29 +175,15 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
       const i0 = Math.floor((g.d0 - 150) / path.ds), i1 = Math.ceil((g.d1 + 70) / path.ds);
       const inR = (i) => { const k = ((i - i0) % N + N) % N; return k < (i1 - i0); };
       const face = (lat) => (i, side) => { path.pointAt(i * path.ds, lat, tmp); const over = path.gap[i]; return { lat, y: side ? tmp.y + top : tmp.y - (over || 1) * deep * (over ? 1 : 0.02) }; };
-      for (const sg of [-1, 1]) {
-        geos.push(strip(path, 0, 0, { mask: inR, edgeFn: face(sg * wlat), vScale: 30, gaps: true }));
-      }
       // the faces under the two lips
       for (const [d, y] of [[g.d0, 0], [g.d1, 0]]) {
-        const pts = [-wlat, wlat].map((lat) => path.pointAt(d, lat, {}));
+        const pts = [-wlat - 6, wlat + 6].map((lat) => path.pointAt(d, lat, {}));
         const pos = [pts[0].x, pts[0].y - deep, pts[0].z, pts[1].x, pts[1].y - deep, pts[1].z, pts[0].x, pts[0].y - 0.05, pts[0].z, pts[1].x, pts[1].y - 0.05, pts[1].z];
         const q = new THREE.BufferGeometry(); q.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
         q.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 4, 0, 0, 8, 4, 8], 2)); q.setIndex([0, 1, 2, 1, 3, 2]); q.computeVertexNormals(); geos.push(q);
       }
     }
     const canyon = new THREE.Mesh(merge(geos), rock); canyon.name = "chasm"; canyon.receiveShadow = true; group.add(canyon);
-    // the abyss: a black void 70 m down (fog makes it fade to the storm colour), so the floor never shows
-    const voidGeo = merge(path.gaps.map((g) => { const i0 = Math.floor((g.d0 - 5) / path.ds), n = Math.ceil((g.d1 - g.d0 + 10) / path.ds);
-      return strip(path, 0, 0, { mask: (i) => ((i - i0) % N + N) % N < n, gaps: true, edgeFn: (i, side) => { const lat = side ? wlat : -wlat; path.pointAt(i * path.ds, lat, tmp); return { lat, y: tmp.y - 70 }; } }); }));
-    group.add(new THREE.Mesh(voidGeo, new THREE.MeshBasicMaterial({ color: 0x050608, side: THREE.DoubleSide })));
-    // a glowing edge line at both lips so you can see where the road ends, and warning chevrons on the walls
-    const lipMat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
-    for (const g of path.gaps) for (const d of [g.d0, g.d1]) {
-      const a = path.pointAt(d, -W - R, {}), b = path.pointAt(d, W + R, {});
-      const m = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(b.x - a.x, b.z - a.z), 0.12, 0.5), lipMat);
-      m.position.set((a.x + b.x) / 2, (a.y + b.y) / 2 + 0.06, (a.z + b.z) / 2); m.rotation.y = a.h + Math.PI / 2; m.userData.glow = true; group.add(m);
-    }
   }
 
   // boost pads: glowing chevrons set into the road

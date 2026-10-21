@@ -51,6 +51,11 @@ export class Terrain {
       const k = this.key(Math.floor(P.x[i] / this.cell), Math.floor(P.z[i] / this.cell));
       if (!this.hashMap.has(k)) this.hashMap.set(k, []); this.hashMap.get(k).push(i);
     }
+    // canyons: a gap in the road (Zeus's Fury) is a real canyon running across the track, built as its own detailed mesh
+    this.canyons = (P.gaps || []).map((g) => {
+      const mid = (g.d0 + g.d1) / 2, c = P.pointAt(mid, 0, {});
+      return { cx: c.x, cz: c.z, fx: Math.sin(c.h), fz: Math.cos(c.h), half: (g.d1 - g.d0) / 2, vmax: 1000 };
+    });
     this.res = { low: 100, medium: 140, high: 180 }[quality] || 140;
     this.spacing = (this.inner * 2) / (this.res * 0.7);
     this.geometry = this.buildGeometry();
@@ -78,6 +83,7 @@ export class Terrain {
       cg.computeBoundingSphere();
       const m = new THREE.Mesh(cg, mat); grp.add(m); // no shadows on the hills: only the road gets car shadows
     }
+    for (const C of this.canyons) { const cm = this.canyonMesh(C, mat); grp.add(cm.ground); grp.add(cm.river); }
     grp.name = "terrain"; this._mesh = grp;
     return grp;
   }
@@ -100,7 +106,26 @@ export class Terrain {
     return hills + mount;
   }
 
-  heightAt(x, z) {
+  // Canyon frame for (x, z): u along the road (across the canyon), v along the canyon; its centre line meanders away
+  // from the road and it narrows to nothing at the ends. Near the road (|v| < 60) the rims sit exactly at the gap ends.
+  canyonAt(C, x, z) {
+    const dx = x - C.cx, dz = z - C.cz, u = dx * C.fx + dz * C.fz, v = dx * C.fz - dz * C.fx, av = Math.abs(v);
+    const far = smooth(60, 380, av);
+    const uc = Math.sin(v / 260) * 45 * far;
+    const hw = C.half * (1 + 0.22 * Math.sin(v / 190 + 1.3) * far) * smooth(C.vmax, C.vmax - 260, av) + Math.sin(v * 0.07) * 3 * smooth(30, 110, av);
+    return { u, v, uc, hw, t: hw - Math.abs(u - uc) };
+  }
+  // depth below the rim at distance t inside it: a sheer drop, a ledge, another cliff, a ledge, the last drop to the floor
+  static drop(t) {
+    if (t <= 0) return 0;
+    const steps = [[0, 0], [4, 85], [24, 98], [29, 168], [50, 180], [55, 250]];
+    for (let k = 1; k < steps.length; k++) { const [t0, d0] = steps[k - 1], [t1, d1] = steps[k]; if (t <= t1) return d0 + (d1 - d0) * (t - t0) / (t1 - t0); }
+    return 250 + Math.min(8, (t - 55) * 0.08);
+  }
+
+  heightAt(x, z, carve = true) {
+    // under the canyon's own mesh (and a margin round it) the coarse terrain drops well out of sight
+    if (carve) for (const C of this.canyons) { const k = this.canyonAt(C, x, z); if (k.t > -48 && Math.abs(k.v) < C.vmax + 70) return this.heightAt(x, z, false) - 340; }
     const P = this.path, T = this.natural(x, z), flat = this.edge + this.spacing + 2;
     const cx = Math.floor(x / this.cell), cz = Math.floor(z / this.cell), R = 6;
     let best = 1e18, bi = -1, low = 1e9;
@@ -114,8 +139,6 @@ export class Terrain {
     }
     if (bi < 0) return T;
     const d = Math.sqrt(best), base = this.base[bi];
-    // the chasm: carved deep under the gap and a grid cell beyond its walls (the rock shelf on the walls hides the slope)
-    if (P.gap && P.gap[bi] && d < this.edge + this.spacing * 1.3) return base - 240;
     const t = smooth(flat, flat + 30 + Math.abs(T - base) * 1.6, d);
     return Math.min(low, base + (T - base) * t);
   }
@@ -157,6 +180,73 @@ export class Terrain {
     }
     g.setAttribute("color", new THREE.BufferAttribute(col, 3));
     return g;
+  }
+
+  // The canyon: rows along it (dense near the road), and in each row samples across it at the profile's break points so
+  // the cliff edges stay sharp. Walls get rough (jittered sideways), rock bands are baked into the vertex colours.
+  canyonMesh(C, mat) {
+    const vs = [];
+    for (let v = -C.vmax - 60; v <= C.vmax + 60;) { vs.push(v); const a = Math.abs(v); v += a < 160 ? 7 : a < 600 ? 18 : 36; }
+    const ts = [-46, -30, -16, -7, -2.5, -0.6, 0, 0.6, 1.6, 2.8, 3.7, 4.6, 8, 13, 18, 23, 23.8, 25, 26.6, 28.2, 29.4, 33, 40, 47, 49.6, 50.8, 52.5, 54.2, 55.4, 62];
+    const pos = [], uv = [], col = [], rows = [];
+    for (const v of vs) {
+      const k0 = this.canyonAt(C, C.cx + C.fz * v, C.cz - C.fx * v), uc = k0.uc, hw = k0.hw, row = [];
+      // across: left rim profile, the floor, right rim profile
+      const us = [];
+      for (const t of ts) if (t < hw) us.push(uc - hw + t);
+      for (let u = uc - hw + 70; u < uc + hw - 70; u += 14) us.push(u);
+      for (let i = ts.length - 1; i >= 0; i--) if (ts[i] < hw) us.push(uc + hw - ts[i]);
+      us.sort((a, b) => a - b);
+      for (const u of us) {
+        const x0 = C.cx + C.fx * u + C.fz * v, z0 = C.cz + C.fz * u - C.fx * v;
+        const k = this.canyonAt(C, x0, z0), g = this.heightAt(x0, z0, false);
+        const d = Terrain.drop(k.t), wall = k.t > 0 && k.t < 60;
+        // rough rock: walls pushed in and out a little, depth wobbles; nothing moves at the road's two lips
+        const near = smooth(25, 70, Math.abs(v)), j = wall ? fbm(v / 9, d / 11, this.seed + 7, 3, false) * 3.2 * near : 0;
+        const y = k.t > 0 ? g - d + (d > 4 ? fbm(v / 30, u / 30, this.seed + 9, 2, false) * 5 * near : 0) : g + 0.12;
+        const ux = u + j * Math.sign(u - k.uc);
+        const x = C.cx + C.fx * ux + C.fz * v, z = C.cz + C.fz * ux - C.fx * v;
+        pos.push(x, y, z); uv.push(v / 7, (y + u * 0.35) / 7);
+        // strata: warm sandstone bands down the walls, darker in the depths
+        const band = 0.86 + 0.14 * Math.sin(y * 0.33 + fbm(v / 60, y / 20, this.seed + 3, 2, false) * 2.5), deep = 1 - smooth(0, 250, d) * 0.35;
+        const l = (k.t > 0 ? band * deep : 0.95 + fbm(x / 90, z / 90, this.seed + 31, 3, false) * 0.2);
+        col.push(l * (k.t > 0 ? 1.55 : 1), l * (k.t > 0 ? 1.3 : 1), l * (k.t > 0 ? 1.08 : 1));
+        row.push(pos.length / 3 - 1);
+      }
+      rows.push(row);
+    }
+    // stitch neighbouring rows (they can have different counts): walk both rows by position across the canyon
+    const idx = [], P = pos;
+    const across = (i) => { const x = P[i * 3] - C.cx, z = P[i * 3 + 2] - C.cz; return x * C.fx + z * C.fz; };
+    for (let r = 0; r < rows.length - 1; r++) {
+      const A = rows[r], B = rows[r + 1]; let a = 0, b = 0;
+      while (a < A.length - 1 || b < B.length - 1) {
+        const advA = b >= B.length - 1 || (a < A.length - 1 && across(A[a + 1]) <= across(B[b + 1]));
+        if (advA) { idx.push(A[a], B[b], A[a + 1]); a++; } else { idx.push(A[a], B[b], B[b + 1]); b++; }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+    // fix winding where rows were stitched the other way round: make every normal point up-ish/out of the rock
+    const nor = g.attributes.normal.array, mix = new Float32Array((pos.length / 3) * 2);
+    for (let i = 0; i < pos.length / 3; i++) { const ny = nor[i * 3 + 1]; mix[i * 2] = smooth(0.8, 0.45, Math.abs(ny)); mix[i * 2 + 1] = 0; }
+    g.setAttribute("tmix", new THREE.BufferAttribute(mix, 2));
+    const m = new THREE.Mesh(g, mat.clone()); m.material.side = THREE.DoubleSide; m.material.customProgramCacheKey = () => "terrainDS"; m.material.onBeforeCompile = mat.onBeforeCompile;
+    m.name = "canyon";
+    // the river at the bottom, following the canyon's centre line
+    const rp = [], ri = [];
+    vs.forEach((v, i) => {
+      const k = this.canyonAt(C, C.cx + C.fz * v, C.cz - C.fx * v);
+      const w = Math.max(4, Math.min(16, k.hw - 56)), x0 = C.cx + C.fx * k.uc + C.fz * v, z0 = C.cz + C.fz * k.uc - C.fx * v;
+      const y = this.heightAt(x0, z0, false) - Terrain.drop(k.hw) + 2.2;
+      rp.push(x0 - C.fx * w, y, z0 - C.fz * w, x0 + C.fx * w, y, z0 + C.fz * w);
+      if (i < vs.length - 1) { const a = i * 2; ri.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+    });
+    const rg = new THREE.BufferGeometry(); rg.setAttribute("position", new THREE.Float32BufferAttribute(rp, 3)); rg.setIndex(ri); rg.computeVertexNormals();
+    const river = new THREE.Mesh(rg, new THREE.MeshStandardMaterial({ color: 0x5f7f8f, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide }));
+    river.name = "river";
+    return { ground: m, river };
   }
 
   material(theme) {
