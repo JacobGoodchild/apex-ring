@@ -217,7 +217,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
     const cal = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.26), M.caliper); cal.position.set(-s * 0.02, S.wheelR * 0.42, 0.12 * Math.sign(z)); pivot.add(cal);
     wheels.push(spin); if (i < 2) steerers.push(pivot);
   });
-  const model = { blurs, blurMat, group: car, body, doors, doorType: def.doors || "scissor", wheels, steerers, paint: M.paint, rimMat, tailMat: M.tail, tailMesh,
+  const model = { blurs, blurMat, group: car, body, doors, doorType: def.doors || "scissor", wheels, steerers, paint: M.paint, rimMat, tailMat: M.tail, tailMesh, headMat: MATS.head,
     decalCtx: { w, t, b, L, dz0, dz1, n: S.n, tumble: S.tumble, number: (def.id.charCodeAt(0) % 9) + 1 },
     exhaust: [new THREE.Vector3(-0.32, 0.38, -L - 0.02), new THREE.Vector3(0.32, 0.38, -L - 0.02)] };
   setDecal(model, decalIdx, paintHex);
@@ -256,7 +256,8 @@ export function setFinish(model, idx, paintHex) {
   m.needsUpdate = true;
 }
 
-export const DECALS = [{ name: "None" }, { name: "Twin stripes" }, { name: "Centre stripe" }, { name: "Side flash" }, { name: "Race number" }];
+export const DECALS = [{ name: "None" }, { name: "Twin stripes" }, { name: "Centre stripe" }, { name: "Side flash" }, { name: "Race number" },
+  { name: "Le Mans" }, { name: "Two-tone" }, { name: "Stripes + number" }];
 
 // Decals are thin patches lifted just off the bodywork, in a colour that contrasts with the paint.
 // livery colours for stripes and numbers; 0 = automatic (dark on light paint, white on dark)
@@ -273,7 +274,10 @@ export function setDecal(car, idx, paintHex, livery = car.livery || 0) {
   if (idx === 1) { patch(top - 0.24, top - 0.12, -L + 0.05, L - 0.05); patch(top + 0.12, top + 0.24, -L + 0.05, L - 0.05); }
   else if (idx === 2) patch(top - 0.09, top + 0.09, -L + 0.05, L - 0.05);
   else if (idx === 3) { patch(-0.05, 0.18, -L + 0.4, dz0 - 0.05); patch(Math.PI - 0.18, Math.PI + 0.05, -L + 0.4, dz0 - 0.05); patch(-0.05, 0.12, dz1 + 0.05, L - 0.4); patch(Math.PI - 0.12, Math.PI + 0.05, dz1 + 0.05, L - 0.4); }
-  else if (idx === 4) {
+  else if (idx === 6) { patch(-0.32, 0.05, -L + 0.08, L - 0.08); patch(Math.PI - 0.05, Math.PI + 0.32, -L + 0.08, L - 0.08); } // lower body in the livery colour
+  if (idx === 5) patch(top - 0.09, top + 0.09, -L + 0.05, L - 0.05);
+  if (idx === 7) { patch(top - 0.24, top - 0.12, -L + 0.05, L - 0.05); patch(top + 0.12, top + 0.24, -L + 0.05, L - 0.05); }
+  if (idx === 4 || idx === 5 || idx === 7) {
     const tex = numberTex(car.decalCtx.number);
     for (const d of car.doors) {
       const s = d.userData.side, zm = (dz0 + dz1) / 2;
@@ -283,6 +287,23 @@ export function setDecal(car, idx, paintHex, livery = car.livery || 0) {
       d.add(m); car.decals.push(m);
     }
   }
+}
+
+// Underglow: a soft neon pool of light under the car (one additive plane, no real light, so it's cheap)
+export const UNDERGLOW = [{ name: "Off" }, { name: "Cyan", hex: 0x22d3ee }, { name: "Magenta", hex: 0xff2bd6 }, { name: "Lime", hex: 0x84ff3a }, { name: "Orange", hex: 0xff7a1a }, { name: "Violet", hex: 0x8b5cf6 }];
+let glowTex = null;
+export function setUnderglow(car, idx) {
+  const u = UNDERGLOW[idx] || UNDERGLOW[0];
+  if (!car.underglow) {
+    if (!glowTex) {
+      const c = document.createElement("canvas"); c.width = 64; c.height = 128; const g = c.getContext("2d"), gr = g.createRadialGradient(32, 64, 4, 32, 64, 62);
+      gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.45, "rgba(255,255,255,.5)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 128);
+      glowTex = new THREE.CanvasTexture(c);
+    }
+    const L = car.decalCtx.L, m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, L * 2 + 1.2), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.9 }));
+    m.rotation.x = -Math.PI / 2; m.position.y = 0.04; m.renderOrder = 1; car.group.add(m); car.underglow = m;
+  }
+  car.underglow.visible = u.hex != null; if (u.hex != null) car.underglow.material.color.setHex(u.hex);
 }
 
 const plateCache = {};

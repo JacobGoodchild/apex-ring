@@ -9,7 +9,7 @@ import { buildScenery } from "./scenery.js";
 import { hasTerrain } from "./terrain.js";
 import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse, rainy, nightly } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec, GARAGE_ORDER } from "./cars.js";
-import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY } from "./carmodel.js";
+import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY, UNDERGLOW, setUnderglow } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
 import { medalTimes, medalFor, MEDAL_RANK } from "./medals.js";
@@ -27,10 +27,10 @@ import { setMusicMode, setMusicVolume, songName, SONGS } from "./music.js";
 import { ChaseCam } from "./camera.js";
 import { Driver, RIVALS, collide, STYLE_NAMES } from "./ai.js";
 import { makeRng } from "./rng.js";
-import { Sparks, Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
+import { Sparks, Fireworks, Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
-import { addWings, setWings } from "./wings.js";
-import { onlineReady, signIn, saveProfile, postLap, topLaps, friendLaps, addFriend, myId, Room, roomCode } from "./online.js";
+import { addWings, setWings, setWingSkin, WING_SKINS } from "./wings.js";
+import { onlineReady, signIn, saveProfile, postLap, topLaps, friendLaps, addFriend, myId, Room, roomCode, postGhost, getGhost, ghostOwners, lapsSince, friendsList, touchSeen } from "./online.js";
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -49,7 +49,7 @@ const camera2 = new THREE.PerspectiveCamera(60, 1, 0.1, 2600), chase2 = new Chas
 scene.add(camera);
 const showroom = new Showroom(world);
 showroom.bindDrag($("menu")); showroom.bindDrag($("garage"));
-const skids = new Skids(scene), smoke = new Smoke(scene), speedLines = new SpeedLines(camera), sparks = new Sparks(scene);
+const skids = new Skids(scene), smoke = new Smoke(scene), speedLines = new SpeedLines(camera), sparks = new Sparks(scene), fireworks = new Fireworks(scene);
 const CAMS = ["chase", "low", "bonnet"];
 chase.mode = CAMS.includes(save.settings.camera) ? save.settings.camera : "chase";
 
@@ -78,6 +78,11 @@ function loadTrack(id, weather = G.wantWeather || "dry") {
   G.night = night || !!THEMES[def.theme].stars; G.wet = !!theme.rain;
   headLight.visible = G.night;
   const sea = grp.getObjectByName("sea"); G.water = sea ? sea.material.normalMap : null;
+  // flight challenges over a chasm: rings to thread, updraft columns, lightning strikes
+  for (const k of G.strikes || []) k.m.removeFromParent();
+  const rg = grp.getObjectByName("rings"); G.rings = rg ? rg.children : []; G.ringHits = 0; G.strikes = []; G.strikeT = 1.5;
+  G.updrafts = []; grp.traverse((o) => { if (o.name === "updraft") G.updrafts.push(o); });
+  G.waterfall = grp.getObjectByName("waterfall") || null;
   if (theme.rain && !G.rain) G.rain = new Rain(scene);
   if (G.rain) G.rain.lines.visible = !!theme.rain;
   if (theme.snowfall && !G.snow) G.snow = new Rain(scene, 900, true);
@@ -246,7 +251,9 @@ function buildPlayer(id = save.car) {
   sfx.setEngine(def.engine);
   addFlames(G.car); addBeams(G.car); addContactShadow(G.car); G.car.beams.visible = !!G.night;
   setFinish(G.car, cs.finish || 0, PAINTS[cs.paint % PAINTS.length].hex); setTrail(G.car, cs.trail || 0);
-  if (cs.livery) setDecal(G.car, cs.decal || 0, PAINTS[cs.paint % PAINTS.length].hex, cs.livery);
+  if (cs.number) G.car.decalCtx.number = cs.number;
+  if (cs.livery || cs.number) setDecal(G.car, cs.decal || 0, PAINTS[cs.paint % PAINTS.length].hex, cs.livery || 0);
+  setUnderglow(G.car, cs.glow || 0);
   if (G.mode === "menu") showroom.setCar(G.car); else scene.add(G.car.group);
   if (!G.player) { G.player = new Vehicle(carSpec(def, cs.upgrades), G.path); G.player.reset(-8, 0); }
   G.player.spec = carSpec(def, cs.upgrades);
@@ -311,7 +318,7 @@ function gridUp() {
     if (k === Math.min(G.gridSlot, G.rivals.length)) k++;
     const [d, lat] = slot(G.field.length === 1 ? 0 : k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
-  G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null;
+  G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null; hlReset(); G.photoFin = false; G.slowmo = 0;
   skids.clear(); G.driftPts = 0; G.airPops = 0; G.mult = 1; G.lastBank = -9; G.draftM = 0; G.topSpeed = 0; G.bestDrift = 0;
   if (G.rocks && G.path) G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock"); G.rocks = []; G.nextRock = 18; G.rockRnd = makeRng((SEED ^ 0x5eed) >>> 0); G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
 }
@@ -442,8 +449,10 @@ function buildUpgrades() {
 }
 function cycleCar(dir) {
   const order = GARAGE_ORDER(), i = (order.findIndex((c) => c.id === G.garageCar) + dir + order.length) % order.length;
-  G.garageCar = order[i].id; sfx.click(); refreshGarage();
+  G.garageCar = order[i].id; sfx.click(); refreshGarage(); showMoment();
 }
+// showroom moment when you pick a car: the doors swing open, the headlights flicker on, the engine revs, the doors close
+function showMoment() { G.showT = 0; sfx.rev(); }
 $("carPrev").addEventListener("click", () => cycleCar(-1));
 $("carNext").addEventListener("click", () => cycleCar(1));
 $("carAction").addEventListener("click", () => {
@@ -477,6 +486,8 @@ function buildDecals() {
     });
     el.appendChild(b);
   });
+  // your race number (free), shown by the patterns with a number
+  $("numV").textContent = String(cs.number || G.car.decalCtx.number).padStart(2, "0");
   // livery colour for the stripes / number (free)
   const lv = $("liveries"); lv.innerHTML = "";
   LIVERY.forEach((l, i) => {
@@ -487,6 +498,12 @@ function buildDecals() {
     lv.appendChild(b);
   });
 }
+function stepNumber(d) {
+  const cs = carSave(G.garageCar); cs.number = (((cs.number || G.car.decalCtx.number) - 1 + d + 99) % 99) + 1;
+  G.car.decalCtx.number = cs.number; sfx.click(); setDecal(G.car, cs.decal || 0, PAINTS[cs.paint % PAINTS.length].hex, cs.livery || 0); writeSave(); buildDecals();
+}
+$("numPrev").addEventListener("click", () => stepNumber(-1));
+$("numNext").addEventListener("click", () => stepNumber(1));
 function buildRims() {
   const el = $("rims"); el.innerHTML = ""; const cs = carSave(G.garageCar);
   RIMS.forEach((r, i) => {
@@ -533,6 +550,7 @@ function buildPaints() {
   };
   chips("finishes", FINISHES, "finishOwned", "finish", 600, (i) => setFinish(G.car, i, PAINTS[cs.paint % PAINTS.length].hex));
   chips("trails", TRAILS, "trailOwned", "trail", 500, (i) => { setTrail(G.car, i); G.trailShow = 2.5; });
+  chips("glows", UNDERGLOW, "glowOwned", "glow", 600, (i) => setUnderglow(G.car, i));
 }
 
 function startRace() {
@@ -579,7 +597,7 @@ function toMenu() {
   if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
   if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
   G.splitRace = false; input.split = false; G.field = G.rivals;
-  flushTrophies();
+  endTutorial(); flushTrophies(); fireworks.stop(); $("react").hidden = true; $("spectate").hidden = true; G.spectate = -1;
   ["finish", "pause", "count"].forEach((id) => ($(id).hidden = true));
   setRaceUI(false); showroom.setCar(G.car);
   show("menu");
@@ -589,7 +607,7 @@ function toMenu() {
 function finishRace() {
   G.mode = "done";
   if (G.rocks && G.rocks.length) { G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock"); G.rocks = []; }
-  G.playerFinish = G.raceTime;
+  G.playerFinish = G.raceTime; hlEvent(3);
   if (G.netRace && G.net && G.net.racing) G.net.room.send("fin", { i: G.net.me, t: G.raceTime });
   const order = standings(), place = order.findIndex((e) => e.me) + 1;
   sfx.fanfare(place <= 3 && !G.eliminated);
@@ -627,8 +645,22 @@ function finishRace() {
   $("nextBtn").hidden = !next && !cupNext;
   if (next) $("nextBtn").textContent = "Next: " + next.name;
   if (cupNext) $("nextBtn").textContent = "Next race: " + trackById(G.cup.def.tracks[G.cup.i + 1]).name;
-  $("againBtn").hidden = !!G.cup;
-  $("againBtn").textContent = G.event ? (G.eventOk ? "Replay event" : "Try again") : "Race again";
+  $("againBtn").hidden = !!G.cup || (G.netRace && !(G.net && G.net.host));
+  $("againBtn").textContent = G.netRace ? "Rematch" : G.event ? (G.eventOk ? "Replay event" : "Try again") : "Race again";
+  $("react").hidden = true;
+  if (G.netRace && G.net) {
+    if (place === 1 && G.net.peers.size) badge("roomwin");
+    const live = [...G.net.peers.values()].some((q) => q.racing && q.finished == null);
+    $("watchBtn").hidden = !live;
+    if (!G.net.host) $("results").insertAdjacentHTML("beforeend", `<div class="hint">The host can start a rematch from here.</div>`);
+  } else $("watchBtn").hidden = true;
+  if (G.event && G.event.id === "sky" && !G.eliminated) badge("sky");
+  if (G.tut) { $("tutBox").hidden = true; if (!save.tutDone) { save.tutDone = true; save.coins += 200; (G.trophyQ = G.trophyQ || []).push("Tutorial complete (+200 coins)"); } }
+  // a win: fireworks over the start/finish gantry and the crowd roars
+  if (place === 1 && G.realRace && !G.eliminated) { const g = G.path.pointAt(0, 0, {}); fireworks.show(g.x, g.y + 22, g.z, 7); sfx.cheer(); }
+  // photo finish: you won by less than a tenth of a second
+  if (place === 1 && order[1] && order[1].finished != null && order[1].finished - G.playerFinish < 0.1) { badge("photo"); hlEvent(6); }
+  $("clipBtn").hidden = !hlWindow() || typeof MediaRecorder === "undefined"; $("clipBtn").textContent = "🎬 Share replay"; G.clipFile = null;
   $("againBtn").classList.toggle("ghost", !!next);
   if (G.event && G.eventOk && ni === EVENTS.length) setTimeout(() => toast("Career complete. You're the Apex champion!", 5000), 1600);
   setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; flushTrophies(); } }, TEST ? 200 : 1400);
@@ -788,10 +820,13 @@ function refreshDaily() {
   const d = dailyEvent(), st = save.career[d.id];
   $("dailyName").textContent = d.name; $("dailyDesc").textContent = d.desc;
   $("dailyReward").innerHTML = st && st.done ? `Done today: <b>${"★".repeat(st.stars)}${"☆".repeat(3 - st.stars)}</b>` : `Reward <b>+900</b> <b class="gem">+1 gem</b>`;
-  $("zeusBest").textContent = fmt(save.best.zeus);
+  $("zeusBest").textContent = fmt(save.best.zeus); $("skyBest").textContent = fmt(save.best.sky);
 }
 $("dailyBtn").addEventListener("click", () => show("daily"));
 $("zeusGo").addEventListener("click", () => { sfx.startAudio(); sfx.preloadVoice("wings"); startEvent(ZEUS_EVENT); });
+const SKY_EVENT = { id: "sky", name: "Sky Islands", type: "race", track: "sky", laps: 2, target: 3, weather: "dry", special: true,
+  reward: { coins: 2500, gems: 2 }, desc: "Fly both chasms and finish in the top three." };
+$("skyGo").addEventListener("click", () => { sfx.startAudio(); sfx.preloadVoice("wings"); startEvent(SKY_EVENT); });
 $("dailyGo").addEventListener("click", () => startEvent(dailyEvent()));
 
 // ---------- online: leaderboards, friends and profile. The screens are real; anything that needs the server says so. ----------
@@ -809,7 +844,20 @@ function friendCode() {
   return save.friendCode;
 }
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const boardRow = (r, i, me) => `<li class="${r.user_id === me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="nm">${esc(r.name)}</span><span class="tm">${fmt(r.ms / 1000)}</span></li>`;
+// season titles go to the top of each season board: #1 Apex Legend, 2-3 Gold, 4-10 Silver
+const seasonTitle = (i) => (i === 0 ? "Apex Legend" : i < 3 ? "Gold" : i < 10 ? "Silver" : "");
+const boardRow = (r, i, me, o = {}) => {
+  const title = o.season ? seasonTitle(i) : "", gh = o.ghosts && o.ghosts.has(r.user_id) && r.user_id !== me;
+  return `<li class="${r.user_id === me ? "me" : ""}"><span class="pos">${i + 1}</span><span class="nm">${esc(r.name)}${title ? ` <small class="ttl t${i < 1 ? 1 : i < 3 ? 2 : 3}">${title}</small>` : ""}</span>` +
+    `<span class="tm">${fmt(r.ms / 1000)}${gh ? ` <button class="gbtn" type="button" data-u="${esc(r.user_id)}" data-n="${esc(r.name)}" aria-label="Race ${esc(r.name)}'s ghost">👻</button>` : ""}</span></li>`;
+};
+// best lap per driver from a list of laps (fastest first), with names from the joined profile
+const bestPer = (laps) => { const seen = new Set(), out = []; for (const l of laps) { if (seen.has(l.user_id)) continue; seen.add(l.user_id); out.push({ user_id: l.user_id, ms: l.ms, car: l.car, name: (l.profiles && l.profiles.name) || "Racer" }); } return out; };
+const weekStart = (d = new Date()) => { const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7)); return t; };
+const seasonStart = (d = new Date()) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+const seasonName = (d = new Date()) => d.toLocaleString("en-GB", { month: "long", timeZone: "UTC" }) + " season";
+// the weekly challenge: one track for everyone, picked from the week's date (no server needed to agree on it)
+function weeklyTrack(d = new Date()) { const wk = Math.floor(weekStart(d).getTime() / 6048e5), pool = TRACKS.filter((t) => t.id !== "xtreme"); return pool[(wk * 7 + 3) % pool.length]; }
 function refreshOnline(fetchNow = true) {
   const t = TRACKS[G.oTrack], best = save.best[t.id], name = myName();
   $("oTrackName").textContent = t.name;
@@ -818,14 +866,20 @@ function refreshOnline(fetchNow = true) {
   const st = save.stats || { races: 0, wins: 0, podiums: 0 };
   $("oStats").innerHTML = [["Races", st.races], ["Wins", st.wins], ["Podiums", st.podiums]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("");
   if (onlineReady() && fetchNow) {
-    // real boards from the server (your best lap is uploaded when you set it)
-    const id = t.id;
+    // real boards from the server: this season (the month) or all time; a ghost icon where a driver has a lap to race
+    const id = t.id, season = G.oBoard !== "all";
+    $("oBoardKind").textContent = season ? seasonName() : "All time";
+    $("oSeasonHint").textContent = season ? "Top 10 at the end of the month earn a title: Apex Legend, Gold or Silver." : "";
+    $("oSeason").setAttribute("aria-pressed", String(season)); $("oAll").setAttribute("aria-pressed", String(!season));
     $("oBoard").innerHTML = `<li class="empty">Loading…</li>`;
-    ensureProfile().catch(() => {}).then(() => Promise.all([topLaps(id), friendLaps(id).catch(() => [])])).then(([top, fr]) => {
+    ensureProfile().catch(() => {}).then(() => Promise.all([season ? lapsSince(id, seasonStart().toISOString()).then(bestPer) : topLaps(id), friendLaps(id).catch(() => []), ghostOwners(id).catch(() => [])])).then(([top, fr, gh]) => {
       if (TRACKS[G.oTrack].id !== id) return;
-      const me = myId();
-      $("oBoard").innerHTML = top.length ? top.map((r, i) => boardRow(r, i, me)).join("") : `<li class="empty">No laps yet. Set one and you're first!</li>`;
-      $("oFriendBoard").innerHTML = fr.length ? fr.map((r, i) => boardRow(r, i, me)).join("") : `<li class="empty">No laps from you or your friends on this track yet.</li>`;
+      const me = myId(), ghosts = new Set((gh || []).map((g) => g.user_id));
+      top = top.slice(0, 100);
+      $("oBoard").innerHTML = top.length ? top.map((r, i) => boardRow(r, i, me, { season, ghosts })).join("") : `<li class="empty">No laps yet${season ? " this season" : ""}. Set one and you're first!</li>`;
+      $("oFriendBoard").innerHTML = fr.length ? fr.map((r, i) => boardRow(r, i, me, { ghosts })).join("") : `<li class="empty">No laps from you or your friends on this track yet.</li>`;
+      const mine = top.findIndex((r) => r.user_id === me);
+      if (season && mine >= 0 && mine < 10) { save.title = { name: seasonTitle(mine), season: seasonName() }; if (mine === 0) badge("legend"); writeSave(); }
     }).catch((e) => { $("oBoard").innerHTML = `<li class="empty">Couldn't reach the server: ${esc(e.message)}</li>`; });
     return;
   }
@@ -840,7 +894,16 @@ function ensureProfile(force = false) {
   if (!G.profileP || force) G.profileP = saveProfile(myName(), friendCode()).catch((e) => { G.profileP = null; throw e; });
   return G.profileP;
 }
-function uploadLap(track, lap) { if (onlineReady() && !TEST) ensureProfile().then(() => postLap(track, lap, save.car)).catch(() => {}); }
+// a lap goes up when it's your best this week, this season or ever (so the weekly and season boards see it)
+function uploadLap(track, lap) {
+  const wk = weekStart().toISOString().slice(0, 10), se = seasonStart().toISOString().slice(0, 10), U = (save.upBest = save.upBest || {});
+  const k1 = track + "@" + wk, k2 = track + "@" + se, better = !(U[k1] <= lap) || !(U[k2] <= lap);
+  if (!better) return;
+  U[k1] = Math.min(U[k1] ?? Infinity, lap); U[k2] = Math.min(U[k2] ?? Infinity, lap);
+  for (const k of Object.keys(U)) if (!k.endsWith(wk) && !k.endsWith(se)) delete U[k]; // keep only this week's and season's
+  writeSave(); uploadLapNow(track, lap);
+}
+function uploadLapNow(track, lap) { if (onlineReady() && !TEST) ensureProfile().then(() => postLap(track, lap, save.car)).catch(() => {}); }
 function doAddFriend() {
   const code = $("oFriendCode").value.trim().toUpperCase(); if (!code) return;
   sfx.click();
@@ -849,8 +912,139 @@ function doAddFriend() {
 }
 function onlineTab(o) {
   document.querySelectorAll("#online .seg .tab").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.o === o)));
-  for (const [k, id] of [["global", "oGlobal"], ["friends", "oFriends"], ["race", "oRace"], ["profile", "oProfile"]]) $(id).hidden = k !== o;
+  for (const [k, id] of [["global", "oGlobal"], ["weekly", "oWeekly"], ["friends", "oFriends"], ["race", "oRace"], ["profile", "oProfile"]]) $(id).hidden = k !== o;
   if (o === "race") drawLobby();
+  if (o === "weekly") drawWeekly();
+  if (o === "friends") drawFriends();
+  if (o === "profile") drawBadges();
+}
+
+// ---------- online ghosts: your best time-trial lap goes up; a 👻 on a board row loads that driver's lap to race ----------
+function uploadGhost(track, rec) {
+  if (!onlineReady() || TEST) return;
+  encodeGhost(rec, track, save.car, myName()).then((data) => ensureProfile().then(() => postGhost(track, rec.t, save.car, data))).catch(() => {});
+}
+async function raceGhost(userId, name, track) {
+  sfx.click();
+  try {
+    const g = await getGhost(userId, track); if (!g) { toast("That ghost isn't available", 1600); return; }
+    const r = await decodeGhost(g.data);
+    save.friendGhosts = save.friendGhosts || {}; save.friendGhosts[track] = { ...r.ghost, n: String(name || r.name).slice(0, 16), online: true }; writeSave();
+    if (!G.track || G.track.id !== track) loadTrack(track);
+    setMode(true); show("setup"); toast(`Ghost loaded: ${String(name).slice(0, 16)} · ${fmt(g.ms / 1000)}`, 2200);
+  } catch (e) { toast("Couldn't load that ghost", 1600); }
+}
+for (const id of ["oBoard", "oFriendBoard", "oWkBoard"]) $(id).addEventListener("click", (e) => {
+  const b = e.target.closest(".gbtn"); if (!b) return;
+  const track = id === "oWkBoard" ? weeklyTrack().id : TRACKS[G.oTrack].id;
+  raceGhost(b.dataset.u, b.dataset.n, track);
+});
+$("oSeason").addEventListener("click", () => { sfx.click(); G.oBoard = "season"; refreshOnline(); });
+$("oAll").addEventListener("click", () => { sfx.click(); G.oBoard = "all"; refreshOnline(); });
+
+// ---------- weekly challenge: one track for everyone each week (Monday to Sunday, UTC), its own world board ----------
+function drawWeekly() {
+  const t = weeklyTrack(), end = new Date(weekStart().getTime() + 6048e5), left = end - Date.now();
+  const d = Math.floor(left / 864e5), h = Math.floor((left % 864e5) / 36e5);
+  const mine = (save.upBest || {})[t.id + "@" + weekStart().toISOString().slice(0, 10)];
+  $("oWkHead").innerHTML = `<img alt="" src="${previewSrc(t.id)}"><div><div class="label">This week's challenge</div><b>${t.name}</b>` +
+    `<span>Ends in ${d}d ${h}h · Your best ${mine ? fmt(mine) : "–"}</span></div>`;
+  if (!onlineReady()) { $("oWkBoard").innerHTML = `<li class="empty">The weekly world board needs online play.</li>`; return; }
+  $("oWkBoard").innerHTML = `<li class="empty">Loading…</li>`;
+  ensureProfile().catch(() => {}).then(() => Promise.all([lapsSince(t.id, weekStart().toISOString()).then(bestPer), ghostOwners(t.id).catch(() => [])])).then(([top, gh]) => {
+    const me = myId(), ghosts = new Set((gh || []).map((g) => g.user_id));
+    top = top.slice(0, 50);
+    $("oWkBoard").innerHTML = top.length ? top.map((r, i) => boardRow(r, i, me, { ghosts })).join("") : `<li class="empty">Nobody has raced it yet this week. Be first!</li>`;
+    const i = top.findIndex((r) => r.user_id === me); if (i >= 0 && i < 10) badge("weekly10");
+  }).catch((e) => { $("oWkBoard").innerHTML = `<li class="empty">Couldn't reach the server: ${esc(e.message)}</li>`; });
+}
+$("oWkGo").addEventListener("click", () => { sfx.click(); const t = weeklyTrack(); loadTrack(t.id); setMode(true); show("setup"); });
+
+// ---------- friends list: who's online (seen in the last 2.5 minutes), and invites into your race room ----------
+function drawFriends() {
+  if (!onlineReady()) { $("oFriendList").innerHTML = `<li class="empty">Friends need online play.</li>`; return; }
+  $("oFriendList").innerHTML = `<li class="empty">Loading…</li>`;
+  ensureProfile().catch(() => {}).then(friendsList).then((list) => {
+    save.friendCount = list.length; if (list.length) badge("social"); writeSave();
+    const now = Date.now(), room = G.net && G.net.room && G.net.room.open;
+    const rows = list.map((f) => f.profiles || {}).sort((a, b) => Date.parse(b.last_seen || 0) - Date.parse(a.last_seen || 0)).map((p) => {
+      const on = p.last_seen && now - Date.parse(p.last_seen) < 150000;
+      return `<li><span class="pos"><i class="dot${on ? " on" : ""}"></i></span><span class="nm">${esc(p.name)} <small>${on ? "online" : "offline"}</small></span>` +
+        `<span class="tm">${room && on ? `<button class="tab" type="button" data-c="${esc(p.friend_code)}">Invite</button>` : ""}</span></li>`;
+    });
+    $("oFriendList").innerHTML = rows.length ? rows.join("") : `<li class="empty">No friends yet: share your code above.</li>`;
+  }).catch(() => { $("oFriendList").innerHTML = `<li class="empty">Couldn't load your friends. Has the part 2 setup been run?</li>`; });
+}
+$("oFriendList").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-c]"); if (!b || !G.net) return;
+  sfx.click(); const code = G.net.code, to = new Room("U" + b.dataset.c.replace(/[^A-Z0-9]/g, ""), () => {}, (st) => { if (st === "open") { to.send("inv", { n: myName(), r: code }); setTimeout(() => to.close(), 800); } });
+  b.disabled = true; b.textContent = "Sent"; toast("Invite sent", 1200);
+});
+// presence: while the game is open, say "I'm here" every minute and listen on your own channel for invites
+function startPresence() {
+  if (!onlineReady() || TEST || G.presence) return;
+  G.presence = true;
+  let timer = 0;
+  const beat = () => { if (!document.hidden) touchSeen().catch(() => clearInterval(timer)); }; // stop if the server doesn't have "last seen" yet
+  ensureProfile().then(() => {
+    beat(); timer = setInterval(beat, 60000);
+    G.inbox = new Room("U" + friendCode().replace(/[^A-Z0-9]/g, ""), (e, p) => {
+      if (e !== "inv" || !p || !/^[A-Z0-9]{5}$/.test(p.r || "")) return;
+      G.invite = p.r; $("inviteMsg").textContent = `${String(p.n || "A friend").slice(0, 16)} invites you to race`; $("invite").hidden = false; sfx.chime();
+    });
+  }).catch(() => { G.presence = false; });
+}
+$("inviteJoin").addEventListener("click", () => { $("invite").hidden = true; if (G.mode !== "menu") return toast("Finish your race first", 1600); show("online"); onlineTab("race"); openRoom(G.invite, false); });
+$("inviteNo").addEventListener("click", () => { $("invite").hidden = true; });
+
+// ---------- badges: earned once, kept in the save, shown in Profile (some unlock wing skins) ----------
+const BADGES = [
+  ["first_win", "🏆", "First win", "Win a race"], ["podium10", "🥉", "Podium regular", "10 podiums"], ["gold", "🥇", "Gold medallist", "A gold time-trial medal"],
+  ["wings", "🪽", "Chasm flyer", "Fly across a chasm"], ["rings", "💫", "Ring master", "Fly through every ring on Zeus's Fury"], ["sky", "☁️", "Sky pilot", "Finish Sky Islands"],
+  ["streak7", "🔥", "Week-long streak", "Play 7 days in a row"], ["social", "🤝", "Social racer", "Add a friend"], ["roomwin", "🎮", "Room champion", "Win a race against friends"],
+  ["weekly10", "📅", "Weekly top 10", "Top 10 on a weekly challenge"], ["ghostbuster", "👻", "Ghostbuster", "Beat an online ghost"], ["legend", "👑", "Apex Legend", "#1 on a season board"],
+  ["photo", "📸", "Photo finish", "Win by less than a tenth"],
+];
+function badge(id) {
+  save.badges = save.badges || {};
+  if (save.badges[id]) return;
+  const b = BADGES.find((x) => x[0] === id); if (!b) return;
+  save.badges[id] = Date.now(); writeSave();
+  if (G.mode === "race" || G.mode === "countdown" || G.mode === "done") (G.trophyQ = G.trophyQ || []).push("Badge " + b[2]);
+  else toast(`Badge: ${b[1]} ${b[2]}`, 2200);
+}
+function syncBadges() { // badges that follow from progress you already have
+  const st = save.stats || {}, tr = save.trophies || {};
+  if (st.wins >= 1) badge("first_win"); if (st.podiums >= 10) badge("podium10");
+  if (Object.values(save.medals || {}).some((m) => m === "gold" || (m && m.gold))) badge("gold");
+  if (tr.wings) badge("wings"); if ((save.streak || {}).n >= 7) badge("streak7");
+}
+function drawBadges() {
+  syncBadges();
+  const got = save.badges || {};
+  $("oBadgeCount").textContent = `${Object.keys(got).length} / ${BADGES.length}`;
+  $("oBadges").innerHTML = BADGES.map(([id, ic, name, how]) => `<div class="bdg${got[id] ? " got" : ""}" title="${how}"><i>${got[id] ? ic : "🔒"}</i><b>${name}</b><span>${how}</span></div>`).join("") +
+    (save.title ? `<div class="bdg got wide"><i>🏁</i><b>${esc(save.title.name)}</b><span>${esc(save.title.season)} title</span></div>` : "");
+  // wing skins for the flight tracks, each unlocked by a badge
+  $("oWingSkins").innerHTML = WING_SKINS.map((k) => {
+    const open = !k.badge || got[k.badge], need = k.badge ? BADGES.find((b) => b[0] === k.badge)[2] : "";
+    return `<button class="tab" type="button" data-w="${k.id}" aria-pressed="${(save.wingSkin || "paint") === k.id}" ${open ? "" : "disabled"} title="${open ? k.name : "Earn: " + need}">${open ? k.name : "🔒 " + k.name}</button>`;
+  }).join("");
+}
+$("oWingSkins").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-w]"); if (!b || b.disabled) return;
+  sfx.click(); save.wingSkin = b.dataset.w; writeSave(); if (G.car.wings) setWingSkin(G.car, save.wingSkin); drawBadges();
+});
+
+// ---------- daily login streak: come back on consecutive days for a growing coin reward ----------
+function checkStreak() {
+  const day = (d) => d.toISOString().slice(0, 10), today = day(new Date()), y = new Date(); y.setUTCDate(y.getUTCDate() - 1);
+  const S = (save.streak = save.streak || { n: 0, last: "" });
+  if (S.last === today) return;
+  S.n = S.last === day(y) ? S.n + 1 : 1; S.last = today;
+  const coins = 50 * Math.min(S.n, 7) + (S.n % 7 === 0 ? 300 : 0);
+  save.coins += coins; writeSave(); if (S.n >= 7) badge("streak7");
+  if (!TEST) setTimeout(() => toast(`🔥 Day ${S.n} streak · +${coins} coins`, 3200), 1200);
 }
 document.querySelectorAll("#online .seg .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); onlineTab(b.dataset.o); }));
 
@@ -880,16 +1074,17 @@ function leaveRoom() {
   clearInterval(n.helloT); for (const q of n.peers.values()) if (q.model) q.model.group.removeFromParent();
   G.net = null; drawLobby();
 }
-function netHello() { const n = G.net; if (n && n.room) n.room.send("hi", { i: n.me, n: myName(), c: save.car, h: n.host ? 1 : 0, t: n.host ? n.track : undefined }); }
+function netHello() { const n = G.net; if (n && n.room) n.room.send("hi", { i: n.me, n: myName(), c: save.car, h: n.host ? 1 : 0, t: n.host ? n.track : undefined, r: n.ready ? 1 : 0 }); }
 function netMsg(e, p) {
   const n = G.net; if (!n || !p || p.i === n.me) return;
   let q = n.peers.get(p.i);
   if (!q && e !== "bye" && n.peers.size >= 7) return; // rooms hold 8 drivers; anyone past that (or someone flooding the room with fake players) is ignored
   if (!q && e !== "bye") { q = { id: p.i, name: "Racer", car: CARS[0].id, color: NET_COLORS[n.peers.size % NET_COLORS.length], veh: { totalD: 0, vF: 0 }, finished: null, racing: false, seen: 0, at: null, model: null }; n.peers.set(p.i, q); }
   if (q) q.seen = performance.now();
-  if (e === "hi") { q.name = esc(String(p.n || "Racer").slice(0, 16)); if (CARS.some((c) => c.id === p.c)) q.car = p.c; if (p.h && p.t && !n.host && trackById(p.t)) n.track = p.t; if (G.mode === "menu") drawLobby(); }
+  if (e === "hi") { q.name = esc(String(p.n || "Racer").slice(0, 16)); if (CARS.some((c) => c.id === p.c)) q.car = p.c; q.ready = !!p.r; if (p.h && p.t && !n.host && trackById(p.t)) n.track = p.t; if (G.mode === "menu") drawLobby(); }
   else if (e === "trk" && !n.host && trackById(p.t)) { n.track = p.t; drawLobby(); }
-  else if (e === "go" && !n.host && trackById(p.t) && G.mode === "menu") { n.track = p.t; netStart(); }
+  else if (e === "go" && !n.host && trackById(p.t) && (G.mode === "menu" || (G.mode === "done" && G.netRace))) { n.track = p.t; $("finish").hidden = true; netStart(); }
+  else if (e === "re" && typeof p.e === "string" && REACTS.includes(p.e)) showReact(p.e, q.name);
   else if (e === "s" && n.racing) { q.racing = true; q.prev = q.at; q.at = { x: +p.x, y: +p.y, z: +p.z, h: +p.h, t: performance.now() }; q.veh.totalD = +p.d || 0; q.veh.vF = +p.v || 0; }
   else if (e === "fin" && n.racing) { q.finished = +p.t; }
   else if (e === "bye") { if (q && q.model) q.model.group.removeFromParent(); n.peers.delete(p.i); drawLobby(); }
@@ -904,8 +1099,12 @@ function drawLobby() {
   $("oRoomTrack").textContent = trackById(n.track).name;
   $("oRoomPick").hidden = !n.host; $("oGo").hidden = !n.host; $("oWait").hidden = n.host && !n.status;
   $("oWait").textContent = n.status || "Waiting for the host to start the race…";
-  const me = `<li class="me"><span class="pos">${n.host ? "★" : "·"}</span><span class="nm">${esc(save.driverName || "You")} <small>you</small></span><span class="tm">${carDef(save.car).name}</span></li>`;
-  $("oPlayers").innerHTML = me + [...n.peers.values()].map((q) => `<li><span class="pos">·</span><span class="nm">${q.name}</span><span class="tm">${carDef(q.car).name}</span></li>`).join("") + (n.peers.size ? "" : `<li class="empty">Send your friends the code <b>${n.code}</b> to join.</li>`);
+  const tick = (r) => (r ? `<small class="rdy">✓ ready</small>` : "");
+  const me = `<li class="me"><span class="pos">${n.host ? "★" : "·"}</span><span class="nm">${esc(myName())} <small>you</small> ${tick(n.ready)}</span><span class="tm">${carDef(save.car).name}</span></li>`;
+  const peers = [...n.peers.values()], ready = peers.filter((q) => q.ready).length + (n.ready ? 1 : 0);
+  $("oReady").textContent = n.ready ? "Not ready" : "I'm ready"; $("oReady").classList.toggle("on", !!n.ready);
+  if (n.host) $("oGo").textContent = peers.length ? `Start race · ${ready}/${peers.length + 1} ready` : "Start race";
+  $("oPlayers").innerHTML = me + peers.map((q) => `<li><span class="pos">·</span><span class="nm">${q.name} ${tick(q.ready)}</span><span class="tm">${carDef(q.car).name}</span></li>`).join("") + (n.peers.size ? "" : `<li class="empty">Send your friends the code <b>${n.code}</b> to join.</li>`);
 }
 const carDef = (id) => CARS.find((c) => c.id === id) || CARS[0];
 function netPickTrack(dir) {
@@ -920,13 +1119,29 @@ function netStart() {
   n.racing = true; n.sendT = 0;
   G.event = null; G.cup = null; G.trial = false; G.split = false;
   loadTrack(n.track, "dry"); G.netGo = true; startRace();
-  $("againBtn").hidden = true;
+  n.ready = false; G.spectate = -1; $("againBtn").hidden = true; $("react").hidden = false;
 }
+// ---------- quick reactions in a friends race: tap an emoji, everyone sees it float up with your name ----------
+const REACTS = ["🔥", "😂", "👋", "😮"];
+function showReact(e, who) {
+  const el = document.createElement("div"); el.className = "rf"; el.textContent = e;
+  const tag = document.createElement("small"); tag.textContent = who; el.appendChild(tag);
+  el.style.left = 30 + Math.random() * 40 + "%"; $("reactFloat").appendChild(el); setTimeout(() => el.remove(), 2200);
+}
+$("react").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-r]"); if (!b || !G.net || !G.net.room) return;
+  const now = performance.now(); if (now - (G.reactT || 0) < 700) return; G.reactT = now; // no spamming
+  G.net.room.send("re", { i: G.net.me, e: b.dataset.r }); showReact(b.dataset.r, "You");
+});
+$("react").addEventListener("pointerdown", (e) => e.stopPropagation()); // tapping an emoji isn't steering
+// ---------- spectate: after you finish a friends race, watch the others until they're done ----------
+function spectateTarget() { const n = G.net; if (!n) return null; const live = [...n.peers.values()].filter((q) => q.racing && q.finished == null && q.model); return live.length ? live[((G.spectate % live.length) + live.length) % live.length] : null; }
+$("spectate").addEventListener("click", () => { const t = spectateTarget(); if (!t) { $("spectate").hidden = true; $("finish").hidden = false; return; } G.spectate++; });
 function netFrame(dt) {
   const n = G.net; if (!n.racing) return;
   if (G.mode === "menu") { n.racing = false; for (const q of n.peers.values()) { q.racing = false; if (q.model) q.model.group.visible = false; } return; }
   const v = G.player;
-  if ((n.sendT -= dt) <= 0 && n.room) { n.sendT = 0.1; n.room.send("s", { i: n.me, x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2), h: +v.h.toFixed(3), d: +v.totalD.toFixed(1), v: +v.vF.toFixed(1) }); }
+  if (G.mode === "race" && (n.sendT -= dt) <= 0 && n.room) { n.sendT = 0.1; n.room.send("s", { i: n.me, x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2), h: +v.h.toFixed(3), d: +v.totalD.toFixed(1), v: +v.vF.toFixed(1) }); }
   const now = performance.now();
   for (const q of n.peers.values()) {
     if (!q.at) continue;
@@ -939,6 +1154,7 @@ function netFrame(dt) {
     if (!q.placed) { g.position.set(tx, ty, tz); g.rotation.y = a.h; q.placed = true; }
     g.position.x += (tx - g.position.x) * e; g.position.y += (ty - g.position.y) * e; g.position.z += (tz - g.position.z) * e;
     let dh = a.h - g.rotation.y; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); g.rotation.y += dh * e;
+    q.veh.x = g.position.x; q.veh.y = g.position.y; q.veh.z = g.position.z; q.veh.h = g.rotation.y;
   }
 }
 $("oMakeRoom").addEventListener("click", () => openRoom(roomCode(), true));
@@ -946,6 +1162,7 @@ $("oJoin").addEventListener("click", () => { const c = $("oRoomCode").value.trim
 $("oLeave").addEventListener("click", () => { sfx.click(); leaveRoom(); });
 $("oRPrev").addEventListener("click", () => netPickTrack(-1));
 $("oRNext").addEventListener("click", () => netPickTrack(1));
+$("oReady").addEventListener("click", () => { if (!G.net) return; sfx.click(); G.net.ready = !G.net.ready; netHello(); drawLobby(); });
 $("oGo").addEventListener("click", () => { if (G.net && G.net.host && G.net.room && G.net.room.open) { sfx.click(); netStart(); } });
 $("oPrev").addEventListener("click", () => { sfx.click(); G.oTrack = (G.oTrack + TRACKS.length - 1) % TRACKS.length; refreshOnline(); });
 $("oNext").addEventListener("click", () => { sfx.click(); G.oTrack = (G.oTrack + 1) % TRACKS.length; refreshOnline(); });
@@ -1026,7 +1243,9 @@ $("resetBtn").addEventListener("click", () => {
   resetSave(); G.garageCar = null; buildPlayer(); sfx.setMuted(false); $("muteBtn").textContent = "Sound: On";
   applyDrive(); applyUnits(); applyFps(); setCam("chase"); setMusicVolume(save.settings.music ?? 0.6); toast("Progress reset."); show("menu");
 });
-$("againBtn").addEventListener("click", startRace);
+$("clipBtn").addEventListener("click", () => clipShare());
+$("watchBtn").addEventListener("click", () => { sfx.click(); G.spectate = 0; G.specPos = null; $("finish").hidden = true; $("spectate").hidden = false; });
+$("againBtn").addEventListener("click", () => { if (G.netRace && G.net && G.net.host) { $("finish").hidden = true; netStart(); } else startRace(); });
 $("nextBtn").addEventListener("click", () => { if (G.cup) { G.cup.i++; startCupRace(); return; } const i = EVENTS.indexOf(G.event); if (i >= 0 && EVENTS[i + 1]) startEvent(EVENTS[i + 1]); });
 $("menuBtn").addEventListener("click", () => { const ev = G.event; G.cup = null; $("againBtn").hidden = false; const wasNet = G.netRace; toMenu(); if (ev) show("career"); else if (wasNet && G.net) { show("online"); onlineTab("race"); } });
 // share a one-line result through the phone's share sheet, or copy it (nothing is sent anywhere by the game)
@@ -1147,7 +1366,8 @@ const tagPos = new THREE.Vector3();
 function drawTags() {
   const tags = $("tags"); if (!G.tagEls) G.tagEls = [];
   tags.hidden = !!G.splitRace || G.mode !== "race" && G.mode !== "done"; if (G.splitRace) return;
-  const v = G.player, near = G.field.filter((r) => { const dd = r.veh.totalD - v.totalD; return dd > 4 && dd < 70; }).sort((a, b) => a.veh.totalD - b.veh.totalD).slice(0, 3);
+  const v = G.player, friends = G.netRace && G.net ? [...G.net.peers.values()].filter((q) => q.racing && q.model && q.model.group.visible && Math.abs(q.veh.totalD - v.totalD) < 250 && q.veh.totalD - v.totalD > -8) : [];
+  const near = friends.concat(G.field.filter((r) => { const dd = r.veh.totalD - v.totalD; return dd > 4 && dd < 70; })).sort((a, b) => a.veh.totalD - b.veh.totalD).slice(0, 4);
   const placed = []; // nearest car's tag goes first; a tag that would sit on top of another is lifted above it
   while (G.tagEls.length < near.length) { const e = document.createElement("div"); e.className = "tag"; tags.appendChild(e); G.tagEls.push(e); }
   G.tagEls.forEach((e, i) => {
@@ -1170,6 +1390,176 @@ function drawTags() {
   });
 }
 
+// ---------- rain on the lens: a few drops on the camera in wet races, sliding back and off at speed (kept subtle) ----------
+function drawDrops(dt) {
+  const c = $("drops"), on = G.wet && (G.mode === "race" || G.mode === "countdown") && !G.photo && chase.mode !== "bonnet" && !G.splitRace;
+  if (!on) { if (!c.hidden) { c.hidden = true; G.drops = null; } return; }
+  if (c.hidden) { c.hidden = false; c.width = Math.round(innerWidth / 2); c.height = Math.round(innerHeight / 2); G.drops = []; }
+  const g = c.getContext("2d"), W = c.width, H = c.height, v = G.player, sp = Math.min(1, Math.max(0, v.vF) / 70);
+  if (G.drops.length < 14 && Math.random() < dt * (3 - sp * 1.5)) G.drops.push({ x: Math.random() * W, y: Math.random() * H * 0.8, r: 2 + Math.random() * 5, life: 2 + Math.random() * 3, vx: 0, vy: 0 });
+  g.clearRect(0, 0, W, H);
+  for (const d of G.drops) {
+    d.life -= dt;
+    // at speed the airflow pushes drops outwards and up from the middle of the screen
+    const ox = d.x - W / 2, oy = d.y - H * 0.55; d.vx += ox * sp * dt * 1.6; d.vy += (oy * sp * 0.6 - 4) * dt + 6 * dt * (1 - sp);
+    d.x += d.vx * dt * 30; d.y += d.vy * dt * 30;
+    const a = Math.min(1, d.life) * 0.55, gr = g.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, 0, d.x, d.y, d.r);
+    gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(0.5, `rgba(200,220,235,${a * 0.35})`); gr.addColorStop(1, `rgba(40,50,60,${a * 0.5})`);
+    g.fillStyle = gr; g.beginPath(); g.ellipse(d.x, d.y, d.r * (1 + sp * 0.8), d.r, Math.atan2(d.vy, d.vx), 0, Math.PI * 2); g.fill();
+  }
+  G.drops = G.drops.filter((d) => d.life > 0 && d.x > -10 && d.x < W + 10 && d.y > -10 && d.y < H + 10);
+}
+
+// ---------- share replay: every race is quietly recorded (all cars, 20 times a second) and its exciting moments scored;
+// "Share replay" films the best 8 seconds with cinematic cameras and slow-mo, adds the logo and result, and saves a video ----------
+function hlReset() { G.hl = { f: [], ev: [], acc: 0, posT: 0, pos: -1, cars: [G.player, ...G.field.map((r) => r.veh)], models: [G.car, ...G.field.map((r) => r.model)] }; }
+function hlEvent(score) { if (G.hl && (G.mode === "race" || G.mode === "done")) G.hl.ev.push([G.raceTime, score]); }
+function hlRecord(dt) {
+  const H = G.hl; if (!H || G.mode !== "race") return;
+  if ((H.acc += dt) < 0.05) return; H.acc = 0;
+  const row = new Float32Array(H.cars.length * 7 + 1); row[0] = G.raceTime;
+  H.cars.forEach((v, i) => { const o = 1 + i * 7; row[o] = v.x; row[o + 1] = v.y; row[o + 2] = v.z; row[o + 3] = v.h; row[o + 4] = v.vF; row[o + 5] = v.boosting ? 1 : 0; row[o + 6] = v.wing || 0; });
+  H.f.push(row); if (H.f.length > 9600) H.f.shift(); // ~8 minutes
+  if ((H.posT -= 0.05) <= 0) { H.posT = 0.5; const p = standings().findIndex((e) => e.me); if (H.pos >= 0 && p < H.pos) hlEvent(2.5 * (H.pos - p)); H.pos = p; } // overtakes
+  if (G.player.flying) hlEvent(0.1);
+}
+// the 8-second window with the most going on, and its biggest moment (played in slow motion)
+function hlWindow() {
+  const H = G.hl; if (!H || H.f.length < 60) return null;
+  const tA = H.f[0][0], tB = H.f[H.f.length - 1][0];
+  let best = -1, t0 = Math.max(tA, tB - 8);
+  for (let t = tA; t <= tB - 6; t += 0.5) { let sc = 0; for (const [et, v] of H.ev) if (et >= t + 1 && et <= t + 6.5) sc += v; if (sc > best) { best = sc; t0 = t; } }
+  let peak = t0 + 4, ps = -1; for (const [et, v] of H.ev) if (et >= t0 + 0.5 && et <= t0 + 7.5 && v > ps) { ps = v; peak = et; }
+  return { t0, t1: Math.min(tB, t0 + 8), peak };
+}
+function hlPose(t) {
+  const f = G.hl.f; let lo = 0, hi = f.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (f[m][0] <= t) lo = m; else hi = m; }
+  const a = f[lo], b = f[hi], k = b[0] > a[0] ? Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0]))) : 0;
+  G.hl.cars.forEach((v, i) => {
+    const o = 1 + i * 7; let dh = b[o + 3] - a[o + 3]; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+    const h = a[o + 3] + dh * k, vF = a[o + 4] + (b[o + 4] - a[o + 4]) * k;
+    Object.assign(v, { x: a[o] + (b[o] - a[o]) * k, y: a[o + 1] + (b[o + 1] - a[o + 1]) * k, z: a[o + 2] + (b[o + 2] - a[o + 2]) * k, h, vx: Math.sin(h) * vF, vz: Math.cos(h) * vF, vy: 0,
+      boosting: a[o + 5] > 0.5, wing: a[o + 6] + (b[o + 6] - a[o + 6]) * k, latAcc: 0, lonAcc: 0, driftAngle: 0, steer: 0 });
+    v.groundPrev = v.y;
+  });
+}
+function clipStart() {
+  const w = hlWindow(); if (!w) return;
+  sfx.click();
+  G.clip = { ...w, T: w.t0, shot: -1, shotT: 0, slow: false, chunks: [], at: 0 };
+  G.mode = "clip"; $("finish").hidden = true; setRaceUI(false); $("clipBar").hidden = false; $("clipBar").textContent = "● REC · filming your highlight";
+  for (const m of G.hl.models) if (m && m.group) m.group.visible = true;
+  // the picture plus logo/result overlay is drawn into a 2D canvas, which is what gets recorded (with the game's sound)
+  const src = world.renderer.domElement, W = Math.min(1280, src.width), H = Math.round((W * src.height) / src.width) & ~1;
+  const c = (G.clip.canvas = document.createElement("canvas")); c.width = W; c.height = H;
+  try {
+    const stream = c.captureStream(30), au = sfx.audioStream(); if (au) au.getAudioTracks().forEach((t) => stream.addTrack(t));
+    const type = ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+    const rec = (G.clip.rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 6e6 } : {}));
+    rec.ondataavailable = (e) => e.data.size && G.clip && G.clip.chunks.push(e.data);
+    rec.start(250);
+  } catch (e) { G.clip.rec = null; }
+}
+const clipV = new THREE.Vector3();
+function clipFrame(dt) {
+  const C = G.clip; if (!C) return;
+  C.slow = Math.abs(C.T - C.peak) < 0.9;
+  C.T += dt * (C.slow ? 0.3 : 1); C.at += dt;
+  if (C.T >= C.t1 || C.at > 25) return clipEnd();
+  hlPose(C.T);
+}
+// the camera director: cuts between a chase cam, a trackside camera the car blasts past, an orbit (used for the slow-mo) and a low front shot
+function clipCamera(dt) {
+  const C = G.clip, v = G.player, fx = Math.sin(v.h), fz = Math.cos(v.h), rx = -Math.cos(v.h), rz = Math.sin(v.h);
+  C.shotT -= dt;
+  const want = C.slow ? 2 : C.shotT <= 0 ? (C.shot + 1) % 4 === 2 ? 3 : (C.shot + 1) % 4 : C.shot;
+  if (want !== C.shot) { C.shot = want; C.shotT = 2.4; C.fixed = clipV.set(v.x + fx * 34 + rx * 7, v.y + 1.3, v.z + fz * 34 + rz * 7).clone(); }
+  camera.fov = 58; camera.updateProjectionMatrix();
+  if (C.shot === 0) { camera.position.set(v.x - fx * 6.5, v.y + 2.2, v.z - fz * 6.5); camera.lookAt(v.x + fx * 6, v.y + 0.8, v.z + fz * 6); }
+  else if (C.shot === 1) { camera.position.copy(C.fixed); camera.lookAt(v.x, v.y + 0.6, v.z); }
+  else if (C.shot === 2) { const a = C.T * 1.6; camera.position.set(v.x + Math.sin(a) * 6.5, v.y + 1.3, v.z + Math.cos(a) * 6.5); camera.lookAt(v.x, v.y + 0.7, v.z); }
+  else { camera.position.set(v.x + fx * 7 + rx * 1.5, v.y + 0.7, v.z + fz * 7 + rz * 1.5); camera.lookAt(v.x, v.y + 0.7, v.z); }
+}
+function clipCompose() {
+  const C = G.clip, c = C.canvas, g = c.getContext("2d"), W = c.width, H = c.height, S = H / 720;
+  g.drawImage(world.renderer.domElement, 0, 0, W, H);
+  const gr = g.createLinearGradient(0, H * 0.72, 0, H); gr.addColorStop(0, "rgba(6,8,16,0)"); gr.addColorStop(1, "rgba(6,8,16,.75)"); g.fillStyle = gr; g.fillRect(0, H * 0.7, W, H * 0.3);
+  const F = (w, px) => `italic ${w} ${Math.round(px * S)}px "Barlow Condensed", "Arial Narrow", sans-serif`;
+  g.textBaseline = "alphabetic"; g.textAlign = "left";
+  g.font = F(800, 64); g.fillStyle = "#fff"; g.fillText("APEX", 36 * S, H - 40 * S); const w1 = g.measureText("APEX ").width;
+  g.fillStyle = "#ff7a1a"; g.fillText("RING", 36 * S + w1, H - 40 * S);
+  g.fillStyle = "#ff7a1a"; g.fillRect(36 * S, H - 112 * S, 180 * S, 5 * S);
+  g.textAlign = "right"; g.font = F(800, 46); g.fillStyle = "#fff";
+  g.fillText(`${ordinal(G.place || 1)} · ${fmt(G.playerFinish ?? G.raceTime)}`, W - 36 * S, H - 74 * S);
+  g.font = F(700, 26); g.fillStyle = "rgba(255,255,255,.85)"; g.fillText(`${G.track.name.toUpperCase()}  ·  PLAY FREE: JACOBGOODCHILD.ITCH.IO/APEX-RING`, W - 36 * S, H - 40 * S);
+  if (C.slow) { g.textAlign = "right"; g.font = F(800, 34); g.fillStyle = "#ffd36b"; g.fillText("SLOW-MO", W - 36 * S, 60 * S); }
+}
+function clipEnd() {
+  const C = G.clip; G.mode = "done"; $("clipBar").hidden = true; $("finish").hidden = false;
+  const done = (blob) => {
+    G.clip = null;
+    if (!blob || !blob.size) { $("clipBtn").textContent = "🎬 Replay again"; return; }
+    const ext = /mp4/.test(blob.type) ? "mp4" : "webm";
+    G.clipFile = new File([blob], `apex-ring-${baseId(G.track.id)}-highlight.${ext}`, { type: blob.type });
+    $("clipBtn").textContent = "📤 Share video"; toast("Your highlight is ready to share", 2200);
+  };
+  if (C.rec && C.rec.state !== "inactive") { C.rec.onstop = () => done(new Blob(C.chunks, { type: C.rec.mimeType || "video/webm" })); C.rec.stop(); } else done(null);
+}
+async function clipShare() {
+  const f = G.clipFile; if (!f) return clipStart();
+  sfx.click();
+  try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "Apex Ring", text: `${ordinal(G.place || 1)} on ${G.track.name} in Apex Ring 🏁` }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+  toast("Video saved to your downloads", 2000);
+}
+
+// ---------- flight challenges: gold rings (boost), updrafts (lift), lightning strikes (dodge them; a near miss pays boost) ----------
+const strikeMat = new THREE.MeshBasicMaterial({ color: 0xcfe6ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+const strikeGeo = new THREE.SphereGeometry(1.3, 12, 8);
+function flightChallenge(dt, v) {
+  const T = performance.now() / 1000;
+  for (const u of G.updrafts) { // specks rise and loop
+    const a = u.geometry.attributes.position.array;
+    for (let i = 1; i < a.length; i += 3) { a[i] += dt * (14 + (i % 7)); if (a[i] > 24) a[i] -= 84; }
+    u.geometry.attributes.position.needsUpdate = true;
+  }
+  if (G.rings.length) {
+    const d = v.p.d, first = G.rings[0].userData.d;
+    if (d < first - 150 || d > G.rings[G.rings.length - 1].userData.d + 300) { // away from the chasm: reset the rings for the next lap
+      if (G.ringHits) { G.ringHits = 0; for (const r of G.rings) { r.userData.hit = false; r.scale.setScalar(1); r.visible = true; } }
+    }
+    for (const r of G.rings) {
+      const u = r.userData; r.rotation.z = T * 0.6 + u.i;
+      if (u.hit) { r.scale.multiplyScalar(1 + dt * 4); if (r.scale.x > 2.2) r.visible = false; continue; }
+      if (Math.abs(d - u.d) < 3.5 && Math.abs(v.lat - u.lat) < 3.6 && Math.abs(v.y - r.position.y) < 3.6) {
+        u.hit = true; G.ringHits++; hlEvent(2);
+        v.boost = Math.min(1, v.boost + 0.22); sfx.chime(); popDrift(`${G.ringHits}/${G.rings.length}`, "RING ");
+        sparks.emit(r.position.x, r.position.y - 0.4, r.position.z, v.vx * 0.5, v.vz * 0.5, 0, 0, 28, 0.5);
+        if (G.ringHits === G.rings.length) { setTimeout(() => popDrift("", "ALL RINGS!"), 700); badge("rings"); }
+      }
+    }
+  }
+  // lightning picks a spot just ahead of you while you fly; it glows for a moment, then strikes
+  if (G.lightning && (v.flying || (v.wing > 0.5 && v.airborne))) {
+    if ((G.strikeT -= dt) <= 0) {
+      G.strikeT = 1.0 + Math.random() * 0.9;
+      const fx = Math.sin(v.h), fz = Math.cos(v.h), rx = -Math.cos(v.h), rz = Math.sin(v.h), ahead = 45 + Math.random() * 35, side = (Math.random() - 0.5) * 18;
+      const m = new THREE.Mesh(strikeGeo, strikeMat); m.position.set(v.x + fx * ahead + rx * side, v.y + (Math.random() - 0.3) * 5, v.z + fz * ahead + rz * side);
+      scene.add(m); G.strikes.push({ m, t: 0.75 });
+    }
+  }
+  for (let i = G.strikes.length - 1; i >= 0; i--) {
+    const k = G.strikes[i]; k.t -= dt; k.m.scale.setScalar(0.6 + 0.6 * Math.abs(Math.sin(T * 18)));
+    if (k.t > 0) continue;
+    const p = k.m.position; boltAt(p.x, p.z, p.y, 20); sfx.thunder(60);
+    const dist = Math.hypot(v.x - p.x, v.y - p.y, v.z - p.z);
+    if (dist < 15) hlEvent(dist < 5 ? 2 : 3);
+    if (dist < 5) { v.vx *= 0.82; v.vz *= 0.82; chase.shake = 1; popDrift("", "ZAPPED!"); sfx.thud(8); }
+    else if (dist < 15) { v.boost = Math.min(1, v.boost + 0.15); popDrift("", "NEAR MISS +BOOST"); }
+    k.m.removeFromParent(); G.strikes.splice(i, 1);
+  }
+}
 function popDrift(n, label = "DRIFT +") {
   const el = $("driftPop"); el.textContent = label + n; el.hidden = false; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
   clearTimeout(popDrift._t); popDrift._t = setTimeout(() => (el.hidden = true), 1200);
@@ -1180,7 +1570,7 @@ const lookAt = new THREE.Vector3(), camPos = new THREE.Vector3();
 
 function step(dt) {
   if (G.paused) { readControls(false); return; } // still read the gamepad, so its Start button can unpause
-  if (G.mode === "replay") return;
+  if (G.mode === "replay" || G.mode === "clip") return;
   const ctl = readControls();
 
   if (G.mode === "countdown") {
@@ -1238,7 +1628,7 @@ function step(dt) {
       if (G.driftPts > 20) { const pts = Math.round(G.driftPts * (G.mult || 1)); G.totalDrift += pts; G.bestDrift = Math.max(G.bestDrift || 0, pts); if (pts >= 1000) trophy("drift1k"); if (G.mult >= 5) trophy("combo5"); popDrift(pts + (G.mult > 1 ? "  x" + G.mult : ""), "DRIFT +"); sfx.chime(); G.lastBank = G.raceTime; }
       G.driftPts = 0;
     }
-    if (v.boosting && !G.wasBoosting) { sfx.warp(); if (fxOn()) chase.punch = 1; const f = $("boostFlash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+    if (v.boosting && !G.wasBoosting) { hlEvent(1.5); sfx.warp(); if (fxOn()) chase.punch = 1; const f = $("boostFlash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
     // first time the meter has charge, explain how to boost
     if (v.boost > 0.3 && !save.boostHint && !TEST) {
       save.boostHint = true; writeSave();
@@ -1246,7 +1636,13 @@ function step(dt) {
     }
     G.wasBoosting = v.boosting;
     G.raceTime += dt;
-    tyreFx("p", v, dt); G.field.forEach((r, i) => tyreFx("r" + i, r.veh, dt));
+    tyreFx("p", v, dt); G.field.forEach((r, i) => tyreFx("r" + i, r.veh, dt)); hlRecord(dt); tutorialStep(dt);
+    // a photo finish: on the last lap, a rival right alongside you in the final 45 m slows time down at the line
+    if (!G.photoFin && !TEST && G.lapTimes.length === laps() - 1) {
+      const left = laps() * G.path.length - v.totalD;
+      const rivals = G.field.map((r) => r.veh).concat(G.netRace && G.net ? [...G.net.peers.values()].filter((q) => q.racing).map((q) => q.veh) : []);
+      if (left > 0 && left < 45 && rivals.some((r) => Math.abs(r.totalD - v.totalD) < 6)) { G.photoFin = true; G.slowmo = 1.4; popDrift("", "PHOTO FINISH"); hlEvent(5); }
+    }
     const L = G.path.length, done = G.lapTimes.length;
     if (trialMode() && v.totalD >= done * L) G.ghost.record(G.raceTime - G.lapStart, v);
     if (v.totalD >= (done + 1) * L) {
@@ -1254,13 +1650,15 @@ function step(dt) {
       if (trialMode()) {
         const rec = G.ghost.lapDone(lap), old = save.ghosts[G.track.id];
         // the very first lap starts behind the line, so only keep it if there's nothing better
-        if (!old || lap < old.t) { save.ghosts[G.track.id] = rec; G.ghost.load(rec); }
+        if (!old || lap < old.t) { save.ghosts[G.track.id] = rec; G.ghost.load(rec); uploadGhost(G.track.id, rec); }
+        // beat a ghost you loaded from the online boards
+        const fg = (save.friendGhosts || {})[G.track.id]; if (fg && fg.online && lap < fg.t) badge("ghostbuster");
       }
-      logLap(G.track.id, lap);
+      logLap(G.track.id, lap); uploadLap(G.track.id, lap);
       const best = save.best[G.track.id];
       if (G.lapWall === 0) G.cleanLaps++;
       G.lapWall = 0;
-      if (best == null || lap < best) { if (best != null) G.newRecord = true; save.best[G.track.id] = lap; writeSave(); uploadLap(G.track.id, lap); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
+      if (best == null || lap < best) { if (best != null) G.newRecord = true; save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
       if (G.lapTimes.length >= laps()) finishRace(); else sfx.lapChime();
     }
     if (G.event && G.event.type === "elim" && G.mode === "race") { if (G.event.every) { if (G.raceTime >= (G.elimDone + 1) * G.event.every) { G.elimDone++; dropLast(G.event.every + " seconds"); } } else eliminate(); }
@@ -1275,7 +1673,7 @@ function step(dt) {
   }
   // big jumps top up the boost meter
   if (v.airDone >= 2 && G.mode === "race") trophy("air2");
-  if (v.airDone > 0.7 && G.mode === "race") { v.boost = Math.min(1, v.boost + Math.min(0.3, v.airDone * 0.12)); popDrift(v.airDone.toFixed(1) + "s", "BIG AIR "); sfx.chime(); G.airPops = (G.airPops || 0) + 1; }
+  if (v.airDone > 0.7 && G.mode === "race") { hlEvent(2 + v.airDone); v.boost = Math.min(1, v.boost + Math.min(0.3, v.airDone * 0.12)); popDrift(v.airDone.toFixed(1) + "s", "BIG AIR "); sfx.chime(); G.airPops = (G.airPops || 0) + 1; }
   if (v.landed > 4) G.squash = Math.min(0.14, v.landed * 0.012);
   if (v.landed > 4) { chase.shake = Math.min(0.8, v.landed * 0.05); sfx.thud(v.landed); }
   if (v.wallHit > 2) G.lapWall++;
@@ -1304,10 +1702,11 @@ function dropLast(per) {
 const smoothK = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
 function flightFx(dt) {
   const v = G.player, T = performance.now() / 1000;
-  if (!G.car.wings) addWings(G.car, G.car.paintHex || 0x3a4250, 1);
+  if (!G.car.wings) { addWings(G.car, G.car.paintHex || 0x3a4250, 1); setWingSkin(G.car, save.wingSkin || "paint"); }
   setWings(G.car, v.wing || 0, T, v.flying, v.steer, v.boosting);
   for (const r of G.field) { if (!r.model.wings) addWings(r.model, r.color || 0x3a4250, 0); setWings(r.model, r.veh.wing || 0, T, r.veh.flying, r.veh.steer, r.veh.boosting); }
   if (G.mode !== "race") return;
+  flightChallenge(dt, v);
   // the wings start to unfurl: servos, then the ship's computer welcomes you aboard
   if (v.wingWant && !G.wingCalled) {
     G.wingCalled = true; sfx.servo(); G.voiceT = setTimeout(() => sfx.voice("wings"), 450);
@@ -1329,6 +1728,7 @@ function flightFx(dt) {
 }
 function stopFlightFx() {
   $("flightHud").hidden = true; $("subtitle").hidden = true; G.wingCalled = false;
+  for (const k of G.strikes || []) k.m.removeFromParent(); G.strikes = [];
   clearInterval(subtitle._i); clearTimeout(subtitle._t); clearTimeout(subtitle._d); clearTimeout(G.voiceT);
 }
 function subtitle(text, delay = 0) {
@@ -1351,13 +1751,18 @@ function lightning(dt) {
   }
   if (G.ltT > 0 || G.mode !== "race" || G.paused) return;
   G.ltT = 3 + Math.random() * 7;
+  const a = Math.random() * Math.PI * 2, dist = 350 + Math.random() * 700;
+  boltAt(camera.position.x + Math.sin(a) * dist, camera.position.z + Math.cos(a) * dist, -10, 50);
+  sfx.thunder(dist);
+}
+// a bolt from the cloud base down to (cx, yEnd, cz); jitter = how far it wanders sideways per step
+function boltAt(cx, cz, yEnd, jitter) {
   if (!(G.ltFlash > 0)) G.ltBase = world.hemi.intensity;
   G.ltFlash = 1;
   // the bolt: a jagged ribbon from the cloud base to the ground, facing the camera, with a branch
-  const a = Math.random() * Math.PI * 2, dist = 350 + Math.random() * 700, cx = camera.position.x + Math.sin(a) * dist, cz = camera.position.z + Math.cos(a) * dist;
-  const pts = []; let x = cx, y = 420, z = cz;
-  while (y > -5) { pts.push([x, y, z]); x += (Math.random() - 0.5) * 50; z += (Math.random() - 0.5) * 50; y -= 18 + Math.random() * 30; }
-  pts.push([x, -10, z]);
+  const pts = []; let x = cx + (Math.random() - 0.5) * jitter * 2, y = yEnd + 420, z = cz + (Math.random() - 0.5) * jitter * 2;
+  while (y > yEnd + 5) { pts.push([x, y, z]); const k = Math.min(1, (y - yEnd) / 120); x += (Math.random() - 0.5) * jitter * k + (cx - x) * (1 - k) * 0.5; z += (Math.random() - 0.5) * jitter * k + (cz - z) * (1 - k) * 0.5; y -= 18 + Math.random() * 30; }
+  pts.push([cx, yEnd, cz]);
   const pos = [], toCam = new THREE.Vector3(), seg = new THREE.Vector3(), side = new THREE.Vector3();
   const ribbon = (P, w) => { for (let i = 0; i < P.length - 1; i++) {
     const [a1, b1, c1] = P[i], [a2, b2, c2] = P[i + 1];
@@ -1371,7 +1776,6 @@ function lightning(dt) {
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   if (G.bolt) { G.bolt.removeFromParent(); G.bolt.geometry.dispose(); G.bolt.material.dispose(); }
   G.bolt = new THREE.Mesh(g, boltMat.clone()); G.bolt.frustumCulled = false; scene.add(G.bolt);
-  sfx.thunder(dist);
 }
 
 // Smoke + skid marks from the rear wheels when a car slides or brakes hard. Runs every physics tick (so a short
@@ -1411,6 +1815,7 @@ function poseCar(m, v, dt) {
 
 function render(dt) {
   const v = G.player, car = G.car;
+  if (G.mode === "clip") clipFrame(dt);
   if (G.mode === "replay" && G.replay) {
     // puppet the player's car along the recorded lap
     G.replayT = (G.replayT + dt) % G.replay.t;
@@ -1442,23 +1847,35 @@ function render(dt) {
   if (G.ghost) G.ghost.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.friend) G.friend.update(G.raceTime - G.lapStart, trialMode() && G.mode === "race");
   if (G.net) netFrame(dt);
-  smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight); sparks.update(dt);
+  smoke.update(dt, world.renderer.domElement.clientHeight || innerHeight); sparks.update(dt); fireworks.update(dt); drawDrops(dt);
   drawRocks();
   if (G.water) { G.water.offset.x += dt * 0.012; G.water.offset.y += dt * 0.007; }
+  if (G.waterfall) G.waterfall.material.map.offset.y += dt * 1.4;
   speedLines.update(dt, v.vF, G.mode === "race" && fxOn() && !G.photo ? (v.boosting ? 1 : Math.max(0, (v.vF / v.spec.vmax - 0.8) * 3)) : 0);
   if (!fxOn()) chase.shake = 0;
 
   car.group.position.y += Math.sin(G.bob = (G.bob || 0) + dt * v.vF * 0.9) * 0.006 * Math.min(1, v.vF / 30);
   const portrait = camera.aspect < 1;
-  if (G.mode === "menu") {
+  if (G.mode === "menu" && G.title) {
+    titleCamera(dt);
+  } else if (G.mode === "menu") {
     G.menuT += dt;
-    // doors stay shut in the showroom (open doors read as flat slabs at this distance)
-    const want = 0;
+    // doors stay shut in the showroom, except for the moment just after you pick a car
+    if (G.showT != null) G.showT += dt;
+    const sm = G.showT, want = sm != null && sm > 0.15 && sm < 2.3 ? 1 : 0;
+    if (car.headMat) car.headMat.emissiveIntensity = sm != null && sm < 0.9 ? [0, 1.6, 0.2, 1.6, 0, 1.6, 1.6][Math.min(6, Math.floor(sm / 0.13))] : 1.6;
+    if (sm > 3) G.showT = null;
     G.doors += (want - G.doors) * Math.min(1, dt * 2.2); setDoors(G.car, G.doors);
     car.group.position.set(0, 0, 0); car.group.rotation.set(0, 0, 0, "YXZ"); car.body.rotation.set(0, 0, 0); car.body.position.y = 0;
     updateContactShadow(car, 0, 0);
     showroom.update(dt, camera);
     chase.snap(v);
+  } else if (G.slowmo > 0 && G.mode === "race") {
+    // photo-finish camera: low, beside the car, looking across at the line
+    const fx = Math.sin(v.h), fz = Math.cos(v.h), rx = -Math.cos(v.h), rz = Math.sin(v.h);
+    camera.position.set(v.x + rx * 7 + fx * 3, v.y + 1.0, v.z + rz * 7 + fz * 3); camera.lookAt(v.x - fx * 1, v.y + 0.6, v.z - fz * 1);
+  } else if (G.mode === "clip" && G.clip) {
+    clipCamera(dt);
   } else if (G.photo) {
     G.camOff = null;
     const P = G.photo, c = Math.cos(P.e);
@@ -1471,6 +1888,16 @@ function render(dt) {
     const k = G.mode === "race" || G.mode === "done" ? smoothK(v.wing || 0) : 0;
     G.camOff = null;
     if (k > 0.01) { G.camOff = new THREE.Vector3(-Math.sin(v.h) * 1.6 * k, 0.9 * k, -Math.cos(v.h) * 1.6 * k); camera.position.add(G.camOff); camera.lookAt(v.x + Math.sin(v.h) * 6 * k, v.y + 0.9, v.z + Math.cos(v.h) * 6 * k); } // close behind, wings filling the frame
+  }
+  // spectating a friend after you've finished: a camera that trails their car
+  if (G.spectate >= 0 && G.mode === "done") {
+    const t = spectateTarget();
+    if (!t) { G.spectate = -1; $("spectate").hidden = true; $("finish").hidden = false; }
+    else {
+      const g = t.model.group, h = g.rotation.y, want = tagPos.set(g.position.x - Math.sin(h) * 7, g.position.y + 2.6, g.position.z - Math.cos(h) * 7);
+      G.specPos = G.specPos ? G.specPos.lerp(want, Math.min(1, dt * 6)) : want.clone(); camera.position.copy(G.specPos); camera.lookAt(g.position.x + Math.sin(h) * 8, g.position.y + 1, g.position.z + Math.cos(h) * 8);
+      $("spectate").textContent = `Watching ${t.name.replace(/&amp;/g, "&")} · tap for the next car`;
+    }
   }
   if (G.splitRace && G.p2 && G.mode !== "menu") {
     chase2.update(G.p2.veh, dt, G.p2.veh.boosting ? 1 : 0);
@@ -1515,7 +1942,7 @@ function render(dt) {
     drawTags();
     minimap.draw([...G.field.map((r) => ({ x: r.veh.x, z: r.veh.z, color: "#" + r.color.toString(16).padStart(6, "0") })), { x: v.x, z: v.z, color: "#f2a65a", me: true }]);
   }
-  sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown" || G.mode === "replay", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
+  sfx.updateAudio(v.vF, v.spec.vmax, G.mode === "race" || G.mode === "countdown" || G.mode === "replay" || G.mode === "clip", Math.min(1, Math.abs(v.driftAngle) * 3), v.boosting);
   // the three nearest rivals: left/right from the camera, distance, engine speed and how fast they close in
   if (G.mode === "race" || G.mode === "done") {
     const cx = camera.position.x, cz = camera.position.z, rx = Math.cos(chase.yaw ?? v.h), rz = -Math.sin(chase.yaw ?? v.h);
@@ -1619,6 +2046,41 @@ if (save.seenNews !== "2.0") {
   if (returning && !TEST) $("whatsNew").hidden = false; else { save.seenNews = "2.0"; writeSave(); }
 }
 $("whatsNewOk").addEventListener("click", () => { sfx.click(); $("whatsNew").hidden = true; save.seenNews = "2.0"; writeSave(); });
+// ---------- title screen: a slow camera fly-by along the track behind the logo, until the first tap ----------
+function startTitle() {
+  if (TEST || !G.path) return;
+  G.title = { d: G.path.length * 0.1 }; $("title").hidden = false; document.body.classList.add("titling");
+  const go = () => { if (!G.title) return; G.title = null; $("title").hidden = true; document.body.classList.remove("titling"); sfx.startAudio(); afterTitle(); removeEventListener("pointerdown", go); removeEventListener("keydown", go); };
+  setTimeout(() => { addEventListener("pointerdown", go); addEventListener("keydown", go); }, 300);
+}
+function titleCamera(dt) {
+  const T = G.title; T.d = (T.d + dt * 32) % G.path.length;
+  const p = G.path.pointAt(T.d, -4 + Math.sin(T.d / 90) * 6, {}), q = G.path.pointAt(T.d + 40, Math.sin((T.d + 40) / 90) * 6, {});
+  camera.fov = 55; camera.updateProjectionMatrix();
+  camera.position.set(p.x, p.y + 4.5 + Math.sin(T.d / 140) * 2, p.z); camera.lookAt(q.x, q.y + 1.5, q.z);
+}
+// ---------- tutorial (optional, from the home screen): a guided lap of Dusk Oval ----------
+const TUT = [["Steer", "Hold the LEFT or RIGHT side of the screen (or ← →) to steer"], ["Drift", "Steer hard into the bend at speed: the car drifts by itself and fills your boost"],
+  ["Boost", "Tap BOTH sides of the screen together, twice (or Space) to boost"], ["Finish", "Brilliant! Now finish the lap. The car brakes for corners by itself"]];
+function startTutorial() {
+  sfx.startAudio(); sfx.click(); save.tutHint = true; writeSave();
+  G.tut = { step: 0, t: 0 }; G.event = null; G.cup = null; G.split = false; loadTrack("oval", "dry"); setMode(true); G.lapsOverride = 1; startRace();
+}
+function tutorialStep(dt) {
+  const T = G.tut, v = G.player; if (!T || G.mode !== "race") return;
+  T.t += dt;
+  const ok = T.step === 0 ? Math.abs(v.steer) > 0.5 && T.t > 1 : T.step === 1 ? v.driftTime > 0.35 || T.t > 14 : T.step === 2 ? v.boosting || T.t > 12 : false;
+  if (ok) { T.step++; T.t = 0; sfx.chime(); if (T.step === 2) v.boost = Math.max(v.boost, 0.6); }
+  $("tutBox").hidden = false; $("tutStep").textContent = `${Math.min(T.step + 1, 4)} / 4 · ${TUT[T.step][0]}`; $("tutMsg").textContent = TUT[T.step][1];
+}
+function endTutorial() { if (!G.tut) return; G.tut = null; G.lapsOverride = TEST && QS.get("laps") ? Number(QS.get("laps")) : 0; $("tutBox").hidden = true; }
+$("tutBtn").addEventListener("click", startTutorial);
+function afterTitle() { if (!save.tutHint && !save.tutDone && !TEST) { save.tutHint = true; writeSave(); setTimeout(() => toast("New here? Tap Tutorial at the bottom of the home screen for a 1-minute guided lap", 5000), 900); } }
+
+// daily streak reward, and (with online play) "I'm online" + listening for race invites
+if (!TEST) checkStreak(); syncBadges();
+setTimeout(() => { if (G.mode === "menu") startTitle(); else afterTitle(); }, 50);
+setTimeout(startPresence, 2500);
 
 // ---------- boot ----------
 loadTrack(QS.get("track") || save.track || "gp");
@@ -1647,7 +2109,8 @@ function frame(now) {
   const raw = now - last;
   const real = Math.min(TEST ? 0.25 : 0.1, raw / 1000); last = now;
   if (G.mode === "race" && !document.hidden && raw < 200) world.adapt(raw);
-  acc += real * TIME_SCALE;
+  if (G.slowmo > 0) G.slowmo -= real; // photo finish: the last metres play at a third of the speed
+  acc += real * TIME_SCALE * (G.slowmo > 0 ? 0.3 : 1);
   let n = 0;
   while (acc >= STEP && n++ < 240 && !(STOP_TICK && G.tick >= STOP_TICK)) {
     for (const v of movers()) { v.px = v.x; v.py = v.y; v.pz = v.z; v.ph = v.h; }
@@ -1669,7 +2132,8 @@ function frame(now) {
     if (F.t >= 500) { $("fpsV").textContent = `${Math.round((F.n * 1000) / F.t)} fps · ${Math.round((world.prScale || 1) * 100)}% res · ${world.renderer.info.render.calls} draws`; F.n = 0; F.t = 0; }
   }
   if (G.splitRace && G.p2 && G.mode !== "menu") { world.renderSplit([camera, camera2]); G.wasSplit = true; }
-  else { if (G.wasSplit) { G.wasSplit = false; world.resize(); } world.render(G.mode === "menu" ? showroom.scene : null); }
+  else { if (G.wasSplit) { G.wasSplit = false; world.resize(); } world.render(G.mode === "menu" && !G.title ? showroom.scene : null); }
+  if (G.clip) clipCompose();
   for (const [v, x, y, z, h] of saved) { v.x = x; v.y = y; v.z = z; v.h = h; }
   requestAnimationFrame(frame);
 }
