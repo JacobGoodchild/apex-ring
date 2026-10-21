@@ -362,7 +362,7 @@ function show(id) {
   if (id === "settings") refreshSettings();
   if (id === "career") buildCareer();
   if (id === "daily") refreshDaily();
-  if (id === "online") refreshOnline();
+  if (id === "online") { refreshOnline(); if (!save.wentOnline) { save.wentOnline = true; writeSave(); } setTimeout(startPresence, 500); }
   if (id === "setup") {
     G.event = null;
     const base = THEMES[G.track.theme], wantNight = (G.wantTime || "day") === "night" || !!base.stars;
@@ -909,7 +909,7 @@ function uploadLap(track, lap) {
   for (const k of Object.keys(U)) if (!k.endsWith(wk) && !k.endsWith(se)) delete U[k]; // keep only this week's and season's
   writeSave(); uploadLapNow(track, lap);
 }
-function uploadLapNow(track, lap) { if (onlineReady() && !TEST) ensureProfile().then(() => postLap(track, lap, save.car)).catch(() => {}); }
+function uploadLapNow(track, lap) { if (onlineReady() && !TEST && save.wentOnline) ensureProfile().then(() => postLap(track, lap, save.car)).catch(() => {}); }
 function doAddFriend() {
   const code = $("oFriendCode").value.trim().toUpperCase(); if (!code) return;
   sfx.click();
@@ -927,7 +927,7 @@ function onlineTab(o) {
 
 // ---------- online ghosts: your best time-trial lap goes up; a 👻 on a board row loads that driver's lap to race ----------
 function uploadGhost(track, rec) {
-  if (!onlineReady() || TEST) return;
+  if (!onlineReady() || TEST || !save.wentOnline) return;
   encodeGhost(rec, track, save.car, myName()).then((data) => ensureProfile().then(() => postGhost(track, rec.t, save.car, data))).catch(() => {});
 }
 async function raceGhost(userId, name, track) {
@@ -990,7 +990,8 @@ $("oFriendList").addEventListener("click", (e) => {
 });
 // presence: while the game is open, say "I'm here" every minute and listen on your own channel for invites
 function startPresence() {
-  if (!onlineReady() || TEST || G.presence) return;
+  // only for players who've used Online: nobody gets a guest account just for opening the game
+  if (!onlineReady() || TEST || G.presence || !save.wentOnline) return;
   G.presence = true;
   let timer = 0;
   const beat = () => { if (!document.hidden) touchSeen().catch(() => clearInterval(timer)); }; // stop if the server doesn't have "last seen" yet

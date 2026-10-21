@@ -26,6 +26,8 @@ test("game works offline after the first visit", async ({ page, context }) => {
   await page.waitForFunction(() => navigator.serviceWorker.controller != null, null, { timeout: 15_000 });
   await context.setOffline(true);
   await page.reload();
+  // the real game opens on its title screen: tap past it
+  await page.waitForSelector("#title:not([hidden])", { timeout: 20_000 }).then(() => page.mouse.click(20, 20)).catch(() => {});
   await expect(page.locator("#raceBtn")).toBeVisible({ timeout: 20_000 });
   await context.setOffline(false);
 });
