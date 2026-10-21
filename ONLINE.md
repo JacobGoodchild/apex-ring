@@ -24,6 +24,13 @@ This makes three tables:
 It also turns on safety rules: everyone can read the leaderboards, but each player can only add
 their own laps and change their own profile.
 
+### 2b. Run the two follow-up files (once)
+Paste each of these into **SQL Editor → New query** and press **Run**, in order:
+1. `supabase/schema-v2.sql`: online ghost laps, "last seen" for the friends-online dot, Racer#### names.
+2. `supabase/schema-v3.sql`: tightens security. Lap and ghost times always get the server's clock (no backdated or
+   future laps), friend codes / online status / invite inboxes are visible to your friends only, and players can only
+   change their own name.
+
 ## 3. Turn on guest sign-in
 Players don't need an email or password. Each phone signs in as an anonymous guest the first
 time it goes online.
@@ -69,7 +76,12 @@ Or just send me the URL and the anon key, and I'll put them in and push.
   4. During the race you see your friends' real cars where they are on the track, and the
      position counter includes them.
   5. When the race ends, **Menu** takes you back to the room for another go.
-- **Profile:** set the driver name shown on the boards.
+- **Weekly:** one track for everyone each week (Monday to Sunday), with its own world board.
+- **Ghosts:** tap 👻 on a board row to race that driver's best lap.
+- **Friends:** online dots, and **Invite** buttons when you're in a race room.
+- **Race rooms:** Ready, Rematch, emoji reactions, name tags over friends' cars, and *Watch friends finish*.
+- **Profile:** your driver name (everyone starts as Racer####), badges, wing skins and your season title.
+- The game only signs in once a player has opened the Online screen, so nobody gets a guest account just for playing.
 
 ## Good to know
 - **Free tier limits:** about 200 people connected to rooms at once, plenty of database for lap
