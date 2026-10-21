@@ -337,3 +337,6 @@ body:has(.screen.full:not([hidden])) .topbar .brand { visibility: hidden; }
 body:has(#flightHud:not([hidden])) #driftPop, body:has(#flightHud:not([hidden])) #drift { top: calc(var(--safe-t) + 150px); }
 body:has(#flightHud:not([hidden])) #subtitle { top: calc(var(--safe-t) + 196px); }
 @media (max-width: 500px) { body:has(#flightHud:not([hidden])) #driftPop, body:has(#flightHud:not([hidden])) #drift { top: calc(var(--safe-t) + 186px); } body:has(#flightHud:not([hidden])) #subtitle { top: calc(var(--safe-t) + 230px); } }
+/* in a race, messages are a slim pill under the timer instead of a box over the road */
+body:has(#hud:not([hidden])) #toast { top: calc(var(--safe-t) + 96px); padding: 4px 12px; font-size: 12px; letter-spacing: .04em; border-radius: 999px;
+  background: rgba(10, 14, 22, .55); border-color: rgba(255, 255, 255, .12); max-width: min(80vw, 320px); pointer-events: none; }

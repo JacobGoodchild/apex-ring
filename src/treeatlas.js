@@ -12,4 +12,9 @@ export const TREE_CELLS = [
   { key: "broad", cell: 6, base: 0.244, extent: 9.83, height: 5.03 },
   { key: "broad", cell: 7, base: 0.302, extent: 8.58, height: 3.41 },
   { key: "quiver", cell: 8, base: 0.010, extent: 2.77, height: 2.72 },
+  { key: "grass", cell: 9, base: 0.314, extent: 0.38, height: 0.14 },
+  { key: "grass", cell: 10, base: 0.371, extent: 0.39, height: 0.10 },
+  { key: "grass", cell: 11, base: 0.279, extent: 0.41, height: 0.18 },
+  { key: "bush", cell: 12, base: 0.211, extent: 3.74, height: 2.16 },
+  { key: "bush", cell: 13, base: 0.031, extent: 0.38, height: 0.35 },
 ];

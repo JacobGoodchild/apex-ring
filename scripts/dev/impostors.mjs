@@ -5,7 +5,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 // [key, model, which variants (null = all), max variants]
 // (variants [-1] = the whole file is a single tree split into parts)
 const TREES = [["pine", "fir_tree_01", null, 3], ["fir", "fir_sapling_medium", null, 3], ["broad", "island_tree_01", [-1], 1], ["broad", "island_tree_02", [-1], 1],
-  ["quiver", "quiver_tree_01", [-1], 1], ["grass", "grass_medium_01", [-1], 1], ["grass", "grass_medium_02", [-1], 1], ["bush", "shrub_02", [-1], 1], ["bush", "shrub_03", [-1], 1]];
+  ["quiver", "quiver_tree_01", [-1], 1], ["grass", "grass_medium_01", [0, 6], 2], ["grass", "grass_medium_02", [1], 1], ["bush", "shrub_02", [0], 1], ["bush", "shrub_03", [1], 1]];
 const b = await chromium.launch({ args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--js-flags=--max-old-space-size=6000"] });
 const p = await b.newPage({ viewport: { width: 512, height: 1024 } });
 p.on("console", (m) => console.log("page:", m.text()));

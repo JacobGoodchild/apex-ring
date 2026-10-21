@@ -188,7 +188,7 @@ export function buildScenery(path, theme, density, seed) {
         if (nearGap(d)) continue;
         const side = rnd() < 0.5 ? -1 : 1, cell = tufts[Math.floor(rnd() * tufts.length)], bush = cell.key === "bush";
         path.pointAt(d, side * (edge + 0.8 + rnd() * (bush ? 10 : 6)), tmp);
-        const s = (bush ? 1.6 : 1.1) * (0.7 + rnd() * 0.6), c = new THREE.Color().setScalar(light * (0.75 + rnd() * 0.3));
+        const s = (bush ? 1.3 : 0.6) / Math.max(0.05, cell.height) * (0.7 + rnd() * 0.6), c = new THREE.Color().setScalar(light * (0.75 + rnd() * 0.3)); // tufts ~0.6 m, bushes ~1.3 m whatever size the model was
         verge.push({ x: tmp.x, z: tmp.z, y: ground(tmp.x, tmp.z) - cell.base * cell.extent * s, sx: cell.extent * 0.5 * s, sy: cell.extent * s, sz: 1, r: 0, cell: cell.cell, c });
       }
       if (verge.length) add(treeCards(verge, 0));
