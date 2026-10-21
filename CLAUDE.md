@@ -417,10 +417,10 @@ check of the canyon flight camera and the new message pill.
 ## Overnight run 4 (2026-10-21 20:05 UTC → 2026-10-22 06:00 UTC = 07:00 UK)
 Hourly routine "Apex Ring overnight run 4 check-in" wakes the session. Tested batches (scratchpad snaptest.sh, ~30 min),
 commitsnap.sh pushes to `claude/bold-cray-7rck1e` and `main`. Plan (tick as done):
-- [ ] F1 Bugs: Zeus wings fold away fast after landing; start/finish gantry text crisp and in proportion; default driver
+- [x] F1 Bugs: Zeus wings fold away fast after landing; start/finish gantry text crisp and in proportion; default driver
       name "Racer####" (unique 4 digits), old "Driver" profiles renamed on next sign-in; "Driver" -> "Racer" wording.
-- [ ] F2 Supabase v2 SQL (ghosts table, weekly board) written first and handed to the user to run.
-- [ ] F3 Feel: bigger sparks, realistic exhaust flame (flickering core, glow, pops on lift-off), boost warp sound + effect.
+- [x] F2 Supabase v2 SQL (ghosts table, weekly board) written first and handed to the user to run.
+- [x] F3 Feel: bigger sparks, realistic exhaust flame (flickering core, glow, pops on lift-off), boost warp sound + effect.
 - [ ] F4 Friend races: Ready / Rematch, name tags over friends' cars, quick emoji reactions.
 - [ ] F5 Weekly online challenge (seeded week track, weekly world board) + badges section in Profile.
 - [ ] F6 Ghost races online: race the world record / a friend's uploaded lap.
@@ -435,3 +435,32 @@ commitsnap.sh pushes to `claude/bold-cray-7rck1e` and `main`. Plan (tick as done
       livery / sticker editor (13), title screen fly-by (14), optional short tutorial with a small Tutorial button on the
       home screen and a one-time hint (16).
 Order: F1+F3 -> F2/F4/F5/F6/7/8/9/10 -> F7/5/6 -> F8/1/3/4 -> F9/11/12/13/14/16.
+
+### Overnight run 4 progress log
+- F1/F3 (published 79718af): wings fold at 3.2/s with a servo whirr; start gantry sign drawn at the panel's real
+  proportions in Barlow Condensed (redrawn when the font loads); myName() = save.driverName or a saved Racer####;
+  Sparks: streak lines + glowing Points heads, bounce on the road, landing showers; exhaust = shader flame on three
+  crossed planes (core / turbulence / shock diamonds / nozzle glow sprite), orange pops + sfx.crackle on lift-off;
+  sfx.warp() + ChaseCam.punch FOV kick on boost. Split-screen test now holds the key until P2 has moved.
+- Online (needs supabase/schema-v2.sql for ghosts + last seen): Global board = this season (month) by default with
+  titles by rank (Apex Legend / Gold / Silver) or All time; 👻 buttons race a driver's uploaded ghost (time-trial
+  PB ghosts upload via uploadGhost); laps upload when they beat your best this week or season (save.upBest). Weekly
+  tab: weeklyTrack() seeded by the Monday, weekly board, Race it. Friends tab: list with online dots (last_seen
+  within 150 s, touchSeen every minute, stops if the column is missing) and Invite (broadcast "inv" on the friend's
+  personal channel "U"+code; G.inbox listens). Rooms: Ready flags in "hi", host Start shows n/m ready, Rematch on the
+  host's results (guests follow the "go" from the results screen), emoji reactions ("re"), Watch friends finish
+  (spectate camera), name tags over friends. Badges (BADGES in main.js) in Profile + wing skins (wings.js WING_SKINS).
+  Daily login streak (coins, not in test mode).
+- Flight: def.rings / def.updrafts (trackmesh builds hoops + rising specks; vehicle lifts you in an updraft);
+  lightning strikes pick a spot ahead while you fly (glow, then boltAt; <5 m ZAPPED, <15 m NEAR MISS; no direct hits
+  in test mode). Sky Islands (SPECIAL_TRACKS "sky", theme skyisle, canyonLen 650): two chasms, rings, updrafts,
+  floating rock islands + waterfall (theme.floating), raced from the Daily screen (SKY_EVENT), badge "sky".
+- Spectacle: share replay (hlRecord 20 Hz of all cars + scored events; hlWindow picks the best 8 s; clip mode puppets
+  the cars with a camera director and slow-mo at the peak; clipCompose draws the frame + logo/result/itch URL into a
+  2D canvas recorded by MediaRecorder with the game audio (sfx.audioStream); Web Share or download). Photo-finish
+  slow-mo (G.slowmo scales the frame accumulator, side camera). Fireworks + sfx.cheer on a win. Lens rain drops
+  (#drops canvas, half res) in wet races.
+- Garage: underglow (UNDERGLOW, setUnderglow), livery tab (patterns incl. Le Mans / Two-tone / Stripes + number,
+  colour, race number stepper cs.number), showroom moment on picking a car (doors, headlight flicker, sfx.rev).
+- Title screen fly-by (not in test mode) and an optional tutorial (Tutorial link on the home screen, one-time hint,
+  1 guided lap of Dusk Oval, +200 coins once).

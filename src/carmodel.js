@@ -53,20 +53,36 @@ function loft({ z0, z1, nz = 40, nt = 28, w, t, b, n = 2.6, tumble = () => 0.85,
 
 const box = (w, h, d, x, y, z, rx = 0, ry = 0, rz = 0) => { const g = new THREE.BoxGeometry(w, h, d); g.rotateX(rx); g.rotateY(ry); g.rotateZ(rz); g.translate(x, y, z); return g; };
 const strip = (g) => { const keep = new THREE.BufferGeometry(); keep.setAttribute("position", g.getAttribute("position")); keep.setAttribute("normal", g.getAttribute("normal")); if (g.index) keep.setIndex(g.index); return keep; };
-const mergeAll = (list) => mergeGeometries(list.map((g) => strip(g.index ? g : g.toNonIndexed ? g : g)), false);
+// merge parts into one geometry; if any part has no index (extruded shapes), drop the index from all of them so they match
+const mergeAll = (list) => { const flat = list.some((g) => !g.index); return mergeGeometries(list.map((g) => strip(flat && g.index ? g.toNonIndexed() : g)), false); };
+
+// a wing section: a rounded leading edge tapering to a thin trailing edge, extruded across the car's width
+function aerofoil(span, chord, thick, x, y, z, aoa) {
+  const sh = new THREE.Shape(); sh.moveTo(0, 0);
+  sh.bezierCurveTo(0, thick * 0.9, chord * 0.25, thick, chord * 0.45, thick * 0.8); sh.bezierCurveTo(chord * 0.75, thick * 0.55, chord * 0.95, thick * 0.2, chord, 0.005);
+  sh.lineTo(chord, -0.005); sh.bezierCurveTo(chord * 0.7, -thick * 0.15, chord * 0.2, -thick * 0.3, 0, 0);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: span, bevelEnabled: false, curveSegments: 6 });
+  g.translate(0, 0, -span / 2); g.rotateY(Math.PI / 2); g.rotateX(aoa); g.translate(x, y, z); g.computeVertexNormals();
+  return g;
+}
 
 const MATS = {};
 function mats(paintHex) {
   if (!MATS.carbon) {
     MATS.carbon = new THREE.MeshStandardMaterial({ color: 0x15171c, metalness: 0.4, roughness: 0.4 });
-    MATS.glass = new THREE.MeshPhysicalMaterial({ color: 0x0a121c, metalness: 0.3, roughness: 0.04, clearcoat: 1, envMapIntensity: 1.0 });
+    // tinted glass you can see into (the cabin has seats, a dash and a wheel), with crisp sky reflections on top
+    MATS.glass = new THREE.MeshPhysicalMaterial({ color: 0x1b2a38, metalness: 0.1, roughness: 0.03, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.7,
+      transparent: true, opacity: 0.62, depthWrite: false, specularIntensity: 1, side: THREE.DoubleSide });
+    MATS.cabin = new THREE.MeshStandardMaterial({ color: 0x16171b, roughness: 0.85 });
+    MATS.leather = new THREE.MeshStandardMaterial({ color: 0x5a1a14, roughness: 0.6 });
+    MATS.trim = new THREE.MeshStandardMaterial({ color: 0x1d1f24, roughness: 0.55, metalness: 0.2, side: THREE.DoubleSide });
     MATS.dark = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.8 });
     MATS.head = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeeff, emissiveIntensity: 1.6, polygonOffset: true, polygonOffsetFactor: -3 });
     MATS.tyre = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.92 });
     MATS.disc = new THREE.MeshStandardMaterial({ color: 0x5a5e66, metalness: 0.8, roughness: 0.35 });
   }
   return {
-    paint: new THREE.MeshPhysicalMaterial({ color: paintHex, metalness: 0.5, roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.08 }),
+    paint: new THREE.MeshPhysicalMaterial({ color: paintHex, metalness: 0.5, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 }),
     tail: new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff1a0a, emissiveIntensity: 1.4, polygonOffset: true, polygonOffsetFactor: -3 }),
     rim: new THREE.MeshStandardMaterial({ color: 0x9aa1ab, metalness: 0.95, roughness: 0.2 }),
     caliper: new THREE.MeshStandardMaterial({ color: 0xf2a65a, roughness: 0.35 }),
@@ -128,17 +144,20 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   const w = (z) => S.wid * curve([[L, 0.78], [L - 0.35, 0.93], [zf, 1.0], [0.4, 0.94 * S.waist], [-0.5, 0.96 * S.waist], [zr, 1.03], [-L + 0.3, 0.97], [-L, 0.9]])(z) + S.bulge * arch(z);
   const t = curve([[L, S.nose - 0.12], [L - 0.15, S.nose], [L - 0.6, S.hood - 0.12], [zf, S.hood], [S.cabinZ + 0.8, S.hood + 0.06], [S.cabinZ - 0.6, S.deck], [-L + 0.25, S.tail], [-L, S.tail - 0.25]]);
   const b = (z) => 0.16 + 0.02 * smooth(L - 0.5, L, z) + 0.5 * Math.min(1, arch(z)) * smooth(0, 1, arch(z) * 2);
-  const shell = loft({ z0: -L, z1: L, nz: 64, nt: 32, w, t, b, n: S.n, tumble: () => S.tumble });
+  const shell = loft({ z0: -L, z1: L, nz: 84, nt: 40, w, t, b, n: S.n, tumble: () => S.tumble });
   // cabin canopy
   const c0 = S.cabinZ - S.cabinLen * 0.55, c1 = S.cabinZ + S.cabinLen * 0.45;
   const ct = curve([[c1, t(c1) - 0.02], [c1 - 0.55, S.cabinH - 0.05], [S.cabinZ - 0.2, S.cabinH], [c0 + 0.5, S.cabinH - 0.12], [c0, t(c0) + 0.02]]);
-  const cabin = loft({ z0: c0, z1: c1, nz: 28, nt: 22, w: (z) => S.cabinW * (0.85 + 0.15 * Math.sin(Math.PI * (z - c0) / (c1 - c0))), t: ct, b: (z) => t(z) - 0.12, n: 2.4, tumble: () => 0.62 });
+  const cabin = loft({ z0: c0, z1: c1, nz: 36, nt: 28, w: (z) => S.cabinW * (0.85 + 0.15 * Math.sin(Math.PI * (z - c0) / (c1 - c0))), t: ct, b: (z) => t(z) - 0.12, n: 2.4, tumble: () => 0.62 });
   const paintParts = [shell];
   // roof spine in body colour
   paintParts.push(loft({ z0: c0 + 0.35, z1: c1 - 0.5, nz: 16, nt: 10, w: () => 0.16, t: (z) => ct(z) + 0.025, b: (z) => ct(z) - 0.04, n: 2, th0: 0, th1: Math.PI }));
   // mirrors
   const mz = c1 - 0.55;
-  for (const s of [-1, 1]) { paintParts.push(box(0.16, 0.09, 0.2, s * (w(mz) - 0.02), t(mz) + 0.13, mz)); paintParts.push(box(0.03, 0.12, 0.05, s * (w(mz) - 0.1), t(mz) + 0.05, mz)); }
+  for (const s of [-1, 1]) {
+    const cap = new THREE.SphereGeometry(0.1, 14, 10); cap.scale(0.85, 0.55, 1.15); cap.translate(s * (w(mz) + 0.01), t(mz) + 0.14, mz); paintParts.push(cap);
+    const arm = new THREE.CylinderGeometry(0.018, 0.022, 0.16, 8); arm.rotateZ(s * 0.9); arm.translate(s * (w(mz) - 0.07), t(mz) + 0.08, mz); paintParts.push(arm);
+  }
   const carbonParts = [];
   if (S.splitter) carbonParts.push(box(S.wid * 2.02, 0.04, 0.4, 0, 0.17, L - 0.15));
   carbonParts.push(box(S.wid * 1.8, 0.24, 0.35, 0, 0.3, -L + 0.12, 0.45));
@@ -149,10 +168,12 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   // wing
   const wingY = S.wing === "high" ? S.deck + 0.42 : S.deck + 0.12;
   if (S.wing === "high" || S.wing === "low") {
-    carbonParts.push(box(S.wid * 2.1, 0.05, 0.42, 0, wingY, -L + 0.3, -0.12));
+    carbonParts.push(aerofoil(S.wid * 2.1, 0.44, 0.065, 0, wingY, -L + 0.52, -0.12));
     for (const s of [-1, 1]) {
       carbonParts.push(box(0.04, 0.24, 0.5, s * S.wid * 1.05, wingY - 0.04, -L + 0.3));
-      if (S.wing === "high") carbonParts.push(box(0.05, wingY - S.deck + 0.05, 0.1, s * 0.45, (wingY + S.deck) / 2 - 0.02, -L + 0.4));
+      if (S.wing === "high") { // swan-neck mounts: curved struts from the deck up over the wing
+        const h = wingY - S.deck + 0.05, neck = new THREE.TorusGeometry(h * 0.55, 0.022, 6, 12, Math.PI * 0.7); neck.rotateY(Math.PI / 2); neck.translate(s * 0.45, S.deck + h * 0.38, -L + 0.5); carbonParts.push(neck);
+      }
     }
   } else if (S.wing === "duck") paintParts.push(box(S.wid * 1.7, 0.06, 0.22, 0, S.tail + 0.05, -L + 0.12, -0.35));
   if (S.fin) paintParts.push(box(0.035, 0.16, 1.0, 0, S.deck + 0.06, -L + 0.95, -0.08));
@@ -188,16 +209,27 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
     const mesh = new THREE.Mesh(g, M.paint); mesh.position.set(-hinge.position.x, -hinge.position.y, -hinge.position.z);
     const win = loft({ z0: dz0 + 0.05, z1: dz1 - 0.05, nz: 6, nt: 6, w: (z) => S.cabinW * 1.02, t: (z) => ct(z) - 0.03, b: (z) => t(z) - 0.06, n: 2.4, tumble: () => 0.62, th0: s > 0 ? 0.15 : Math.PI - 1.2, th1: s > 0 ? 1.2 : Math.PI - 0.15, closeEnds: false });
     const wm = new THREE.Mesh(win, M.glass); wm.position.copy(mesh.position);
+    const card = new THREE.Mesh(loft({ z0: dz0 + 0.04, z1: dz1 - 0.04, nz: 10, nt: 8, w: (z) => w(z) - 0.06, t: (z) => t(z) - 0.04, b: () => 0.27, n: S.n, tumble: () => S.tumble, th0, th1, scale: 1, closeEnds: false }), M.trim);
+    card.position.copy(mesh.position);
     mesh.material.side = THREE.DoubleSide;
-    hinge.add(mesh, wm); hinge.userData.side = s; body.add(hinge); doors.push(hinge);
+    hinge.add(mesh, card, wm); hinge.userData.side = s; body.add(hinge); doors.push(hinge);
   }
   // rear number plate (made-up registration)
   {
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.12), new THREE.MeshStandardMaterial({ map: plateTex(def.id), roughness: 0.4, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2 }));
     plate.position.set(0, Math.max(0.36, Math.min(0.52, S.tail - 0.42)), -L - 0.015); plate.rotation.y = Math.PI; body.add(plate);
   }
-  // interior hint (seats) visible with doors open
-  add([box(0.42, 0.5, 0.12, 0.33, t(0) - 0.32, -0.45, -0.3), box(0.42, 0.5, 0.12, -0.33, t(0) - 0.32, -0.45, -0.3)], new THREE.MeshStandardMaterial({ color: 0x2a0f0f, roughness: 0.8 }), false);
+  // the cabin you see through the glass: a dark tub over the body top, seat backs with headrests, a dash and a steering wheel
+  const tub = loft({ z0: c0 + 0.1, z1: c1 - 0.1, nz: 12, nt: 12, w: (z) => S.cabinW * 0.95, t: (z) => t(z) + 0.012, b: (z) => t(z) - 0.05, n: 2.4, tumble: () => 0.62, th0: 0.2, th1: Math.PI - 0.2, closeEnds: false });
+  add([tub, box(S.cabinW * 1.5, 0.08, 0.32, 0, t(c1 - 0.35) + 0.07, c1 - 0.35, -0.25)], M.cabin, false);
+  const seatZ = S.cabinZ - 0.35, seats = [];
+  for (const s of [-1, 1]) {
+    const back = new THREE.CapsuleGeometry(0.17, 0.28, 4, 10); back.scale(1, 1, 0.45); back.rotateX(-0.28); back.translate(s * 0.31, t(seatZ) + 0.2, seatZ); seats.push(back);
+    const head = new THREE.SphereGeometry(0.1, 10, 8); head.scale(1, 0.85, 0.6); head.translate(s * 0.31, t(seatZ) + 0.47, seatZ - 0.1); seats.push(head);
+  }
+  add(seats, M.leather, false);
+  const wheel = new THREE.TorusGeometry(0.13, 0.018, 6, 20); wheel.rotateX(-0.55); wheel.translate(0.31, t(c1 - 0.55) + 0.18, c1 - 0.55);
+  add([wheel], M.carbon, false);
 
   // wheels
   const rim = RIMS[rimIdx % RIMS.length];
@@ -226,7 +258,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
 
 // Animate the doors: 0 = shut, 1 = fully open. Each style opens a different way.
 export function setDoors(car, open) {
-  const o = Math.max(0, Math.min(1, open));
+  let o = Math.max(0, Math.min(1, open)); o = o * o * (3 - 2 * o); // ease in and out, so doors glide rather than snap
   for (const d of car.doors) {
     const s = d.userData.side;
     d.rotation.set(0, 0, 0);
