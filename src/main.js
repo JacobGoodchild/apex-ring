@@ -575,6 +575,7 @@ function toMenu() {
   if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
   if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
   G.splitRace = false; input.split = false; G.field = G.rivals;
+  flushTrophies();
   ["finish", "pause", "count"].forEach((id) => ($(id).hidden = true));
   setRaceUI(false); showroom.setCar(G.car);
   show("menu");
@@ -625,7 +626,7 @@ function finishRace() {
   $("againBtn").textContent = G.event ? (G.eventOk ? "Replay event" : "Try again") : "Race again";
   $("againBtn").classList.toggle("ghost", !!next);
   if (G.event && G.eventOk && ni === EVENTS.length) setTimeout(() => toast("Career complete. You're the Apex champion!", 5000), 1600);
-  setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; } }, TEST ? 200 : 1400);
+  setTimeout(() => { if (G.mode === "done") { setRaceUI(false); $("finish").hidden = false; flushTrophies(); } }, TEST ? 200 : 1400);
 }
 
 // Time-trial medals: coins for each medal you reach for the first time on this layout
@@ -1073,7 +1074,7 @@ function step(dt) {
   const aid = assistLevel();
   const steerIn = input.tiltOn ? ctl.steer : smoothSteer(G.touch || (G.touch = {}), ctl.steer, v.vF, v.spec.vmax, dt);
   v.ctl.steer = ap ? ap.steer : racing ? assistSteer(v, G.path, steerIn, aid) : steerIn;
-  if (racing && ctl.boost) { v.ctl.boost = true; if (v.boost <= 0.12) toast("Boost is empty: drift to fill it.", 1400); }
+  if (racing && ctl.boost) { v.ctl.boost = true; if (v.boost <= 0.12) toast("Boost empty", 1200); }
   v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path, AUTO_BRAKE[save.settings.difficulty] || 1, aid ? 1 : 0);
   v.ctl.pro = !ap && save.settings.drive === "pro";
   v.ctl.throttle = ctl.throttle; v.ctl.brake = ctl.brake; v.ctl.handbrake = ctl.handbrake;
@@ -1158,7 +1159,7 @@ function eliminate() {
 }
 function dropLast(per) {
   const order = standings(), last = order[order.length - 1];
-  if (last.me) { G.eliminated = true; toast(`You're out! Last place drops out every ${per}.`, 2500); finishRace(); return; }
+  if (last.me) { G.eliminated = true; toast("You're out!", 2000); finishRace(); return; }
   last.out = true; last.model.group.visible = false; last.veh.reset(-2000, 0);
   G.field = G.field.filter((r) => r !== last);
   toast(last.name + " is out!", 1800); sfx.thud(4);
@@ -1444,7 +1445,17 @@ function drawRocks() {
 }
 
 // trophies: award once, pay out, and say so
-function trophy(id) { const t = award(save, id); if (t) { writeSave(); setTimeout(() => toast(`Trophy: ${t.name} · +${TROPHY_COINS}`, 2600), 300); sfx.chime(); } }
+// trophies won during a race wait for the results screen, so nothing pops up over the road
+function trophy(id) {
+  const t = award(save, id); if (!t) return;
+  writeSave(); sfx.chime();
+  if (G.mode === "race" || G.mode === "countdown" || G.mode === "done") (G.trophyQ = G.trophyQ || []).push(t.name);
+  else setTimeout(() => toast(`Trophy: ${t.name} · +${TROPHY_COINS}`, 2600), 300);
+}
+function flushTrophies() {
+  const q = G.trophyQ || []; G.trophyQ = [];
+  if (q.length) setTimeout(() => toast(`Trophy${q.length > 1 ? "s" : ""}: ${q.join(", ")} · +${TROPHY_COINS * q.length}`, 3200), 400);
+}
 // lifetime stats shown on the career map
 // a "real" race has someone to beat (solo time trials and drift runs always finish "1st")
 const realRace = () => !!G.realRace;
