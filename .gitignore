@@ -13,3 +13,4 @@ supabase/.temp/
 
 # itch.io upload builds (made on request, not kept in git)
 *-itch.zip
+itch/
