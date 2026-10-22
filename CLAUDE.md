@@ -477,3 +477,9 @@ Order: F1+F3 -> F2/F4/F5/F6/7/8/9/10 -> F7/5/6 -> F8/1/3/4 -> F9/11/12/13/14/16.
   body (84x40 loft), aerofoil rear wing on slim struts, rounded mirrors, deeper clear-coat.
 - Published afa39f4 (big update). Online only connects (presence, uploads) once the player has opened Online
   (save.wentOnline); the offline PWA test taps past the title screen.
+- Later fixes: win fireworks launch ~150 m ahead of wherever the camera is at each launch (the car rolls on past the
+  line) with solid sparks that fade by alpha (additive sparks vanished on pale skies); lens drops a bit stronger; Sky
+  Islands greener (groundTint), pale rock islands with grassy tops, waterfall hangs clear of the cliff and fades out;
+  spark heads back to rgb; left tyre lettering turned round, not mirrored; rival cars disposed between races
+  (disposeCar); a rival within ~4 m of the camera is hidden (m.nearHid, only undoes its own hiding); the position chip
+  flashes green (+ sfx.passed) / red when you gain / lose a place.
