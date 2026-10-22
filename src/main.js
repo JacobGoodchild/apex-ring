@@ -1646,7 +1646,7 @@ function step(dt) {
     // drift points: build while sliding, banked when the slide ends
     // drift points build while sliding and are banked when the slide ends; linking drifts within 1.5 s of each
     // other raises a multiplier (up to x5), and a wall hit mid-drift loses the drift and the chain
-    if (v.driftTime > 0.25) {
+    if (v.driftTime > 0.25 && !v.airborne && !v.flying) { // no drift points in the air
       if (G.driftPts === 0) G.mult = G.raceTime - (G.lastBank ?? -9) < 1.5 ? Math.min(5, (G.mult || 1) + 1) : 1;
       G.driftPts += dt * v.vF * Math.abs(v.driftAngle) * 6; G.driftShow = 1.5;
       if (v.wallHit > 2) { G.driftPts = 0; G.mult = 1; G.lastBank = -9; popDrift("", "DRIFT LOST"); }
