@@ -487,3 +487,11 @@ Order: F1+F3 -> F2/F4/F5/F6/7/8/9/10 -> F7/5/6 -> F8/1/3/4 -> F9/11/12/13/14/16.
   lenses; trophy notes on the results pop up near the bottom; no drift points in the air; rivals, ghosts and friends'
   cars are "lite" (makeCar(..., lite=true): no cabin interior, tyre lettering, discs or calipers, ~15 fewer draw calls
   each). A local .git/hooks/pre-commit runs scripts/sw.mjs so sw.js never goes stale (CI fails on a stale sw.js).
+
+### Run 4 summary (2026-10-21 20:05 → 2026-10-22 ~04:15 UTC)
+Every F1–F10 item and all the agreed extras shipped, then polish and two review passes; the last suite (68 tests) passed
+and main is deployed. Lost ~10 min to a container restart (a test run had to be repeated). For the user to do: paste
+supabase/schema-v2.sql then schema-v3.sql into the Supabase SQL Editor (online ghosts, friends-online dots, invites and
+the tighter security need them); re-upload apex-ring-itch.zip to itch.io. Ideas next: a real-phone check of the flight
+tracks and the share-replay video, per-car silhouettes from the front (the noses still look alike), mist at the foot of
+the Sky Islands waterfall.
