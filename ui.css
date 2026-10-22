@@ -410,3 +410,5 @@ body.titling #menu, body.titling #topbar { display: none !important; }
   #garage .stats { font-size: 11px; }
   #garage .panel { max-height: 22vh; }
 }
+/* on the results the card fills the top, so trophy notes pop up near the bottom instead (and let taps through) */
+body:has(#finish:not([hidden])) #toast { top: auto; bottom: calc(var(--safe-b) + 18px); pointer-events: none; box-shadow: 0 8px 30px rgba(0, 0, 0, .6); }
