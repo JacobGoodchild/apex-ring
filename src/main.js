@@ -274,7 +274,7 @@ function makeP2() {
 function makeBoss(ev) {
   const prof = RIVALS.find((r) => r.name === ev.rival) || RIVALS[0], def = carById(ev.car);
   const veh = new Vehicle(carSpec(def, {}), G.path);
-  const model = makeCar(def, prof.color, 2, 4);
+  const model = makeCar(def, prof.color, 2, 4, true);
   model.group.traverse((o) => { if (o.isMesh) o.castShadow = false; }); model.body.children[0].castShadow = true;
   addFlames(model); addBeams(model); addContactShadow(model); model.beams.visible = !!G.night; setFinish(model, 2, prof.color); setTrail(model, 3); setDoors(model, 0);
   scene.add(model.group);
@@ -290,7 +290,7 @@ function buildRivals() {
   for (let k = 0; k < G.nRivals; k++) {
     const prof = RIVALS[k % RIVALS.length], def = CARS[(k + 1) % 7]; // the original seven hypercars
     const veh = new Vehicle(carSpec(def, {}), G.path);
-    const model = makeCar(def, prof.color, k % 4, [1, 4, 2, 3, 0, 4, 1][k % 7]);
+    const model = makeCar(def, prof.color, k % 4, [1, 4, 2, 3, 0, 4, 1][k % 7], true);
     model.group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
     model.body.children[0].castShadow = true;
     addFlames(model); addBeams(model); addContactShadow(model); model.beams.visible = !!G.night;
@@ -572,11 +572,11 @@ function startRace() {
   for (const r of G.rivals) { r.model.group.visible = G.field.includes(r); r.model.nearHid = false; }
   G.elimDone = 0; G.eliminated = false; G.attackShown = -1;
   if (ev && ev.type === "boss") setTimeout(() => toast("BOSS BATTLE · " + ev.desc.split(".")[0], 3200), 300);
-  if (!G.ghost) { G.ghost = new Ghost(makeCar(CARS[0], 0xffffff)); scene.add(G.ghost.model.group); }
+  if (!G.ghost) { G.ghost = new Ghost(makeCar(CARS[0], 0xffffff, 0, 0, true)); scene.add(G.ghost.model.group); }
   save.ghosts = save.ghosts || {};
   G.ghost.load(trialMode() ? save.ghosts[G.track.id] : null); G.ghost.startLap();
   // a friend's ghost (pasted as a code) races too, in orange
-  if (!G.friend) { G.friend = new Ghost(makeCar(CARS[0], 0xffffff), 0xffa24c); scene.add(G.friend.model.group); }
+  if (!G.friend) { G.friend = new Ghost(makeCar(CARS[0], 0xffffff, 0, 0, true), 0xffa24c); scene.add(G.friend.model.group); }
   const fg = (save.friendGhosts || {})[G.track.id];
   G.friend.load(trialMode() && fg ? fg : null);
   if (trialMode() && fg) setTimeout(() => toast(`Racing ${fg.n}'s ghost · ${fmt(fg.t)}`, 2200), 600);
@@ -1163,7 +1163,7 @@ function netFrame(dt) {
   const now = performance.now();
   for (const q of n.peers.values()) {
     if (!q.at) continue;
-    if (!q.model) { q.model = makeCar(carDef(q.car), q.color); scene.add(q.model.group); }
+    if (!q.model) { q.model = makeCar(carDef(q.car), q.color, 0, 0, true); scene.add(q.model.group); }
     const g = q.model.group; g.visible = true;
     // aim a little ahead of the last report along its velocity (reports come 10 a second), and ease toward it
     const a = q.at, b = q.prev, k = b && a.t > b.t ? Math.min(0.25, (now - a.t) / 1000) / ((a.t - b.t) / 1000) : 0;

@@ -157,7 +157,9 @@ function wheelGeos(r, wdt, rim) {
   return { tyre: tyreG, rim: mergeGeometries(parts), disc, wall };
 }
 
-export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
+// lite: for rivals, ghosts and friends' cars - no cabin interior, tyre lettering, brake discs or calipers (about 15 fewer
+// draw calls a car, which adds up on a full grid); the player's own car always gets everything
+export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0, lite = false) {
   const S = Object.assign({ bulge: 0.035, waist: 1, n: 3.2, tumble: 0.8, len: 4.7, wid: 1.0, nose: 0.42, hood: 0.72, deck: 0.92, tail: 0.86, cabinZ: -0.05, cabinLen: 2.3, cabinH: 1.2, cabinW: 0.72,
     wing: "high", wheelR: 0.36, intake: true, splitter: true, fin: false }, def.shape || {});
   const M = mats(paintHex);
@@ -260,6 +262,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
     plate.position.set(0, Math.max(0.36, Math.min(0.52, S.tail - 0.42)), -L - 0.015); plate.rotation.y = Math.PI; body.add(plate);
   }
   // the cabin you see through the glass: a dark tub over the body top, seat backs with headrests, a dash and a steering wheel
+  if (!lite) {
   const tub = loft({ z0: c0 + 0.1, z1: c1 - 0.1, nz: 12, nt: 12, w: (z) => S.cabinW * 0.95, t: (z) => t(z) + 0.012, b: (z) => t(z) - 0.05, n: 2.4, tumble: () => 0.62, th0: 0.2, th1: Math.PI - 0.2, closeEnds: false });
   add([tub, box(S.cabinW * 1.5, 0.08, 0.32, 0, t(c1 - 0.35) + 0.07, c1 - 0.35, -0.25)], M.cabin, false);
   // seat backs sized to fit under the canopy (the roof is lowest at the sides, so they sit well inside it)
@@ -272,6 +275,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   add(seats, M.leather, false);
   const wheel = new THREE.TorusGeometry(0.13, 0.018, 6, 20); wheel.rotateX(-0.55); wheel.translate(0.31, t(c1 - 0.55) + 0.18, c1 - 0.55);
   add([wheel], M.carbon, false);
+  }
 
   // wheels
   const rim = RIMS[rimIdx % RIMS.length];
@@ -285,11 +289,11 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
     const pivot = new THREE.Group(); pivot.position.set(s * (S.wid * 0.9), S.wheelR, z); car.add(pivot);
     const spin = new THREE.Group(); pivot.add(spin);
     const tm = new THREE.Mesh(wg.tyre, M.tyre); tm.castShadow = true; spin.add(tm);
-    const wl = new THREE.Mesh(wg.wall, M.wall); if (s < 0) wl.rotation.y = Math.PI; spin.add(wl); // turned round, not mirrored, so the lettering reads right on both sides
+    if (!lite) { const wl = new THREE.Mesh(wg.wall, M.wall); if (s < 0) wl.rotation.y = Math.PI; spin.add(wl); } // turned round, not mirrored, so the lettering reads right on both sides
     const rm = new THREE.Mesh(wg.rim, rimMat); rm.scale.x = s; spin.add(rm); rimMeshes.push(rm);
-    const disc = new THREE.Mesh(wg.disc, M.disc); disc.position.x = -s * 0.05; pivot.add(disc);
+    if (!lite) { const disc = new THREE.Mesh(wg.disc, M.disc); disc.position.x = -s * 0.05; pivot.add(disc); }
     const bl = new THREE.Mesh(blurGeo, blurMat); bl.rotation.y = s * Math.PI / 2; bl.position.x = s * 0.17; bl.visible = false; pivot.add(bl); blurs.push(bl);
-    const cal = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.26), M.caliper); cal.position.set(-s * 0.02, S.wheelR * 0.42, 0.12 * Math.sign(z)); pivot.add(cal);
+    if (!lite) { const cal = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.26), M.caliper); cal.position.set(-s * 0.02, S.wheelR * 0.42, 0.12 * Math.sign(z)); pivot.add(cal); }
     wheels.push(spin); if (i < 2) steerers.push(pivot);
   });
   const model = { blurs, blurMat, group: car, body, doors, doorType: def.doors || "scissor", wheels, steerers, paint: M.paint, rimMat, tailMat: M.tail, tailMesh, headMat: MATS.head,
