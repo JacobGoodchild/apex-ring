@@ -403,3 +403,10 @@ body.titling #menu, body.titling #topbar { display: none !important; }
 .hud .chip.down { animation: posDown .7s ease-out; }
 @keyframes posUp { 0% { background: rgba(46, 204, 113, .75); transform: scale(1.12); } 100% { transform: scale(1); } }
 @keyframes posDown { 0% { background: rgba(231, 76, 60, .7); } }
+/* garage on a phone held upright: the card sits low and scrolls, so the car stays in view above it */
+@media (orientation: portrait) {
+  #garage { align-items: flex-end; padding-bottom: 8px; }
+  #garage .card { max-height: 58vh; overflow-y: auto; padding: var(--s3) var(--s4); }
+  #garage .stats { font-size: 11px; }
+  #garage .panel { max-height: 22vh; }
+}

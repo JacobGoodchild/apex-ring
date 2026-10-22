@@ -357,6 +357,7 @@ function show(id) {
   $("topbar").hidden = !SCREENS.includes(id);
   G.screen = id;
   showroom.side = id === "garage" ? -2.4 : 1.6; // keep the car clear of the garage card (left) or the menu tiles (right)
+  showroom.lift = id === "garage" ? 1.6 : 0; // in portrait the garage card is taller than the menu tiles, so the car sits higher
   if (id === "garage") { G.garageCar = save.car; refreshGarage(); }
   if (id === "menu") { if (G.garageCar && G.garageCar !== save.car) buildPlayer(); refreshLobby(); }
   if (id === "settings") refreshSettings();

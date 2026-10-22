@@ -78,6 +78,8 @@ function mats(paintHex) {
     MATS.trim = new THREE.MeshStandardMaterial({ color: 0x1d1f24, roughness: 0.55, metalness: 0.2, side: THREE.DoubleSide });
     MATS.dark = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.8 });
     MATS.head = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeeff, emissiveIntensity: 1.6, polygonOffset: true, polygonOffsetFactor: -3 });
+    // projector lenses: dark polished glass with a faint cool glow, so they read as lenses rather than white dots
+    MATS.lens = new THREE.MeshStandardMaterial({ color: 0x1a2230, metalness: 0.9, roughness: 0.08, emissive: 0x9fc8ff, emissiveIntensity: 0.35 });
     MATS.tyre = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.92 });
     // drilled brake discs: a ring of small dark holes on a brushed-metal disc
     const dc = document.createElement("canvas"); dc.width = dc.height = 128; const dg = dc.getContext("2d");
@@ -227,10 +229,10 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
   // LED projector lenses: two small glowing lenses tucked under each headlight strip
   const lenses = [];
   for (const s of [-1, 1]) for (const k of [0, 1]) {
-    const z = hz0 + 0.02 + k * 0.1, x = s * (w(z) * (0.62 + k * 0.12)), lens = new THREE.SphereGeometry(0.045, 10, 8);
+    const z = hz0 + 0.02 + k * 0.1, x = s * (w(z) * (0.62 + k * 0.12)), lens = new THREE.SphereGeometry(0.036, 10, 8);
     lens.scale(1, 0.75, 0.6); lens.translate(x, t(z) - 0.06, z + 0.02); lenses.push(lens);
   }
-  add(lenses, M.head, false);
+  add(lenses, MATS.lens, false);
   const tailMesh = add(tails, M.tail, false);
   // grille / arch shadows / scoops
   add([...scoops, box(S.wid * 1.1, 0.1, 0.12, 0, (t(L - 0.08) + 0.2) / 2, L - 0.08), box(S.wid * 1.4, 0.14, 0.08, 0, 0.42, -L + 0.06)], M.dark, false);

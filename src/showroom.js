@@ -67,7 +67,7 @@ export class Showroom {
     camera.fov = portrait ? 52 : 40;
     camera.updateProjectionMatrix();
     // frame the car above the menu in portrait, and left of the menu tiles in landscape
-    const look = new THREE.Vector3(0, portrait ? -1.3 : 0.45, 0);
+    const look = new THREE.Vector3(0, portrait ? -1.3 - (this.lift || 0) : 0.45, 0);
     if (!portrait) { const right = new THREE.Vector3(Math.cos(a), 0, -Math.sin(a)); look.addScaledVector(right, this.side ?? 1.6); }
     camera.lookAt(look);
   }
