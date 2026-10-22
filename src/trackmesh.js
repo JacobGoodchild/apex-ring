@@ -236,7 +236,9 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
       c.fillStyle = "rgba(220,240,255,0.0)"; c.clearRect(0, 0, w, h);
       for (let i = 0; i < 90; i++) { const x = Math.random() * w, a = 0.25 + Math.random() * 0.5; c.fillStyle = `rgba(235,246,255,${a})`; c.fillRect(x, Math.random() * h, 1 + Math.random() * 2.5, 20 + Math.random() * 80); }
     }, { repeat: [3, 2] });
-    const fall = new THREE.Mesh(new THREE.PlaneGeometry(24, 220), new THREE.MeshBasicMaterial({ map: fallTex, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, color: 0xdff2ff }));
+    // fades out into spray as it falls (its own texture, so it doesn't scroll with the water)
+    const fallFade = canvasTex(4, 64, (c, w, h) => { const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "#ccc"); g.addColorStop(0.08, "#fff"); g.addColorStop(0.55, "#777"); g.addColorStop(1, "#000"); c.fillStyle = g; c.fillRect(0, 0, w, h); }, { srgb: false });
+    const fall = new THREE.Mesh(new THREE.PlaneGeometry(24, 220), new THREE.MeshBasicMaterial({ map: fallTex, alphaMap: fallFade, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, color: 0xdff2ff }));
     fall.position.set(tmp.x, tmp.y - 108, tmp.z); fall.rotation.y = tmp.h; fall.name = "waterfall"; group.add(fall);
   }
 
