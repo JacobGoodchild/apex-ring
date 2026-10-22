@@ -318,7 +318,7 @@ function gridUp() {
     if (k === Math.min(G.gridSlot, G.rivals.length)) k++;
     const [d, lat] = slot(G.field.length === 1 ? 0 : k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
-  G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null; hlReset(); G.photoFin = false; G.slowmo = 0;
+  G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null; hlReset(); G.photoFin = false; G.slowmo = 0; G.lastPos = -1;
   skids.clear(); G.driftPts = 0; G.airPops = 0; G.mult = 1; G.lastBank = -9; G.draftM = 0; G.topSpeed = 0; G.bestDrift = 0;
   if (G.rocks && G.path) G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock"); G.rocks = []; G.nextRock = 18; G.rockRnd = makeRng((SEED ^ 0x5eed) >>> 0); G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
 }
@@ -1945,6 +1945,12 @@ function render(dt) {
     if ((G.hudTick = (G.hudTick || 0) + 1) % 6 === 0) {
       const o = standings(), i = o.findIndex((e) => e.me);
       $("posV").textContent = ordinal(i + 1) + "/" + o.length;
+      // gained a place: the chip flashes green with a little rising blip; lost one: a red flash (no extra text on screen)
+      if (G.mode === "race" && G.lastPos >= 0 && i !== G.lastPos && G.raceTime > 2) {
+        const c = $("posV").parentElement; c.classList.remove("up", "down"); void c.offsetWidth; c.classList.add(i < G.lastPos ? "up" : "down");
+        if (i < G.lastPos && G.raceTime - (G.passT || -9) > 1.2) { G.passT = G.raceTime; sfx.passed(); }
+      }
+      G.lastPos = i;
       // gap to the car ahead (or behind when leading), in seconds at current speed
       const other = i > 0 ? o[i - 1] : o[1];
       if (other && G.mode === "race" && $("flightHud").hidden) {

@@ -196,6 +196,8 @@ export function rev() {
   g.gain.setValueAtTime(0.16, t + 1.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
   o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(master); o.start(t); o2.start(t); o.stop(t + 2.5); o2.stop(t + 2.5);
 }
+// a place gained: a quick soft rising blip
+export const passed = () => { tone(880, 0.09, "triangle", 0.05); tone(1320, 0.14, "triangle", 0.05, 0.06); };
 export const lapChime = () => { tone(784, 0.15, "triangle", 0.1); tone(1046, 0.25, "triangle", 0.1, 0.1); };
 export function fanfare(win) {
   const notes = win ? [523, 659, 784, 1046, 784, 1046] : [392, 440, 523];

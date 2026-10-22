@@ -398,3 +398,8 @@ body.photo #drops { display: none !important; }
 #title .tgo { margin-top: 6vh; font: 700 16px var(--body, sans-serif); letter-spacing: .2em; text-transform: uppercase; color: #fff; animation: tpulse 1.6s ease-in-out infinite; }
 @keyframes tpulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 body.titling #menu, body.titling #topbar { display: none !important; }
+/* position chip: a flash when you gain (green) or lose (red) a place */
+.hud .chip.up { animation: posUp .7s ease-out; }
+.hud .chip.down { animation: posDown .7s ease-out; }
+@keyframes posUp { 0% { background: rgba(46, 204, 113, .75); transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes posDown { 0% { background: rgba(231, 76, 60, .7); } }
