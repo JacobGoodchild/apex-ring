@@ -9,7 +9,7 @@ import { buildScenery } from "./scenery.js";
 import { hasTerrain } from "./terrain.js";
 import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse, rainy, nightly } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec, GARAGE_ORDER } from "./cars.js";
-import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY, UNDERGLOW, setUnderglow, disposeCar } from "./carmodel.js";
+import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY, UNDERGLOW, setUnderglow } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
 import { medalTimes, medalFor, MEDAL_RANK } from "./medals.js";
@@ -284,7 +284,7 @@ function makeBoss(ev) {
 }
 
 function buildRivals() {
-  for (const r of G.rivals) { scene.remove(r.model.group); disposeCar(r.model); } // free last race's rival cars (GPU memory adds up on a phone)
+  for (const r of G.rivals) scene.remove(r.model.group);
   G.rivals = [];
   const rnd = makeRng(SEED ^ 0x77);
   for (let k = 0; k < G.nRivals; k++) {
@@ -1473,8 +1473,8 @@ function clipStart() {
   G.clip = { ...w, T: w.t0, shot: -1, shotT: 0, slow: false, chunks: [], at: 0 };
   G.mode = "clip"; $("finish").hidden = true; setRaceUI(false); $("clipBar").hidden = false; $("clipBar").textContent = "● REC · filming your highlight";
   // remember the real race state (cars and which models were showing) so filming doesn't disturb it
-  G.clip.saved = G.hl.cars.map((v) => ({ ...v })); G.clip.vis = G.hl.models.map((m) => m && m.group && m.group.visible);
-  for (const m of G.hl.models) if (m && m.group) m.group.visible = true;
+  G.clip.saved = G.hl.cars.map((v) => ({ ...v })); G.clip.vis = G.hl.models.map((m) => m && m.group && (m.group.visible || !!m.nearHid));
+  for (const m of G.hl.models) if (m && m.group) { m.group.visible = true; m.nearHid = false; }
   // the picture plus logo/result overlay is drawn into a 2D canvas, which is what gets recorded (with the game's sound)
   const src = world.renderer.domElement, W = Math.min(1280, src.width), H = Math.round((W * src.height) / src.width) & ~1;
   const c = (G.clip.canvas = document.createElement("canvas")); c.width = W; c.height = H;
@@ -1834,7 +1834,9 @@ function poseCar(m, v, dt) {
   if (far !== m.far) { m.far = far; m.body.children.forEach((c, i) => { if (i > 2 && c !== m.tailMesh) c.visible = !far; }); m.wheels.forEach((w) => (w.parent.visible = !far)); }
   updateFlames(m, v.boosting, performance.now() / 1000, !far && v.lonAcc < -5 && v.vF > 30, dt);
   // a car right against the lens would fill the screen: hide it while it's there (only ever un-hiding what this hid)
-  const dy = v.y + 0.8 - camera.position.y, near = dx * dx + dy * dy + dz * dz < 4.2 * 4.2;
+  // (chase cams in a normal race only: not split-screen, where P2's own car is in the field, not the replay clip, and not
+  // the bonnet cam, where a car you're drafting is meant to be right there)
+  const dy = v.y + 0.8 - camera.position.y, near = G.mode !== "clip" && !G.splitRace && chase.mode !== "bonnet" && dx * dx + dy * dy + dz * dz < 4.2 * 4.2;
   if (near && m.group.visible) { m.group.visible = false; m.nearHid = true; } else if (!near && m.nearHid) { m.group.visible = true; m.nearHid = false; }
   m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
   updateContactShadow(m, v.y, v.groundPrev ?? v.y); brakeLights(m, v); if (!far) wheelBlur(m, v.vF);

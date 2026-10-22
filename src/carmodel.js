@@ -406,11 +406,3 @@ function numberTex(n) {
   return (numberTexCache[n] = t);
 }
 
-// free a car that's leaving for good (rivals between races): its own geometries and materials; the shared MATS stay
-export function disposeCar(car) {
-  const shared = new Set(Object.values(MATS));
-  car.group.traverse((o) => {
-    if (o.geometry) o.geometry.dispose();
-    for (const m of [].concat(o.material || [])) if (!shared.has(m)) m.dispose();
-  });
-}
