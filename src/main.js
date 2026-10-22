@@ -153,7 +153,7 @@ $("replayBtn").addEventListener("click", () => {
   SCREENS.forEach((s) => ($(s).hidden = true)); $("topbar").hidden = true;
   if (G.car.def && G.car.def !== save.car) buildPlayer();
   scene.add(G.car.group); setDoors(G.car, 0);
-  for (const r of G.rivals) r.model.group.visible = false;
+  for (const r of G.rivals) { r.model.group.visible = false; r.model.nearHid = false; }
   if (G.boss) { G.boss.model.group.removeFromParent(); G.boss = null; }
   if (G.p2) { G.p2.model.group.removeFromParent(); G.p2 = null; }
   G.splitRace = false; input.split = false;
@@ -568,7 +568,7 @@ function startRace() {
   if (G.net && !G.netRace) { G.net.racing = false; for (const q of G.net.peers.values()) { q.racing = false; if (q.model) q.model.group.visible = false; } }
   G.field = solo || G.netRace ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
   G.realRace = !trialMode() && (G.field.length > 0 || !!(G.netRace && G.net.peers.size));
-  for (const r of G.rivals) r.model.group.visible = G.field.includes(r);
+  for (const r of G.rivals) { r.model.group.visible = G.field.includes(r); r.model.nearHid = false; }
   G.elimDone = 0; G.eliminated = false; G.attackShown = -1;
   if (ev && ev.type === "boss") setTimeout(() => toast("BOSS BATTLE · " + ev.desc.split(".")[0], 3200), 300);
   if (!G.ghost) { G.ghost = new Ghost(makeCar(CARS[0], 0xffffff)); scene.add(G.ghost.model.group); }
@@ -1717,7 +1717,7 @@ function eliminate() {
 function dropLast(per) {
   const order = standings(), last = order[order.length - 1];
   if (last.me) { G.eliminated = true; toast("You're out!", 2000); finishRace(); return; }
-  last.out = true; last.model.group.visible = false; last.veh.reset(-2000, 0);
+  last.out = true; last.model.group.visible = false; last.model.nearHid = false; last.veh.reset(-2000, 0);
   G.field = G.field.filter((r) => r !== last);
   toast(last.name + " is out!", 1800); sfx.thud(4);
   if (!G.field.length) { toast("Last one standing!", 2000); finishRace(); } // knockout won
@@ -1832,6 +1832,9 @@ function poseCar(m, v, dt) {
   const dx = v.x - camera.position.x, dz = v.z - camera.position.z, far = dx * dx + dz * dz > 110 * 110;
   if (far !== m.far) { m.far = far; m.body.children.forEach((c, i) => { if (i > 2 && c !== m.tailMesh) c.visible = !far; }); m.wheels.forEach((w) => (w.parent.visible = !far)); }
   updateFlames(m, v.boosting, performance.now() / 1000, !far && v.lonAcc < -5 && v.vF > 30, dt);
+  // a car right against the lens would fill the screen: hide it while it's there (only ever un-hiding what this hid)
+  const dy = v.y + 0.8 - camera.position.y, near = dx * dx + dy * dy + dz * dz < 4.2 * 4.2;
+  if (near && m.group.visible) { m.group.visible = false; m.nearHid = true; } else if (!near && m.nearHid) { m.group.visible = true; m.nearHid = false; }
   m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
   updateContactShadow(m, v.y, v.groundPrev ?? v.y); brakeLights(m, v); if (!far) wheelBlur(m, v.vF);
   m.body.rotation.z = clamp(-v.latAcc * 0.0035, -0.06, 0.06); m.body.rotation.x = clamp(-v.lonAcc * 0.002, -0.03, 0.03);
