@@ -483,3 +483,7 @@ Order: F1+F3 -> F2/F4/F5/F6/7/8/9/10 -> F7/5/6 -> F8/1/3/4 -> F9/11/12/13/14/16.
   spark heads back to rgb; left tyre lettering turned round, not mirrored; rival cars disposed between races
   (disposeCar); a rival within ~4 m of the camera is hidden (m.nearHid, only undoes its own hiding); the position chip
   flashes green (+ sfx.passed) / red when you gain / lose a place.
+- More polish: portrait garage card sits low and scrolls with the car framed above it (showroom.lift); darker projector
+  lenses; trophy notes on the results pop up near the bottom; no drift points in the air; rivals, ghosts and friends'
+  cars are "lite" (makeCar(..., lite=true): no cabin interior, tyre lettering, discs or calipers, ~15 fewer draw calls
+  each). A local .git/hooks/pre-commit runs scripts/sw.mjs so sw.js never goes stale (CI fails on a stale sw.js).
