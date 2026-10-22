@@ -50,7 +50,7 @@ export const THEMES = {
     sky: [0x2c6fc2, 0x7fb2e8, 0xdfeaf5], sunDir: [0.5, 0.6, 0.45], sunColor: 0xfff3e0, sunIntensity: 2.0,
     hemi: [0xbfd8ff, 0x50604a, 0.85], fog: 0xc4d6ea, fogNear: 260, fogFar: 1700, ground: 0x56704a,
     runoff: "#7d7a70", embankment: 0x6b6a5c, scenery: "mountain", skyImg: "kloofendal_48d_partly_cloudy", label: "Sky Islands · Day", clouds: 0.6,
-    groundTex: "grass", runTex: "gravel", embTex: "rock", tree: 0x24452f, sign: "SKY ISLANDS", floating: true,
+    groundTex: "grass", groundTint: 0xc4e894, runTex: "gravel", embTex: "rock", tree: 0x24452f, sign: "SKY ISLANDS", floating: true,
   },
   thunder: {
     sky: [0x0a0d14, 0x1c2230, 0x3a4250], sunDir: [0.3, 0.5, -0.8], sunColor: 0xb0c0dc, sunIntensity: 0.9,

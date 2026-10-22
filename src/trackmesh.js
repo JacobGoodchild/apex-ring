@@ -226,17 +226,17 @@ export function buildTrackMeshes(path, theme, { embankments = true } = {}) {
       for (const [q, list] of [[top, tops], [under, geos]]) { const m = q.index ? q.toNonIndexed() : q; m.rotateY(spin); m.translate(tmp.x, y, tmp.z); m.deleteAttribute("normal"); list.push(m); }
     }
     const isl = mergeGeometries(geos, false); isl.computeVertexNormals();
-    const isles = new THREE.Mesh(isl, surface("rock", 0xb0a898, [0.2, 0.2], { flatShading: true })); isles.name = "isles"; isles.castShadow = true; group.add(isles);
+    const isles = new THREE.Mesh(isl, surface("rock", 0xe0d4c0, [0.2, 0.2], { flatShading: true })); isles.name = "isles"; isles.castShadow = true; group.add(isles);
     // grassy tops on the islands
     const tg = mergeGeometries(tops, false); tg.computeVertexNormals();
-    group.add(new THREE.Mesh(tg, surface("grass", 0x8fb06a, [0.25, 0.25], { flatShading: true })));
+    group.add(new THREE.Mesh(tg, surface("grass", 0xb8e07c, [0.25, 0.25], { flatShading: true })));
     // the waterfall
-    const g0 = path.gaps[0]; path.pointAt(g0.d1 + 2, W + R + 6, tmp);
+    const g0 = path.gaps[0]; path.pointAt(g0.d1 - 4, W + R + 10, tmp); // just off the far cliff face, so it hangs in the open
     const fallTex = canvasTex(64, 256, (c, w, h) => {
       c.fillStyle = "rgba(220,240,255,0.0)"; c.clearRect(0, 0, w, h);
       for (let i = 0; i < 90; i++) { const x = Math.random() * w, a = 0.25 + Math.random() * 0.5; c.fillStyle = `rgba(235,246,255,${a})`; c.fillRect(x, Math.random() * h, 1 + Math.random() * 2.5, 20 + Math.random() * 80); }
     }, { repeat: [3, 2] });
-    const fall = new THREE.Mesh(new THREE.PlaneGeometry(16, 220), new THREE.MeshBasicMaterial({ map: fallTex, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, color: 0xdff2ff }));
+    const fall = new THREE.Mesh(new THREE.PlaneGeometry(24, 220), new THREE.MeshBasicMaterial({ map: fallTex, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, color: 0xdff2ff }));
     fall.position.set(tmp.x, tmp.y - 108, tmp.z); fall.rotation.y = tmp.h; fall.name = "waterfall"; group.add(fall);
   }
 
