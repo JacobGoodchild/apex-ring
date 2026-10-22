@@ -9,7 +9,7 @@ import { buildScenery } from "./scenery.js";
 import { hasTerrain } from "./terrain.js";
 import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse, rainy, nightly } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec, GARAGE_ORDER } from "./cars.js";
-import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY, UNDERGLOW, setUnderglow } from "./carmodel.js";
+import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY, UNDERGLOW, setUnderglow, disposeCar } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
 import { medalTimes, medalFor, MEDAL_RANK } from "./medals.js";
@@ -284,7 +284,7 @@ function makeBoss(ev) {
 }
 
 function buildRivals() {
-  for (const r of G.rivals) scene.remove(r.model.group);
+  for (const r of G.rivals) { scene.remove(r.model.group); disposeCar(r.model); } // free last race's rival cars (GPU memory adds up on a phone)
   G.rivals = [];
   const rnd = makeRng(SEED ^ 0x77);
   for (let k = 0; k < G.nRivals; k++) {

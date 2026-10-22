@@ -251,7 +251,7 @@ export class Sparks {
     this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     this.lines.frustumCulled = false; scene.add(this.lines); this.geo = g;
     const hg = new THREE.BufferGeometry(); hg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
-    hg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage)); // rgba: sparks fade out by alpha, not to black
+    hg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage));
     const dot = document.createElement("canvas"); dot.width = dot.height = 32;
     const c = dot.getContext("2d"), gr = c.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.35, "rgba(255,220,150,.8)"); gr.addColorStop(1, "rgba(255,120,30,0)");
     c.fillStyle = gr; c.fillRect(0, 0, 32, 32);

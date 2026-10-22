@@ -283,7 +283,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0) {
     const pivot = new THREE.Group(); pivot.position.set(s * (S.wid * 0.9), S.wheelR, z); car.add(pivot);
     const spin = new THREE.Group(); pivot.add(spin);
     const tm = new THREE.Mesh(wg.tyre, M.tyre); tm.castShadow = true; spin.add(tm);
-    const wl = new THREE.Mesh(wg.wall, M.wall); wl.scale.x = s; spin.add(wl);
+    const wl = new THREE.Mesh(wg.wall, M.wall); if (s < 0) wl.rotation.y = Math.PI; spin.add(wl); // turned round, not mirrored, so the lettering reads right on both sides
     const rm = new THREE.Mesh(wg.rim, rimMat); rm.scale.x = s; spin.add(rm); rimMeshes.push(rm);
     const disc = new THREE.Mesh(wg.disc, M.disc); disc.position.x = -s * 0.05; pivot.add(disc);
     const bl = new THREE.Mesh(blurGeo, blurMat); bl.rotation.y = s * Math.PI / 2; bl.position.x = s * 0.17; bl.visible = false; pivot.add(bl); blurs.push(bl);
@@ -398,4 +398,13 @@ function numberTex(n) {
   g.fillStyle = "#111"; g.font = "bold 84px Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(String(n), 64, 70);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return (numberTexCache[n] = t);
+}
+
+// free a car that's leaving for good (rivals between races): its own geometries and materials; the shared MATS stay
+export function disposeCar(car) {
+  const shared = new Set(Object.values(MATS));
+  car.group.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    for (const m of [].concat(o.material || [])) if (!shared.has(m)) m.dispose();
+  });
 }
