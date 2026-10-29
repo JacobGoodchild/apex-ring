@@ -526,3 +526,11 @@ body:has(#finish:not([hidden])) #toast { top: auto; bottom: calc(var(--safe-b) +
 #speedo .boostbar .fill { height: 100%; transition: width .08s linear; }
 #speedo.boosting .boostbar .fill { background: linear-gradient(90deg, #7fe3ff, #e6fbff); box-shadow: 0 0 calc(14 * var(--u)) rgba(127, 227, 255, .9); }
 #speedo.boosting .boostbar { border-color: #bff3ff; }
+/* weekly and friends boards read like the main board: big rows, bright text */
+#oWkBoard li, #oFriendBoard li, #oFriendList li { padding: calc(12 * var(--u)) calc(14 * var(--u)); background: rgba(255, 255, 255, .06); font: 600 calc(17 * var(--u)) var(--body); color: var(--text); }
+#oWkBoard li:nth-child(odd), #oFriendBoard li:nth-child(odd), #oFriendList li:nth-child(odd) { background: rgba(255, 255, 255, .09); }
+#oWkBoard .pos, #oFriendBoard .pos { font: italic 800 calc(22 * var(--u)) var(--display); color: var(--text); }
+#oWkBoard .tm, #oFriendBoard .tm { font: 700 calc(19 * var(--u)) var(--display); }
+#online .label { font-size: calc(14 * var(--u)); color: var(--accent2); }
+#online .hint { font-size: calc(15 * var(--u)); }
+#pause .chipbtn { font-size: calc(15 * var(--u)); padding: calc(11 * var(--u)) calc(12 * var(--u)); color: var(--text); }
