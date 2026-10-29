@@ -126,14 +126,24 @@ test("Sky Islands: the second flight track starts from Daily challenge and has t
   await page.screenshot({ path: "screenshots/sky-flight.png" });
 });
 
-test("tutorial runs a guided lap, and Share replay films the highlight into a video", async ({ page }) => {
-  test.setTimeout(180_000);
+test("driving school: a lesson completes and is ticked off, the race lesson finishes, and Share replay films it", async ({ page }) => {
+  test.setTimeout(240_000);
   await openGame(page, "autopilot=1");
   await page.click("#tutBtn");
+  await expect(page.locator("#school")).toBeVisible();
+  await expect(page.locator("#lessons .lesson")).toHaveCount(4);
+  // lesson 1, steering: ends by itself once the goal is met and goes back to the school
+  await page.click('#lessons [data-l="0"]');
   await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 60_000 });
   await expect(page.locator("#tutBox")).toBeVisible();
-  await expect(page.locator("#tutStep")).toContainText("/ 4");
-  await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 120_000 });
+  await expect(page.locator("#tutStep")).toContainText("Lesson 1 of 4");
+  await expect(page.locator("#school")).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator("#lessons .lesson.done")).toHaveCount(1);
+  // lesson 4, a short race against three easy rivals
+  await page.click('#lessons [data-l="3"]');
+  await page.waitForFunction(() => window.__apex.mode === "race", null, { timeout: 60_000 });
+  expect(await game(page, () => window.__apex.fieldSize)).toBe(3);
+  await page.waitForFunction(() => window.__apex.mode === "done", null, { timeout: 150_000 });
   await expect(page.locator("#finish")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator("#tutBox")).toBeHidden();
   await expect(page.locator("#clipBtn")).toBeVisible();

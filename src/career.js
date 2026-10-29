@@ -8,7 +8,7 @@ export const EVENTS = [
   { id: "c1", name: "Opening Laps", type: "race", track: "gp", laps: 2, target: 3, reward: { coins: 500 }, desc: "Finish in the top three." },
   { id: "c2", name: "Clock In", type: "trial", track: "oval", laps: 3, target: 24.5, reward: { coins: 400 }, desc: "Set a lap under 24.5 seconds." },
   { id: "c3", name: "Sideways 101", type: "drift", track: "oval", laps: 3, target: 800, reward: { coins: 600 }, desc: "Score 800 drift points." },
-  { id: "a1", name: "Drift Attack", type: "attack", track: "oval", laps: 99, time: 60, target: 1200, reward: { coins: 700 }, desc: "60 seconds. Chain drifts for the multiplier and score 1,200 points." },
+  { id: "a1", name: "Drift Attack", type: "attack", track: "oval", laps: 99, time: 60, target: 800, reward: { coins: 700 }, desc: "60 seconds. Chain drifts for the multiplier and score 800 points." },
   { id: "c4", name: "Greenwood GP", type: "race", track: "forest", laps: 2, target: 3, reward: { coins: 800 }, unlock: { track: "canyon" }, desc: "Finish in the top three." },
   { id: "c5", name: "One on One", type: "h2h", track: "forest", laps: 2, rival: "Mara Voss", reward: { coins: 600, gems: 1 }, desc: "Beat Mara Voss head to head." },
   { id: "c6", name: "Canyon Run", type: "race", track: "canyon", laps: 2, target: 1, reward: { coins: 1200 }, unlock: { track: "harbour" }, desc: "Win the race." },
@@ -19,10 +19,10 @@ export const EVENTS = [
   { id: "c13", name: "Xtreme Jump", type: "race", track: "xtreme", laps: 2, target: 3, reward: { coins: 2000, gems: 1 }, unlock: { track: "coastal" }, desc: "Fly off the cliffs and finish in the top three." },
   { id: "c14", name: "Storm Run", type: "race", track: "coastal", laps: 2, target: 3, reward: { coins: 2200, gems: 1 }, unlock: { track: "frost" }, desc: "Rain, puddles and cliffs: finish in the top three on the wet." },
   { id: "c15", name: "Frostbite", type: "race", track: "frost", laps: 2, target: 3, reward: { coins: 2400, gems: 1 }, desc: "Snow, ice patches and a white valley: finish in the top three." },
-  { id: "a3", name: "Black Ice", type: "attack", track: "frost", laps: 99, time: 60, target: 1800, reward: { coins: 1600 }, desc: "60 seconds on the snow. Mind the ice and score 1,800 drift points." },
+  { id: "a3", name: "Black Ice", type: "attack", track: "frost", laps: 99, time: 60, target: 1200, reward: { coins: 1600 }, desc: "60 seconds on the snow. Mind the ice and score 1,200 drift points." },
   { id: "b2", name: "Boss: The Surgeon", type: "boss", track: "coastal", laps: 2, rival: "Kenji Arata", car: "razor", reward: { coins: 2500, gems: 1 }, unlock: { car: "razor" }, desc: "Kenji 'The Surgeon' Arata clips every apex in a Razor LM. Beat him on the wet to win it." },
   { id: "c9", name: "Neon Nights", type: "race", track: "neon", laps: 2, target: 3, reward: { coins: 1500 }, unlock: { track: "alpine" }, desc: "Finish in the top three." },
-  { id: "a2", name: "Neon Drift Attack", type: "attack", track: "neon", laps: 99, time: 75, target: 2500, reward: { coins: 2000, gems: 1 }, desc: "75 seconds in the neon streets. Score 2,500 drift points." },
+  { id: "a2", name: "Neon Drift Attack", type: "attack", track: "neon", laps: 99, time: 75, target: 1700, reward: { coins: 2000, gems: 1 }, desc: "75 seconds in the neon streets. Score 1,700 drift points." },
   { id: "c10", name: "Summit Trial", type: "trial", track: "alpine", laps: 2, target: 55, reward: { coins: 1500, gems: 1 }, desc: "Set a lap under 55 seconds." },
   { id: "c11", name: "Mountain Duel", type: "h2h", track: "alpine", laps: 2, rival: "Dev Okoro", reward: { coins: 2000 }, unlock: { car: "nimbus" }, desc: "Beat Dev Okoro. Wins you a Nimbus R." },
   { id: "b3", name: "Boss: Viper", type: "boss", track: "alpine", laps: 2, rival: "Mara Voss", car: "tempest", reward: { coins: 4000, gems: 2 }, unlock: { car: "tempest" }, desc: "Mara 'Viper' Voss in the Tempest X, the fastest car there is. Win and it's yours." },
@@ -63,7 +63,7 @@ export function dailyEvent(date = new Date()) {
   const base = { id: "daily-" + key, daily: true, name: "Daily Challenge", track: t.id + (lay ? ":" + lay : ""), weather, reward: { coins: 900, gems: 1 } };
   const where = `${t.name}${lay === "r" ? " Reverse" : lay === "m" ? " Mirror" : ""}${weather === "rain" ? " in the rain" : ""}`;
   if (type === "race") return { ...base, type, laps: 2, target: 3, desc: `Podium finish on ${where}.` };
-  if (type === "attack") { const target = 900 + t.difficulty * 500; return { ...base, type, laps: 99, time: 60, target, desc: `60-second drift attack on ${where}: score ${target.toLocaleString("en-GB")}.` }; }
+  if (type === "attack") { const target = 600 + t.difficulty * 350; // gentler since a player said attacks were too hard return { ...base, type, laps: 99, time: 60, target, desc: `60-second drift attack on ${where}: score ${target.toLocaleString("en-GB")}.` }; }
   return { ...base, type: "elim", every: 15, laps: 3, desc: `Knockout on ${where}: last car out every 15 seconds.` };
 }
 

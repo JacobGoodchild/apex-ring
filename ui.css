@@ -471,3 +471,23 @@ body:has(#finish:not([hidden])) #toast { top: auto; bottom: calc(var(--safe-b) +
 @media (orientation: portrait), (max-width: 700px) { .scrhead .seg .tab { font-size: calc(14 * var(--u)); padding: calc(10 * var(--u)) calc(4 * var(--u)); } }
 @media (min-width: 481px) { .lbcats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 480px) { #oBoard.c4 .cell:not(:last-child) { white-space: normal; font-size: calc(13 * var(--u)); line-height: 1.15; } }
+/* ---------- driving school ---------- */
+#school .card { background: linear-gradient(180deg, rgba(18, 25, 38, .97), rgba(8, 11, 18, .97)); box-shadow: inset 0 0 0 1px var(--line), 0 18px 60px rgba(0, 0, 0, .55);
+  border-radius: var(--r); padding: var(--s5) var(--s4); width: min(100%, calc(560 * var(--u))); display: flex; flex-direction: column; gap: var(--s3); }
+#school .hint { font-size: calc(15 * var(--u)); color: var(--muted); }
+.lessons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.lesson { width: 100%; display: grid; grid-template-columns: calc(44 * var(--u)) minmax(0, 1fr) auto; gap: var(--s3); align-items: center; text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, .06); border: 0; border-radius: var(--r); padding: calc(12 * var(--u)) calc(14 * var(--u)); color: var(--text); box-shadow: inset 0 0 0 1px var(--line2); }
+.lesson:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+.lnum { width: calc(40 * var(--u)); height: calc(40 * var(--u)); display: grid; place-items: center; border-radius: 50%; background: var(--bg3); font: italic 800 calc(22 * var(--u)) var(--display); }
+.lesson.done .lnum { background: #2bb673; color: #04140b; }
+.ltxt { display: flex; flex-direction: column; gap: calc(2 * var(--u)); min-width: 0; }
+.ltxt b { font: italic 800 calc(22 * var(--u))/1 var(--display); text-transform: uppercase; }
+.ltxt span { font: 500 calc(14 * var(--u)) var(--body); color: var(--muted); }
+.lgo { font: italic 800 calc(17 * var(--u)) var(--display); text-transform: uppercase; letter-spacing: .06em; color: var(--accent-ink); background: linear-gradient(180deg, var(--accent2), var(--accent)); padding: calc(8 * var(--u)) calc(14 * var(--u)); border-radius: var(--r); }
+.lesson.done .lgo { background: none; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line2); }
+#tutBox { padding: calc(10 * var(--u)) calc(16 * var(--u)); }
+#tutBox small { font-size: calc(12 * var(--u)); }
+#tutBox b { font-size: calc(18 * var(--u)); line-height: 1.25; }
+.tutprog { display: block; margin-top: calc(4 * var(--u)); font: 800 italic calc(16 * var(--u)) var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--accent2); }
+.tutprog:empty { display: none; }

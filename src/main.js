@@ -350,7 +350,7 @@ function setRaceUI(on) {
   const pro = save.settings.drive === "pro" && matchMedia("(pointer: coarse)").matches;
   $("proPads").hidden = !(on && pro); if (on && pro) $("pads").hidden = true; $("proSteer").hidden = input.tiltOn; $("tags").hidden = !on; if (!on) { $("drift").hidden = true; $("driftPop").hidden = true; $("eventTag").hidden = true; $("gapV").hidden = true; stopFlightFx(); } }
 
-const SCREENS = ["menu", "setup", "garage", "settings", "career", "help", "daily", "online"];
+const SCREENS = ["menu", "setup", "garage", "settings", "career", "help", "daily", "online", "school"];
 function show(id) {
   sfx.click();
   SCREENS.forEach((s) => ($(s).hidden = s !== id));
@@ -568,7 +568,7 @@ function startRace() {
   // a race started from a friends room has no bots; any other race does, even while you're still in a room
   G.netRace = !!(G.netGo && G.net); G.netGo = false;
   if (G.net && !G.netRace) { G.net.racing = false; for (const q of G.net.peers.values()) { q.racing = false; if (q.model) q.model.group.visible = false; } }
-  G.field = solo || G.netRace ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.rivals;
+  G.field = solo || G.netRace ? [] : ev && ev.type === "h2h" ? G.rivals.filter((r) => r.name === ev.rival) : ev && ev.type === "boss" ? [(G.boss = makeBoss(ev))] : G.splitRace ? [(G.p2 = makeP2()), ...G.rivals.slice(0, 5)] : G.tut ? G.rivals.slice(0, 3) : G.rivals; // the race lesson: three rivals
   G.realRace = !trialMode() && (G.field.length > 0 || !!(G.netRace && G.net.peers.size));
   for (const r of G.rivals) { r.model.group.visible = G.field.includes(r); r.model.nearHid = false; }
   G.elimDone = 0; G.eliminated = false; G.attackShown = -1;
@@ -658,7 +658,7 @@ function finishRace() {
     if (!G.net.host) $("results").insertAdjacentHTML("beforeend", `<div class="hint">The host can start a rematch from here.</div>`);
   } else $("watchBtn").hidden = true;
   if (G.event && G.event.id === "sky" && !G.eliminated) badge("sky");
-  if (G.tut) { $("tutBox").hidden = true; if (!save.tutDone) { save.tutDone = true; save.coins += 200; (G.trophyQ = G.trophyQ || []).push("Tutorial complete (+200 coins)"); } }
+  if (G.tut) { $("tutBox").hidden = true; if (G.tut.L.race && place <= 2 && !G.eliminated) lessonDone(); else if (G.tut.L.race) toast("So close! Try the lesson again from Driving school.", 2600); }
   // a win: fireworks over the start/finish gantry and the crowd roars
   if (place === 1 && G.realRace && !G.eliminated) { fireworks.show(() => { const d = camera.getWorldDirection(new THREE.Vector3()), k = 150 / Math.max(0.2, Math.hypot(d.x, d.z)); return [camera.position.x + d.x * k, camera.position.y - 4, camera.position.z + d.z * k]; }, 7); sfx.cheer(); } // ahead of wherever the camera is when each rocket goes up
   // photo finish: you won by less than a tenth of a second
@@ -1403,6 +1403,7 @@ function applyAids() { const m = G.track && world.trackGroup && world.trackGroup
 // how hard the rivals are: career events get harder chapter by chapter on their own (the track's Easy / Medium / Hard
 // rating); quick races, cups and the rest use the Rivals choice on the race screen
 function raceDiff() {
+  if (G.tut) return "easy";
   const ev = G.event;
   if (ev && EVENTS.includes(ev)) { const d = trackById(baseId(ev.track)); return ["easy", "normal", "hard"][Math.min(3, Math.max(1, (d && d.difficulty) || 1)) - 1]; }
   return save.settings.difficulty || "easy";
@@ -1674,6 +1675,7 @@ function step(dt) {
   v.ctl.steer = ap ? ap.steer : racing ? assistSteer(v, G.path, steerIn, aid) : steerIn;
   if (racing && (ctl.boost || ctl.boostHeld)) { v.ctl.boost = true; if (ctl.boost && v.boost <= 0.002) toast("Boost empty", 1200); }
   v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path, AUTO_BRAKE[raceDiff()] || 1, aid ? 1 : 0);
+  if (G.tut && G.tut.L.cap < 1) v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, v.spec.vmax * G.tut.L.cap); // lessons go a little gentler
   v.ctl.pro = !ap && save.settings.drive === "pro";
   v.ctl.throttle = ctl.throttle; v.ctl.brake = ctl.brake; v.ctl.handbrake = ctl.handbrake;
   if (G.bog > 0) { G.bog -= dt; v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, 4); }
@@ -2154,23 +2156,93 @@ function titleCamera(dt) {
   camera.position.set(p.x, p.y + 4.5 + Math.sin(T.d / 140) * 2, p.z); camera.lookAt(q.x, q.y + 1.5, q.z);
 }
 // ---------- tutorial (optional, from the home screen): a guided lap of Dusk Oval ----------
-const TUT = [["Steer", "Hold the LEFT or RIGHT side of the screen (or ← →) to steer"], ["Drift", "Steer hard into the bend at speed: the car drifts by itself and fills your boost"],
-  ["Boost", "Tap BOTH sides of the screen together, twice (or Space) to boost"], ["Finish", "Brilliant! Now finish the lap. The car brakes for corners by itself"]];
-function startTutorial() {
-  sfx.startAudio(); sfx.click(); save.tutHint = true; writeSave();
-  const was = save.settings.raceMode;
-  G.tut = { step: 0, t: 0 }; G.event = null; G.cup = null; G.split = false; loadTrack("oval", "dry"); setMode(true); save.settings.raceMode = was; writeSave(); G.lapsOverride = 1; startRace();
+// ---------- driving school: four short lessons (steer, drift, boost, race), each about a minute ----------
+// Lessons 1-3 are solo runs with a gentler top speed that end as soon as the goal is met; lesson 4 is a short race
+// against three Easy rivals who start ahead.
+const LESSONS = [
+  { id: "steer", name: "Steering", desc: "Keep it on the road through the bends.", track: "oval", cap: 0.62, goal: 3,
+    msg: "Hold the LEFT or RIGHT half of the screen (or ← →) to steer. The car speeds up and brakes by itself." },
+  { id: "drift", name: "Drifting", desc: "Slide through bends to fill your boost.", track: "gp", cap: 0.74, goal: 3,
+    msg: "When a bend comes, steer HARD into it and hold: the car slides into a drift by itself." },
+  { id: "boost", name: "Boost", desc: "A tap for a little, hold for a lot.", track: "oval", cap: 1, goal: 2,
+    msg: "" },
+  { id: "race", name: "First race", desc: "Pass three easy rivals in two laps.", track: "oval", race: true, goal: 2,
+    msg: "Overtake! Steer round the cars ahead; the car does the braking. Finish in the top two." },
+];
+const TOUCH = () => matchMedia("(pointer: coarse)").matches;
+function drawSchool(first = false) {
+  const done = save.school || {};
+  $("schoolIntro").textContent = first ? "Welcome to Apex Ring! New to racing games? These four lessons take about a minute each. You can skip them and come back any time from Tutorial on the home screen." : "Four short lessons, about a minute each. Do them in any order, any time.";
+  $("lessons").innerHTML = LESSONS.map((l, i) => `<li><button class="lesson${done[l.id] ? " done" : ""}" type="button" data-l="${i}"><span class="lnum">${done[l.id] ? "✓" : i + 1}</span><span class="ltxt"><b>${l.name}</b><span>${l.desc}</span></span><span class="lgo">${done[l.id] ? "Again" : "Start"}</span></button></li>`).join("");
+  $("schoolBack").textContent = first ? "Skip for now" : "Back";
+}
+$("lessons").addEventListener("click", (e) => { const b = e.target.closest(".lesson"); if (b) startLesson(Number(b.dataset.l)); });
+$("schoolBack").addEventListener("click", () => show("menu"));
+function startTutorial() { sfx.startAudio(); save.tutHint = true; writeSave(); drawSchool(); show("school"); }
+function startLesson(n) {
+  sfx.startAudio(); sfx.click();
+  const L = LESSONS[n], was = save.settings.raceMode;
+  G.tut = { n, L, t: 0, count: 0, phase: 0, done: false }; G.event = null; G.cup = null; G.split = false;
+  loadTrack(L.track, "dry"); setMode(!L.race); save.settings.raceMode = was; writeSave();
+  G.lapsOverride = L.race ? 2 : 99; startRace();
+  if (L.id === "boost") G.player.boost = 1;
+}
+// a bend coming up within the next ~90 m: +1 right, -1 left, 0 none
+function bendAhead(v) {
+  const P = G.path; for (let d = 25; d < 90; d += 5) { const i = Math.floor((((v.p.d + d) % P.length) + P.length) % P.length / P.ds) % P.N; if (Math.abs(P.cs[i]) > 0.004) return Math.sign(P.cs[i]); }
+  return 0;
+}
+function lessonDone() {
+  const T = G.tut; if (!T || T.done) return; T.done = true;
+  const first = !(save.school || {})[T.L.id];
+  save.school = { ...(save.school || {}), [T.L.id]: true };
+  if (first) save.coins += 100;
+  if (LESSONS.every((l) => save.school[l.id]) && !save.tutDone) { save.tutDone = true; save.coins += 200; (G.trophyQ = G.trophyQ || []).push("Driving school complete (+200 coins)"); }
+  writeSave(); sfx.chime();
+  $("tutStep").textContent = `Lesson ${T.n + 1} of ${LESSONS.length}`; $("tutMsg").textContent = `Lesson complete!${first ? " +100 coins" : ""}`; $("tutProg").textContent = "";
 }
 function tutorialStep(dt) {
   const T = G.tut, v = G.player; if (!T || G.mode !== "race") return;
-  T.t += dt;
-  const ok = T.step === 0 ? Math.abs(v.steer) > 0.5 && T.t > 1 : T.step === 1 ? v.driftTime > 0.35 || T.t > 14 : T.step === 2 ? v.boosting || T.t > 12 : false;
-  if (ok) { T.step++; T.t = 0; sfx.chime(); if (T.step === 2) v.boost = Math.max(v.boost, 0.6); }
-  $("tutBox").hidden = false; $("tutStep").textContent = `${Math.min(T.step + 1, 4)} / 4 · ${TUT[T.step][0]}`; $("tutMsg").textContent = TUT[T.step][1];
+  T.t += dt; $("tutBox").hidden = false;
+  if (T.done) { if (!T.L.race && (T.end = (T.end || 0) + dt) > 1.8) { toMenu(); drawSchool(); show("school"); } return; }
+  const L = T.L; let msg = L.msg, prog = "";
+  if (L.id === "steer") {
+    // a bend counts when you've steered through it and stayed on the road
+    const b = Math.abs(G.path.cs[v.p.i]) > 0.003;
+    if (b && Math.abs(v.steer) > 0.12) T.inBend = true;
+    if (!b && T.inBend) { T.inBend = false; if (!T.hit) T.count++; T.hit = false; }
+    if (v.wallHit > 2 || v.offTrack) T.hit = true;
+    prog = `Bends: ${T.count} / ${L.goal}`;
+  } else if (L.id === "drift") {
+    const s = bendAhead(v);
+    if (v.drifting) msg = "That's a drift! Keep holding through the bend.";
+    else if (s) msg = `Bend ahead: hold ${s > 0 ? "RIGHT ▶" : "◀ LEFT"} hard now`;
+    if (v.drifting && !T.wasDrift) T.dStart = T.t;
+    if (!v.drifting && T.wasDrift && T.t - T.dStart > 0.4) T.count++;
+    T.wasDrift = v.drifting;
+    prog = `Drifts: ${T.count} / ${L.goal}`;
+  } else if (L.id === "boost") {
+    // part 1: a short tap; part 2: hold until the meter is empty
+    if (T.phase === 0) {
+      msg = TOUCH() ? "Double-tap BOTH sides of the screen together for a short boost" : "TAP Space (or ↑) once for a short boost";
+      if (v.boosting && !T.wasBoost) T.bStart = v.boost;
+      if (!v.boosting && T.wasBoost && T.bStart - v.boost < 0.3) { T.phase = 1; T.count = 1; sfx.chime(); v.boost = 1; }
+    } else {
+      msg = TOUCH() ? "Now HOLD both sides of the screen and keep holding until the meter runs out" : "Now HOLD Space until the boost meter runs out";
+      if (v.boost < 0.02) T.count = 2;
+    }
+    T.wasBoost = v.boosting;
+    prog = `Step ${Math.min(2, T.phase + 1)} of 2`;
+  } else if (L.id === "race") {
+    const p = standings().findIndex((e) => e.me) + 1; prog = `Position: ${p} of ${standings().length}`;
+  }
+  $("tutStep").textContent = `Lesson ${T.n + 1} of ${LESSONS.length} · ${L.name}`; $("tutMsg").textContent = msg; $("tutProg").textContent = prog;
+  if (!L.race && T.count >= L.goal) lessonDone();
 }
 function endTutorial() { if (!G.tut) return; G.tut = null; G.lapsOverride = TEST && QS.get("laps") ? Number(QS.get("laps")) : 0; $("tutBox").hidden = true; }
 $("tutBtn").addEventListener("click", startTutorial);
-function afterTitle() { if (!save.tutHint && !save.tutDone && !TEST) { save.tutHint = true; writeSave(); setTimeout(() => toast("New here? Tap Tutorial at the bottom of the home screen for a 1-minute guided lap", 5000), 900); } }
+// first time in the game: offer the driving school (skippable; it stays one tap away on the home screen)
+function afterTitle() { if (!save.tutHint && !save.tutDone && !TEST) { save.tutHint = true; writeSave(); drawSchool(true); show("school"); } }
 
 // daily streak reward, and (with online play) "I'm online" + listening for race invites
 if (!TEST) { checkStreak(); document.addEventListener("visibilitychange", () => { if (!document.hidden) checkStreak(); }); }

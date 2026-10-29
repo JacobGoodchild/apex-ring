@@ -134,6 +134,14 @@
 </div>
 
 <!-- how to play -->
+<div class="overlay screen" id="school" hidden>
+  <div class="card schoolcard">
+    <div class="brand small">Driving school</div>
+    <p class="hint" id="schoolIntro">Four short lessons, about a minute each. Do them in any order, any time.</p>
+    <ol class="lessons" id="lessons"></ol>
+    <button class="btn ghost" id="schoolBack" type="button">Back</button>
+  </div>
+</div>
 <div class="overlay screen" id="help" hidden>
   <div class="card">
     <div class="brand small">HOW TO PLAY</div>
@@ -321,7 +329,7 @@
 <div id="invite" hidden><span id="inviteMsg"></span><button class="btn" id="inviteJoin" type="button">Join</button><button class="btn ghost" id="inviteNo" type="button">Not now</button></div>
 <div id="spectate" hidden></div>
 <div id="clipBar" hidden></div>
-<div id="tutBox" hidden><small>Tutorial · <span id="tutStep"></span></small><b id="tutMsg"></b></div>
+<div id="tutBox" hidden><small>Driving school · <span id="tutStep"></span></small><b id="tutMsg"></b><span class="tutprog" id="tutProg"></span></div>
 <div id="title" hidden><div class="tlogo">APEX <b>RING</b></div><div class="ttag">Drift · Boost · Fly · Race your friends</div><div class="tgo">Tap to start</div></div>
 <canvas id="drops" hidden aria-hidden="true"></canvas>
 <div class="overlay center" id="soon" hidden><div class="card soon"><svg class="soon-i"><use href="#i-globe"/></svg><div class="brand small">Under construction</div>
