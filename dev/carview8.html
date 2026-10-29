@@ -7,6 +7,7 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { makeCar, setDoors, setUnderglow } from "../src/carmodel.js";
+import { registerCarModel, preloadCarModels } from "../src/carglb.js";
 import { carById } from "../src/cars.js";
 const q = new URLSearchParams(location.search);
 const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(2000, 700); document.body.appendChild(r.domElement);
@@ -14,6 +15,7 @@ r.toneMapping = THREE.ACESFilmicToneMapping; r.setScissorTest(true);
 const s = new THREE.Scene(); s.background = new THREE.Color(0x3a4050);
 s.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
 s.add(new THREE.HemisphereLight(0xffffff, 0x333333, 1)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(3, 6, 4); s.add(d);
+if (q.get("glb")) { registerCarModel(q.get("car") || "vanta", { file: q.get("glb"), rotY: Number(q.get("rot") || 0) }); await new Promise((r) => preloadCarModels(r)); }
 const car = makeCar(carById(q.get("car") || "vanta"), parseInt(q.get("paint") || "0f8b8d", 16), 0, Number(q.get("decal") || 0)); s.add(car.group); setDoors(car, Number(q.get("doors") || 0)); if (q.get("glow")) setUnderglow(car, Number(q.get("glow")));
 const grid = new THREE.GridHelper(10, 20); s.add(grid);
 const cam = new THREE.PerspectiveCamera(30, 500 / 350, 0.1, 100);

@@ -2,6 +2,7 @@
 // Each car style is a handful of numbers (see `shape` in cars.js). Static parts are merged per material
 // to keep draw calls low: roughly 20 per car including wheels.
 import * as THREE from "three";
+import { glbCar } from "./carglb.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const sp = (v, e) => Math.sign(v) * Math.pow(Math.abs(v), e);
@@ -119,7 +120,7 @@ function blurTex() {
 }
 // spinning-wheel blur from speed (m/s): invisible when slow, mostly opaque flat out
 export function wheelBlur(model, speed) {
-  if (!model.blurs) return;
+  if (!model.blurs || !model.blurMat) return; // (modelled bodies have no blur discs)
   const k = Math.max(0, Math.min(0.85, (Math.abs(speed) - 12) / 25));
   model.blurMat.opacity = k; for (const b of model.blurs) b.visible = k > 0.02;
 }
@@ -161,6 +162,7 @@ function wheelGeos(r, wdt, rim) {
 // lite: for rivals, ghosts and friends' cars - no cabin interior, tyre lettering, brake discs or calipers (about 15 fewer
 // draw calls a car, which adds up on a full grid); the player's own car always gets everything
 export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0, lite = false) {
+  const gm = glbCar(def, paintHex); if (gm) return gm; // a modelled body, when one is listed and loaded (src/carglb.js)
   const S = Object.assign({ bulge: 0.035, waist: 1, n: 3.2, tumble: 0.8, len: 4.7, wid: 1.0, nose: 0.42, hood: 0.72, deck: 0.92, tail: 0.86, cabinZ: -0.05, cabinLen: 2.3, cabinH: 1.2, cabinW: 0.72,
     wing: "high", wheelR: 0.36, intake: false, splitter: true, fin: false }, def.shape || {});
   const M = mats(paintHex);
@@ -351,6 +353,7 @@ export function setDecal(car, idx, paintHex, livery = car.livery || 0) {
   car.livery = livery;
   if (car.decals) { car.decals.forEach((m) => { m.removeFromParent(); m.geometry.dispose(); }); }
   car.decals = [];
+  if (car.glb) return; // decals follow the procedural body's surface; a modelled body keeps its own look
   const c = new THREE.Color(paintHex), lum = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
   const mat = new THREE.MeshPhysicalMaterial({ color: LIVERY[livery] && LIVERY[livery].hex != null ? LIVERY[livery].hex : lum > 0.55 ? 0x14161b : 0xf2f4f7, roughness: 0.3, clearcoat: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
   const { w, t, b, L, dz0, dz1, n: secN, tumble: tb } = car.decalCtx;

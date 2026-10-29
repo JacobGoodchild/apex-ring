@@ -19,3 +19,7 @@ Almost everything is made in code in this repo. The only third-party art is a se
 
 The cars are built procedurally; the only downloaded 3D models (trees) are baked into a picture atlas offline.
 - Settings cog icon: Feather Icons (https://feathericons.com), MIT licence.
+
+## Modelled cars (src/carglb.js)
+None shipped yet. The loader is ready: add a CC0 / CC-BY glTF to assets/cars/, register it in CAR_MODELS, and credit it here.
+Three.js GLTFLoader and SkeletonUtils are vendored with the rest of Three.js (MIT).
