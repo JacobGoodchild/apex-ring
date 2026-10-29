@@ -67,9 +67,11 @@ export async function addFriend(code) {
   await signIn();
   return call("/rest/v1/rpc/add_friend", { method: "POST", body: JSON.stringify({ code }) });
 }
-// every driver's best lap on every track (the overall board ranks them against each track's gold time)
-export async function allBestLaps(limit = 1000) {
-  return call(`/rest/v1/leaderboard?order=ms.asc&limit=${limit}&select=user_id,name,track,ms,car`, {}, !!sess);
+// the top laps on each of these tracks (the overall board ranks them against each track's gold time); asked per track,
+// so long tracks aren't crowded out by short ones when there are lots of laps
+export async function allBestLaps(tracks, perTrack = 100) {
+  const lists = await Promise.all(tracks.map((t) => call(`/rest/v1/leaderboard?track=eq.${enc(t)}&order=ms.asc&limit=${perTrack}&select=user_id,name,track,ms,car`, {}, !!sess).catch(() => [])));
+  return lists.flat();
 }
 // personal records (part 4 of the server setup): longest drift, top speed, biggest air, wins; one row per driver
 const STAT_COLS = new Set(["drift", "speed", "air", "wins"]);

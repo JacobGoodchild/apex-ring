@@ -285,7 +285,7 @@ body:has(.screen.full:not([hidden])) .topbar .brand { visibility: hidden; }
 .lboard .pos { color: var(--muted); font-weight: 800; } .lboard .tm { font-variant-numeric: tabular-nums; }
 .lboard small { color: var(--muted); font: 600 calc(11 * var(--u)) var(--body); margin-left: calc(6 * var(--u)); }
 .lboard li.ghostrow i { display: block; height: calc(10 * var(--u)); border-radius: calc(2 * var(--u)); background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.12), rgba(255,255,255,.06)); background-size: 200% 100%; animation: shimmer 1.6s infinite linear; }
-.lboard li.ghostrow .nm i { width: 60%; } .lboard li.ghostrow .tm i { width: calc(56 * var(--u)); }
+.lboard li.ghostrow .nm i { width: 60%; } .lboard li.ghostrow .tm i, .lboard li.ghostrow .cell i { width: calc(56 * var(--u)); margin-left: auto; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 .lboard li.empty { display: block; color: var(--muted); font: 500 calc(13 * var(--u)) var(--body); background: none; }
 .code { font: italic 800 calc(34 * var(--u)) var(--display); letter-spacing: .08em; color: var(--accent2); }

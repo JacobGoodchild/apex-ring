@@ -29,7 +29,7 @@ addEventListener("blur", () => { input.kl = input.kr = input.ku = input.kd = inp
 export function bindPads(root) {
   root.querySelectorAll("[data-pad]").forEach((el) => {
     const key = el.dataset.pad;
-    const down = (e) => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ } if (key === "boost") input.boostTaps++; else input.pad[key] = true; el.classList.add("on"); };
+    const down = (e) => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ } if (key === "boost") input.boostTaps++; input.pad[key] = true; el.classList.add("on"); };
     const up = () => { input.pad[key] = false; el.classList.remove("on"); };
     el.addEventListener("pointerdown", down); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("lostpointercapture", up);
     el.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -104,7 +104,7 @@ export function readControls(consume = true) {
   // a tap (key press, double two-thumb tap) asks for a short burst; holding a boost key, or both thumbs for a moment,
   // keeps boosting for as long as it's held
   const thumbs = input.both && input.touchL && input.touchR && performance.now() / 1000 - (input.bothT || 0) > 0.22;
-  const boost = input.boostTaps > 0, boostHeld = !!input.boostKey || thumbs;
+  const boost = input.boostTaps > 0, boostHeld = !!input.boostKey || thumbs || !!input.pad.boost; // pad.boost: the Pro boost pedal held
   if (consume) input.boostTaps = 0;
   const p = input.pad, gp = readPad(0);
   const out = { steer: Math.max(-1, Math.min(1, s)), boost, boostHeld, throttle: input.ku || p.gas ? 1 : 0, brake: input.kd || p.brake ? 1 : 0, handbrake: !!(input.kh || p.hand) };

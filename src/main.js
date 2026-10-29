@@ -305,6 +305,7 @@ function buildRivals() {
 function gridUp() {
   G.player.spec = carSpec(carById(save.car), carSave(save.car).upgrades);
   G.player.track = G.path; G.player.boost = 0.25;
+  for (const r of G.rivals) if (r.driver) r.driver.boostHold = 0; // no boost carried over from the last race
   const ps = slot(Math.min(G.gridSlot, G.rivals.length)); G.player.reset(ps[0], ps[1]);
   let k = 0;
   const ps2 = G.player.spec;
@@ -799,7 +800,7 @@ function selectEvent(ev, quiet) {
   document.querySelectorAll("#events .node").forEach((n) => n.classList.toggle("sel", n.id === "ev-" + (ev.daily ? "daily" : ev.id)));
   $("evDetail").hidden = false;
   $("evDName").textContent = ev.name;
-  $("evDDesc").textContent = ev.daily ? `${ev.desc} New challenge every day.` : `${TYPE_LABEL[ev.type]} · ${trackById(ev.track).name}${ev.type === "attack" ? ` · ${ev.time} s` : ` · ${ev.laps} laps`}${["race", "elim", "h2h", "boss"].includes(ev.type) ? ` · ${{ easy: "Easy", normal: "Medium", hard: "Hard" }[["easy", "normal", "hard"][Math.min(3, Math.max(1, trackById(ev.track).difficulty || 1)) - 1]]} rivals` : ""}. ${ev.desc}`;
+  $("evDDesc").textContent = ev.daily ? `${ev.desc} New challenge every day.` : `${TYPE_LABEL[ev.type]} · ${trackById(ev.track).name}${ev.type === "attack" ? ` · ${ev.time} s` : ` · ${ev.laps} laps`}${["race", "elim", "h2h", "boss"].includes(ev.type) ? ` · ${["Easy", "Medium", "Hard"][Math.min(3, Math.max(1, trackById(ev.track).difficulty || 1) + (ev.type === "boss" ? 1 : 0)) - 1]} ${ev.type === "boss" ? "boss" : "rivals"}` : ""}. ${ev.desc}`;
   const st = save.career[ev.id], r = ev.reward;
   $("evDReward").innerHTML = st && st.done ? `Best: <b>${"★".repeat(st.stars)}${"☆".repeat(3 - st.stars)}</b>` : `Reward <b>+${(r.coins || 0).toLocaleString("en-GB")}</b>${r.gems ? ` <b class="gem">+${r.gems} gems</b>` : ""}${ev.unlock && ev.unlock.car ? ` · wins the <b>${carById(ev.unlock.car).name}</b>` : ""}`;
   $("evGo").textContent = st && st.done ? "Replay event" : "Start event";
@@ -895,7 +896,7 @@ function refreshOnline(fetchNow = true) {
     $("oBoard").innerHTML = `<li class="empty">Loading…</li>`;
     const fail = (e) => { $("oBoard").innerHTML = `<li class="empty">${/stats/.test(e.message) || /404|relation/.test(e.message) ? "This board is nearly ready: it needs part 4 of the server setup." : "Couldn't reach the server: " + esc(e.message)}</li>`; };
     if (cat === "overall") {
-      ensureProfile().catch(() => {}).then(() => allBestLaps()).then((rows) => {
+      ensureProfile().catch(() => {}).then(() => allBestLaps(TRACKS.flatMap((t) => LAYOUTS.filter(([k]) => !k || k !== "r" || canReverse(t)).map(([k]) => (k ? t.id + ":" + k : t.id))))).then((rows) => {
         if (G.oCat !== "overall") return;
         // each racer's single best lap, scored against the track's gold time (1.00 = gold)
         const bestBy = new Map();
@@ -1723,15 +1724,15 @@ function step(dt) {
     if (trialMode() && v.totalD >= done * L) G.ghost.record(G.raceTime - G.lapStart, v);
     if (v.totalD >= (done + 1) * L) {
       const lap = G.raceTime - G.lapStart; G.lapTimes.push(lap); G.lapStart = G.raceTime;
-      if (trialMode()) {
+      if (trialMode() && !G.tut) { // driving-school laps (slower on purpose) never become records, ghosts or uploads
         const rec = G.ghost.lapDone(lap), old = save.ghosts[G.track.id];
         // the very first lap starts behind the line, so only keep it if there's nothing better
         if (!old || lap < old.t) { save.ghosts[G.track.id] = rec; G.ghost.load(rec); uploadGhost(G.track.id, rec); }
         // beat a ghost you loaded from the online boards
         const fg = (save.friendGhosts || {})[G.track.id]; if (fg && fg.online && lap < fg.t) badge("ghostbuster");
       }
-      logLap(G.track.id, lap); uploadLap(G.track.id, lap);
-      const best = save.best[G.track.id];
+      if (!G.tut) { logLap(G.track.id, lap); uploadLap(G.track.id, lap); }
+      const best = G.tut ? 0 : save.best[G.track.id];
       if (G.lapWall === 0) G.cleanLaps++;
       G.lapWall = 0;
       if (best == null || lap < best) { if (best != null) G.newRecord = true; save.best[G.track.id] = lap; writeSave(); if (G.lapTimes.length < laps()) toast("New best lap · " + fmt(lap), 1800); }
@@ -2129,6 +2130,7 @@ function uploadStats() {
   ensureProfile().then(() => postStats({ drift: r.drift, speed: r.speed, air: r.air, wins: r.wins })).then(() => { save.upStats = r; writeSave(); }).catch(() => {});
 }
 function raceTrophies(place) {
+  if (G.tut) return; // the driving school's race doesn't count towards stats, trophies or the record boards
   logStats(place);
   if (!realRace()) return;
   if (place === 1 && !G.eliminated) { trophy("win"); if (G.weather === "rain") trophy("rainwin"); }
@@ -2230,6 +2232,7 @@ function tutorialStep(dt) {
       msg = TOUCH() ? "Double-tap BOTH sides of the screen together for a short boost" : "TAP Space (or ↑) once for a short boost";
       if (v.boosting && !T.wasBoost) T.bStart = v.boost;
       if (!v.boosting && T.wasBoost && T.bStart - v.boost < 0.3) { T.phase = 1; T.count = 1; sfx.chime(); v.boost = 1; }
+      else if (!v.boosting && T.wasBoost) { v.boost = 1; toast("That was a long one: try a quick tap", 1800); } // held instead: refill and try again
     } else {
       msg = TOUCH() ? "Now HOLD both sides of the screen and keep holding until the meter runs out" : "Now HOLD Space until the boost meter runs out";
       if (v.boost < 0.02) T.count = 2;
