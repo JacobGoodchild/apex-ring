@@ -495,3 +495,21 @@ supabase/schema-v2.sql then schema-v3.sql into the Supabase SQL Editor (online g
 the tighter security need them); re-upload apex-ring-itch.zip to itch.io. Ideas next: a real-phone check of the flight
 tracks and the share-replay video, per-car silhouettes from the front (the noses still look alike), mist at the foot of
 the Sky Islands waterfall.
+
+## Session 5 (2026-10-29 12:20 → 19:00 UTC = 7:00pm UK checkpoint), from the user's review after a week
+Hourly scheduled task "Apex Ring session 5 check-in" (:41 past) wakes the session. Don't rush: a checkpoint at 19:00, not
+a deadline. Tested batches (scratchpad snaptest.sh), pushed to `claude/bold-cray-7rck1e` and `main`. Plan (tick as done):
+- [ ] G1 Boost: a tap = short burst (~15% of the meter), hold = keeps boosting; any leftover charge is usable (no stuck
+      sliver, no stopping at ~1/5); phone: one two-thumb tap = short burst, hold both = continuous. (itch comment)
+- [ ] G2 Readable, responsive UI: bigger type and buttons, real contrast (no grey on grey), layouts that reflow at every
+      size (small phone, big phone, tablet, laptop, shrunk window, big monitor) instead of cropping; a real gear icon for
+      Settings that also closes it; a big clear Tutorial button. Check screenshots at 6 sizes.
+- [ ] G3 Leaderboards rebuilt: default = all-time overall (place, name, track, time); a clear category menu: Fastest laps,
+      Longest drift, Top speed, Biggest air, Most wins, Weekly. New supabase/schema-v4.sql for the user to paste.
+- [ ] G4 Difficulty on the race screen (Easy / Medium / Hard), career difficulty rises by chapter on its own.
+- [ ] G5 Cars: prefer properly modelled CC0 / CC-BY cars (original designs, no real brands), credited; fallback: fix the
+      procedural car (wheels clipping bumpers, floating mirrors, glass flicker while spinning, cropped plate, door seams,
+      underglow not showing). Check every car from 8 angles before shipping.
+- [ ] G6 Driving school: short stages (steer, drift with guided corners at a gentler speed, boost, jumps), offered on first
+      launch and from a visible button; easier Drift Attack targets. (itch comment)
+- [ ] G7 CI: make the PWA update-banner test robust (it timed out on a slow runner).
