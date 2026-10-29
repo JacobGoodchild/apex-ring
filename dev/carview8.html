@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Car viewer</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js", "three/addons/": "../vendor/three/addons/" } }</script>
+<style>body{margin:0;background:#222}canvas{display:block}</style></head><body>
+<script type="module">
+// Dev-only: renders a car from eight angles (plus close-ups). Usage: dev/carview8.html?car=vanta&doors=1&paint=c8102e&glow=1
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { makeCar, setDoors, setUnderglow } from "../src/carmodel.js";
+import { carById } from "../src/cars.js";
+const q = new URLSearchParams(location.search);
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(2000, 700); document.body.appendChild(r.domElement);
+r.toneMapping = THREE.ACESFilmicToneMapping; r.setScissorTest(true);
+const s = new THREE.Scene(); s.background = new THREE.Color(0x3a4050);
+s.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+s.add(new THREE.HemisphereLight(0xffffff, 0x333333, 1)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(3, 6, 4); s.add(d);
+const car = makeCar(carById(q.get("car") || "vanta"), parseInt(q.get("paint") || "0f8b8d", 16), 0, Number(q.get("decal") || 0)); s.add(car.group); setDoors(car, Number(q.get("doors") || 0)); if (q.get("glow")) setUnderglow(car, Number(q.get("glow")));
+const grid = new THREE.GridHelper(10, 20); s.add(grid);
+const cam = new THREE.PerspectiveCamera(30, 500 / 350, 0.1, 100);
+const R = 8.5, views = [0, 45, 90, 135, 180, 225, 270, 315].map((a, i) => [[Math.sin(a * Math.PI / 180) * R, i % 2 ? 2.6 : 1.1, Math.cos(a * Math.PI / 180) * R], (i % 4) * 500, i < 4 ? 350 : 0]);
+const close = [[[3.0, 0.9, 2.4], [0.9, 0.45, 1.42]], [[3.0, 0.9, -2.2], [0.9, 0.45, -1.38]], [[2.4, 1.5, 1.2], [0.8, 0.95, 0.35]], [[3.6, 1.1, -0.2], [0.9, 0.6, -0.2]],
+  [[0.01, 0.75, -4.6], [0, 0.5, -2.3]], [[0.01, 0.7, 5.2], [0, 0.5, 2.2]], [[1.6, 3.6, 0.4], [0, 0.6, 0]], [[2.6, 1.7, 3.2], [0.6, 0.6, 1.4]]];
+if (q.get("close")) { cam.fov = 34; cam.updateProjectionMatrix(); close.forEach(([p, l], i) => { views[i][0] = p; views[i].look = l; }); }
+for (const v of views) { const [p, x, y] = v; cam.position.set(...p); cam.lookAt(...(v.look || [0, 0.6, 0])); r.setViewport(x, y, 500, 350); r.setScissor(x, y, 500, 350); r.render(s, cam); }
+window.done = true;
+</script></body></html>

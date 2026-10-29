@@ -19,15 +19,16 @@ function curve(pairs) {
 
 // Loft: for each z between z0..z1 build a rounded section from width w(z), top t(z), bottom b(z).
 // tumble(z) narrows the upper half; th0..th1 lets us cut out a patch (used for doors).
-function loft({ z0, z1, nz = 40, nt = 28, w, t, b, n = 2.6, tumble = () => 0.85, th0 = 0, th1 = Math.PI * 2, scale = 1, closeEnds = true }) {
+// f(z): an optional fender hump that lifts the upper sides of the section (over the wheels), so tyres sit under the bodywork
+function loft({ z0, z1, nz = 40, nt = 28, w, t, b, n = 2.6, tumble = () => 0.85, th0 = 0, th1 = Math.PI * 2, scale = 1, closeEnds = true, f = null }) {
   const pos = [], idx = [];
   const ring = nt + 1;
   for (let i = 0; i <= nz; i++) {
     const z = z0 + (z1 - z0) * (i / nz);
-    const W = w(z) * scale, T = t(z), B = b(z), k = tumble(z);
+    const W = w(z) * scale, T = t(z), B = b(z), k = tumble(z), F = f ? f(z) : 0;
     for (let j = 0; j <= nt; j++) {
       const a = th0 + (th1 - th0) * (j / nt), c = Math.cos(a), s = Math.sin(a);
-      const yy = B + (T - B) * (0.5 + 0.5 * sp(s, 2 / n));
+      const yy = B + (T - B) * (0.5 + 0.5 * sp(s, 2 / n)) + (F && s > 0 ? F * c * c * c * c * Math.sqrt(s) : 0);
       const xs = s > 0 ? 1 - (1 - k) * s * s : 1;
       pos.push(W * sp(c, 2 / n) * xs, yy + (scale - 1) * 0.5 * (T - B) * s, z);
     }
@@ -72,9 +73,9 @@ function mats(paintHex) {
     MATS.carbon = new THREE.MeshStandardMaterial({ color: 0x15171c, metalness: 0.4, roughness: 0.4 });
     // tinted glass you can see into (the cabin has seats, a dash and a wheel), with crisp sky reflections on top
     MATS.glass = new THREE.MeshPhysicalMaterial({ color: 0x1b2a38, metalness: 0.1, roughness: 0.03, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.7,
-      transparent: true, opacity: 0.62, depthWrite: false, specularIntensity: 1, side: THREE.DoubleSide });
+      transparent: true, opacity: 0.8, depthWrite: true, specularIntensity: 1, side: THREE.FrontSide }); // one-sided, so the canopy's layers never fight as the car turns
     MATS.cabin = new THREE.MeshStandardMaterial({ color: 0x16171b, roughness: 0.85 });
-    MATS.leather = new THREE.MeshStandardMaterial({ color: 0x5a1a14, roughness: 0.6 });
+    MATS.leather = new THREE.MeshStandardMaterial({ color: 0x1c1d22, roughness: 0.7 }); // dark seats: through tinted glass they read as a cabin, not as coloured blobs
     MATS.trim = new THREE.MeshStandardMaterial({ color: 0x1d1f24, roughness: 0.55, metalness: 0.2, side: THREE.DoubleSide });
     MATS.dark = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.8 });
     MATS.head = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeeff, emissiveIntensity: 1.6, polygonOffset: true, polygonOffsetFactor: -3 });
@@ -161,37 +162,42 @@ function wheelGeos(r, wdt, rim) {
 // draw calls a car, which adds up on a full grid); the player's own car always gets everything
 export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0, lite = false) {
   const S = Object.assign({ bulge: 0.035, waist: 1, n: 3.2, tumble: 0.8, len: 4.7, wid: 1.0, nose: 0.42, hood: 0.72, deck: 0.92, tail: 0.86, cabinZ: -0.05, cabinLen: 2.3, cabinH: 1.2, cabinW: 0.72,
-    wing: "high", wheelR: 0.36, intake: true, splitter: true, fin: false }, def.shape || {});
+    wing: "high", wheelR: 0.36, intake: false, splitter: true, fin: false }, def.shape || {});
   const M = mats(paintHex);
   const L = S.len / 2, zf = 1.42 * (S.len / 4.7), zr = -1.38 * (S.len / 4.7);
   const car = new THREE.Group(), body = new THREE.Group(); car.add(body);
 
   // body profile
   const arch = (z) => Math.max(0, 1 - ((z - zf) / 0.5) ** 2) ** 0.5 + Math.max(0, 1 - ((z - zr) / 0.52) ** 2) ** 0.5;
+  // the fenders rise over the tyres (front and rear), so the wheels never poke through the bodywork's rounded shoulders
+  const fen = (z) => (S.fender ?? 0.13) * smArch(z);
+  // a smooth (bell-shaped) bump over each axle for the fender swell and hump; arch() above stays sharp for the wheel openings
+  const smArch = (z) => Math.exp(-(((z - zf) / 0.5) ** 2) * 1.6) + Math.exp(-(((z - zr) / 0.55) ** 2) * 1.6);
   // waist < 1 pinches the body between the wheels, bulge > 0 swells the fenders over them
-  const w = (z) => S.wid * curve([[L, 0.78], [L - 0.35, 0.93], [zf, 1.0], [0.4, 0.94 * S.waist], [-0.5, 0.96 * S.waist], [zr, 1.03], [-L + 0.3, 0.97], [-L, 0.9]])(z) + S.bulge * arch(z);
+  const w = (z) => S.wid * curve([[L, 0.78], [L - 0.35, 0.93], [zf, 1.0], [0.4, 0.94 * S.waist], [-0.5, 0.96 * S.waist], [zr, 1.03], [-L + 0.3, 0.97], [-L, 0.9]])(z) + S.bulge * smArch(z);
   const t = curve([[L, S.nose - 0.12], [L - 0.15, S.nose], [L - 0.6, S.hood - 0.12], [zf, S.hood], [S.cabinZ + 0.8, S.hood + 0.06], [S.cabinZ - 0.6, S.deck], [-L + 0.25, S.tail], [-L, S.tail - 0.25]]);
   const b = (z) => 0.16 + 0.02 * smooth(L - 0.5, L, z) + 0.5 * Math.min(1, arch(z)) * smooth(0, 1, arch(z) * 2);
-  const shell = loft({ z0: -L, z1: L, nz: 84, nt: 40, w, t, b, n: S.n, tumble: () => S.tumble });
+  const shell = loft({ z0: -L, z1: L, nz: 84, nt: 40, w, t, b, n: S.n, tumble: () => S.tumble, f: fen });
   // cabin canopy
   const c0 = S.cabinZ - S.cabinLen * 0.55, c1 = S.cabinZ + S.cabinLen * 0.45;
   const ct = curve([[c1, t(c1) - 0.02], [c1 - 0.55, S.cabinH - 0.05], [S.cabinZ - 0.2, S.cabinH], [c0 + 0.5, S.cabinH - 0.12], [c0, t(c0) + 0.02]]);
   const cabin = loft({ z0: c0, z1: c1, nz: 36, nt: 28, w: (z) => S.cabinW * (0.85 + 0.15 * Math.sin(Math.PI * (z - c0) / (c1 - c0))), t: ct, b: (z) => t(z) - 0.12, n: 2.4, tumble: () => 0.62 });
   const paintParts = [shell];
-  // roof spine in body colour
-  paintParts.push(loft({ z0: c0 + 0.35, z1: c1 - 0.5, nz: 16, nt: 10, w: () => 0.16, t: (z) => ct(z) + 0.025, b: (z) => ct(z) - 0.04, n: 2, th0: 0, th1: Math.PI }));
-  // mirrors
-  const mz = c1 - 0.55;
+  // mirrors: an aero cap on a stalk that grows out of the top of the door (its base sits inside the bodywork)
+  const mz = c1 - 0.5;
   for (const s of [-1, 1]) {
-    const cap = new THREE.SphereGeometry(0.1, 14, 10); cap.scale(0.85, 0.55, 1.15); cap.translate(s * (w(mz) + 0.01), t(mz) + 0.14, mz); paintParts.push(cap);
-    const arm = new THREE.CylinderGeometry(0.018, 0.022, 0.16, 8); arm.rotateZ(s * 0.9); arm.translate(s * (w(mz) - 0.07), t(mz) + 0.08, mz); paintParts.push(arm);
+    const tip = new THREE.Vector3(s * (w(mz) + 0.06), t(mz) + 0.09, mz - 0.04);
+    const cap = new THREE.SphereGeometry(0.11, 16, 12); cap.scale(0.95, 0.55, 1.25); cap.translate(tip.x, tip.y, tip.z); paintParts.push(cap);
+    const base = new THREE.Vector3(s * (w(mz) - 0.1), t(mz) - 0.02, mz + 0.06), dir = tip.clone().sub(base), len = dir.length();
+    const arm = new THREE.CylinderGeometry(0.02, 0.03, len, 10); arm.translate(0, len / 2, 0);
+    arm.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize())); arm.translate(base.x, base.y, base.z); paintParts.push(arm);
   }
   const carbonParts = [];
   if (S.splitter) carbonParts.push(box(S.wid * 2.02, 0.04, 0.4, 0, 0.17, L - 0.15));
   carbonParts.push(box(S.wid * 1.8, 0.24, 0.35, 0, 0.3, -L + 0.12, 0.45));
   const scoops = [];
-  if (S.intake) scoops.push(loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: S.n, tumble: () => S.tumble, th0: -0.12, th1: 0.32, scale: 1.006, closeEnds: false }),
-    loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: S.n, tumble: () => S.tumble, th0: Math.PI - 0.32, th1: Math.PI + 0.12, scale: 1.006, closeEnds: false }));
+  if (S.intake) scoops.push(loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: S.n, tumble: () => S.tumble, f: fen, th0: -0.12, th1: 0.32, scale: 1.006, closeEnds: false }),
+    loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: S.n, tumble: () => S.tumble, f: fen, th0: Math.PI - 0.32, th1: Math.PI + 0.12, scale: 1.006, closeEnds: false }));
   // rear diffuser: vertical strakes under the bumper
   for (let k = -2; k <= 2; k++) carbonParts.push(box(0.025, 0.16, 0.42, k * S.wid * 0.32, 0.19, -L + 0.2));
   const chrome = [];
@@ -219,7 +225,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0, lite = false) {
   // lights
   const heads = [], tails = [];
   // light strips are thin patches of the body surface, so they follow its curves
-  const patch = (th0, th1, z0, z1, sc = 1.01) => loft({ z0, z1, nz: 8, nt: 16, w, t, b, n: S.n, tumble: () => S.tumble, th0, th1, scale: sc, closeEnds: false });
+  const patch = (th0, th1, z0, z1, sc = 1.01) => loft({ z0, z1, nz: 8, nt: 16, w, t, b, n: S.n, tumble: () => S.tumble, f: fen, th0, th1, scale: sc, closeEnds: false });
   const hl = S.lights || 0;
   const hz0 = L - (hl === 1 ? 0.62 : 0.5), hz1 = L - (hl === 1 ? 0.5 : 0.3);
   heads.push(patch(0.22, hl === 2 ? 0.75 : 0.55, hz0, hz1), patch(Math.PI - (hl === 2 ? 0.75 : 0.55), Math.PI - 0.22, hz0, hz1));
@@ -244,14 +250,14 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0, lite = false) {
   const dz0 = c0 + 0.45, dz1 = Math.min(c1 - 0.05, zf - 0.45);
   for (const s of [-1, 1]) {
     const th0 = s > 0 ? -0.35 : Math.PI - 0.95, th1 = s > 0 ? 0.95 : Math.PI + 0.35;
-    const g = loft({ z0: dz0, z1: dz1, nz: 12, nt: 10, w, t, b: () => 0.22, n: S.n, tumble: () => S.tumble, th0, th1, scale: 1.012, closeEnds: false });
+    const g = loft({ z0: dz0, z1: dz1, nz: 12, nt: 10, w, t, b: () => 0.22, n: S.n, tumble: () => S.tumble, f: fen, th0, th1, scale: 1.012, closeEnds: false });
     const hinge = new THREE.Group();
     const hy = t(dz1), hx = s * w(dz1);
     hinge.position.set(def.doors === "gullwing" ? s * 0.15 : hx, def.doors === "gullwing" ? ct(S.cabinZ) : hy, def.doors === "gullwing" ? (dz0 + dz1) / 2 : dz1);
     const mesh = new THREE.Mesh(g, M.paint); mesh.position.set(-hinge.position.x, -hinge.position.y, -hinge.position.z);
     const win = loft({ z0: dz0 + 0.05, z1: dz1 - 0.05, nz: 6, nt: 6, w: (z) => S.cabinW * 1.02, t: (z) => ct(z) - 0.03, b: (z) => t(z) - 0.06, n: 2.4, tumble: () => 0.62, th0: s > 0 ? 0.15 : Math.PI - 1.2, th1: s > 0 ? 1.2 : Math.PI - 0.15, closeEnds: false });
     const wm = new THREE.Mesh(win, M.glass); wm.position.copy(mesh.position);
-    const card = new THREE.Mesh(loft({ z0: dz0 + 0.04, z1: dz1 - 0.04, nz: 10, nt: 8, w: (z) => w(z) - 0.06, t: (z) => t(z) - 0.04, b: () => 0.27, n: S.n, tumble: () => S.tumble, th0, th1, scale: 1, closeEnds: false }), M.trim);
+    const card = new THREE.Mesh(loft({ z0: dz0 + 0.04, z1: dz1 - 0.04, nz: 10, nt: 8, w: (z) => w(z) - 0.06, t: (z) => t(z) - 0.04, b: () => 0.27, n: S.n, tumble: () => S.tumble, f: fen, th0, th1, scale: 1, closeEnds: false }), M.trim);
     card.position.copy(mesh.position);
     mesh.material.side = THREE.DoubleSide;
     hinge.add(mesh, card, wm); hinge.userData.side = s; body.add(hinge); doors.push(hinge);
@@ -259,7 +265,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0, lite = false) {
   // rear number plate (made-up registration)
   {
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.12), new THREE.MeshStandardMaterial({ map: plateTex(def.id), roughness: 0.4, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2 }));
-    plate.position.set(0, Math.max(0.36, Math.min(0.52, S.tail - 0.42)), -L - 0.015); plate.rotation.y = Math.PI; body.add(plate);
+    plate.position.set(0, Math.max(0.34, Math.min(0.46, S.tail - 0.46)), -L - 0.04); plate.rotation.y = Math.PI; body.add(plate);
   }
   // the cabin you see through the glass: a dark tub over the body top, seat backs with headrests, a dash and a steering wheel
   if (!lite) {
@@ -297,7 +303,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0, lite = false) {
     wheels.push(spin); if (i < 2) steerers.push(pivot);
   });
   const model = { blurs, blurMat, group: car, body, doors, doorType: def.doors || "scissor", wheels, steerers, paint: M.paint, rimMat, tailMat: M.tail, tailMesh, headMat: MATS.head,
-    decalCtx: { w, t, b, L, dz0, dz1, n: S.n, tumble: S.tumble, number: (def.id.charCodeAt(0) % 9) + 1 },
+    decalCtx: { w, t, b, L, dz0, dz1, n: S.n, tumble: S.tumble, f: fen, number: (def.id.charCodeAt(0) % 9) + 1 },
     exhaust: [new THREE.Vector3(-0.32, 0.38, -L - 0.02), new THREE.Vector3(0.32, 0.38, -L - 0.02)] };
   setDecal(model, decalIdx, paintHex);
   return model;
@@ -308,7 +314,7 @@ export function setDoors(car, open) {
   let o = Math.max(0, Math.min(1, open)); o = o * o * (3 - 2 * o); // ease in and out, so doors glide rather than snap
   for (const d of car.doors) {
     const s = d.userData.side;
-    d.rotation.set(0, 0, 0);
+    d.rotation.set(0, 0, 0); d.visible = o > 0.002; // shut: the body is the door, so no overlaid panel flickers against it
     if (car.doorType === "scissor") d.rotation.x = o * 1.25;
     else if (car.doorType === "butterfly") { d.rotation.x = o * 1.0; d.rotation.z = s * o * 0.55; }
     else if (car.doorType === "gullwing") d.rotation.z = s * o * 1.25;
@@ -348,7 +354,7 @@ export function setDecal(car, idx, paintHex, livery = car.livery || 0) {
   const c = new THREE.Color(paintHex), lum = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
   const mat = new THREE.MeshPhysicalMaterial({ color: LIVERY[livery] && LIVERY[livery].hex != null ? LIVERY[livery].hex : lum > 0.55 ? 0x14161b : 0xf2f4f7, roughness: 0.3, clearcoat: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
   const { w, t, b, L, dz0, dz1, n: secN, tumble: tb } = car.decalCtx;
-  const patch = (th0, th1, z0, z1) => { const m = new THREE.Mesh(loft({ z0, z1, nz: 40, nt: 3, w, t, b, n: secN, tumble: () => tb, th0, th1, scale: 1.012, closeEnds: false }), mat); car.body.add(m); car.decals.push(m); };
+  const patch = (th0, th1, z0, z1) => { const m = new THREE.Mesh(loft({ z0, z1, nz: 40, nt: 3, w, t, b, n: secN, tumble: () => tb, f: car.decalCtx.f, th0, th1, scale: 1.012, closeEnds: false }), mat); car.body.add(m); car.decals.push(m); };
   const top = Math.PI / 2;
   if (idx === 1) { patch(top - 0.24, top - 0.12, -L + 0.05, L - 0.05); patch(top + 0.12, top + 0.24, -L + 0.05, L - 0.05); }
   else if (idx === 2) patch(top - 0.09, top + 0.09, -L + 0.05, L - 0.05);
@@ -375,11 +381,14 @@ export function setUnderglow(car, idx) {
   const u = UNDERGLOW[idx] || UNDERGLOW[0];
   if (!car.underglow) {
     if (!glowTex) {
-      const c = document.createElement("canvas"); c.width = 64; c.height = 128; const g = c.getContext("2d"), gr = g.createRadialGradient(32, 64, 4, 32, 64, 62);
-      gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.45, "rgba(255,255,255,.5)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 128);
+      // an oval that fades to nothing well inside the edges (no hard rectangle on the floor)
+      const c = document.createElement("canvas"); c.width = 128; c.height = 256; const g = c.getContext("2d");
+      g.translate(64, 128); g.scale(1, 2); const gr = g.createRadialGradient(0, 0, 2, 0, 0, 62);
+      gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.62, "rgba(255,255,255,.85)"); gr.addColorStop(0.86, "rgba(255,255,255,.3)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(-64, -64, 128, 128);
       glowTex = new THREE.CanvasTexture(c);
     }
-    const L = car.decalCtx.L, m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, L * 2 + 1.2), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.9 }));
+    const L = car.decalCtx.L, m = new THREE.Mesh(new THREE.PlaneGeometry(4.4, L * 2 + 2.6), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.95, toneMapped: false }));
+    // (big enough to spill well out from under the body: you see the light on the ground round the car, not just under it)
     m.rotation.x = -Math.PI / 2; m.position.y = 0.04; m.renderOrder = 1; car.group.add(m); car.underglow = m;
   }
   car.underglow.visible = u.hex != null; if (u.hex != null) car.underglow.material.color.setHex(u.hex);

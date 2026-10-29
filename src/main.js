@@ -2358,6 +2358,7 @@ if (TEST) {
     get rivals() { return G.rivals.map((r) => ({ totalD: r.veh.totalD, vF: r.veh.vF, lat: r.veh.lat, finished: r.finished })); },
     get trackLength() { return G.path.length; },
     get save() { return JSON.parse(JSON.stringify(save)); },
+    glow(i) { setUnderglow(G.car, i); },
     get track() { return G.track.id; },
     // jump the player to a distance along the track (used for screenshots of specific corners)
     warp(d) { const keep = G.player.totalD; G.player.reset(d, 0); G.player.totalD = keep; G.player.vF = 40; G.player.vx = Math.sin(G.player.h) * 40; G.player.vz = Math.cos(G.player.h) * 40; chase.ready = false; },
