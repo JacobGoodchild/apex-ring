@@ -1994,7 +1994,7 @@ function render(dt) {
   world.follow(v.x, v.y, v.z);
 
   if (G.mode !== "menu") {
-    $("lapV").textContent = G.event && G.event.type === "attack" ? String(G.lapTimes.length + 1) : Math.min(G.lapTimes.length + 1, laps()) + "/" + laps();
+    $("lapV").textContent = G.tut && !G.tut.L.race ? "–" : G.event && G.event.type === "attack" ? String(G.lapTimes.length + 1) : Math.min(G.lapTimes.length + 1, laps()) + "/" + laps();
     $("timeV").textContent = fmt(G.mode === "race" ? G.raceTime - G.lapStart : G.lapTimes[G.lapTimes.length - 1] || 0);
     if ((G.hudTick = (G.hudTick || 0) + 1) % 6 === 0) {
       const o = standings(), i = o.findIndex((e) => e.me);
@@ -2162,7 +2162,7 @@ function titleCamera(dt) {
 const LESSONS = [
   { id: "steer", name: "Steering", desc: "Keep it on the road through the bends.", track: "oval", cap: 0.62, goal: 3,
     msg: "Hold the LEFT or RIGHT half of the screen (or ← →) to steer. The car speeds up and brakes by itself." },
-  { id: "drift", name: "Drifting", desc: "Slide through bends to fill your boost.", track: "gp", cap: 0.74, goal: 3,
+  { id: "drift", name: "Drifting", desc: "Slide through bends to fill your boost.", track: "oval", cap: 0.8, goal: 3,
     msg: "When a bend comes, steer HARD into it and hold: the car slides into a drift by itself." },
   { id: "boost", name: "Boost", desc: "A tap for a little, hold for a lot.", track: "oval", cap: 1, goal: 2,
     msg: "" },
@@ -2214,9 +2214,10 @@ function tutorialStep(dt) {
     if (v.wallHit > 2 || v.offTrack) T.hit = true;
     prog = `Bends: ${T.count} / ${L.goal}`;
   } else if (L.id === "drift") {
-    const s = bendAhead(v);
-    if (v.drifting) msg = "That's a drift! Keep holding through the bend.";
-    else if (s) msg = `Bend ahead: hold ${s > 0 ? "RIGHT ▶" : "◀ LEFT"} hard now`;
+    const here = G.path.cs[v.p.i], s = Math.abs(here) > 0.004 ? Math.sign(here) : 0, soon = s ? 0 : bendAhead(v);
+    if (v.drifting) msg = "That's a drift! Let go as the road straightens out.";
+    else if (s) msg = `In the bend: hold ${s > 0 ? "RIGHT ▶" : "◀ LEFT"} hard NOW`;
+    else if (soon) msg = `Bend coming: get ready to hold ${soon > 0 ? "RIGHT ▶" : "◀ LEFT"}`;
     if (v.drifting && !T.wasDrift) T.dStart = T.t;
     if (!v.drifting && T.wasDrift && T.t - T.dStart > 0.4) T.count++;
     T.wasDrift = v.drifting;
