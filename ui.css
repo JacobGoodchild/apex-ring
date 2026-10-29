@@ -519,3 +519,10 @@ body:has(#finish:not([hidden])) #toast { top: auto; bottom: calc(var(--safe-b) +
   #school .lessons { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 @media (orientation: portrait) and (max-height: 700px) { #school { padding-top: calc(var(--safe-t) + calc(62 * var(--u))); } #school .card { padding: var(--s3); } }
+/* boost bar: taller, with a tick about every tap's worth (an eighth), and lit while you boost */
+#speedo .boostbar { position: relative; width: calc(170 * var(--u)); height: calc(10 * var(--u)); border-radius: calc(5 * var(--u)); }
+#speedo .boostbar::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 1px), rgba(5, 10, 20, .55) calc(12.5% - 1px) 12.5%); }
+#speedo .boostbar .fill { height: 100%; transition: width .08s linear; }
+#speedo.boosting .boostbar .fill { background: linear-gradient(90deg, #7fe3ff, #e6fbff); box-shadow: 0 0 calc(14 * var(--u)) rgba(127, 227, 255, .9); }
+#speedo.boosting .boostbar { border-color: #bff3ff; }

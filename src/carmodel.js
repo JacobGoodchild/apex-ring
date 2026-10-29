@@ -95,7 +95,7 @@ function mats(paintHex) {
     paint: new THREE.MeshPhysicalMaterial({ color: paintHex, metalness: 0.5, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 }),
     tail: new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff1a0a, emissiveIntensity: 1.4, polygonOffset: true, polygonOffsetFactor: -3 }),
     rim: new THREE.MeshStandardMaterial({ color: 0x9aa1ab, metalness: 0.95, roughness: 0.2 }),
-    caliper: new THREE.MeshStandardMaterial({ color: 0xf2a65a, roughness: 0.35 }),
+    caliper: new THREE.MeshStandardMaterial({ color: 0xb3261e, roughness: 0.4, metalness: 0.3 }), // red, like a racing brake (the pale orange read as a patch through the spokes)
     ...MATS,
   };
 }
@@ -193,7 +193,7 @@ export function makeCar(def, paintHex, rimIdx = 0, decalIdx = 0, lite = false) {
     arm.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize())); arm.translate(base.x, base.y, base.z); paintParts.push(arm);
   }
   const carbonParts = [];
-  if (S.splitter) carbonParts.push(box(S.wid * 2.02, 0.04, 0.4, 0, 0.17, L - 0.15));
+  if (S.splitter) carbonParts.push(box(w(L - 0.12) * 2 - 0.04, 0.035, 0.3, 0, 0.17, L - 0.16)); // as wide as the nose, not a plank sticking out
   carbonParts.push(box(S.wid * 1.8, 0.24, 0.35, 0, 0.3, -L + 0.12, 0.45));
   const scoops = [];
   if (S.intake) scoops.push(loft({ z0: -1.05, z1: -0.42, nz: 8, nt: 4, w, t, b, n: S.n, tumble: () => S.tumble, f: fen, th0: -0.12, th1: 0.32, scale: 1.006, closeEnds: false }),

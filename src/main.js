@@ -2015,7 +2015,7 @@ function render(dt) {
         $("gapV").textContent = (i > 0 ? "+" : "−") + gap.toFixed(1) + "s " + (i > 0 ? "to " : "over ") + other.name.split(" ")[0];
       } else $("gapV").hidden = true;
     }
-    $("boostFill").style.width = Math.round(v.boost * 100) + "%";
+    $("boostFill").style.width = (v.boost * 100).toFixed(1) + "%"; $("speedo").classList.toggle("boosting", !!v.boosting); // smooth, and lit while boosting
     $("speedo").classList.toggle("ready", v.boost > 0.02);
     $("drift").hidden = !(G.driftPts > 5);
     if (G.driftPts > 5) { $("driftV").textContent = "+" + Math.round(G.driftPts); $("driftX").textContent = G.mult > 1 ? "x" + G.mult : ""; }
