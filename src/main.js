@@ -9,7 +9,6 @@ import { buildScenery } from "./scenery.js";
 import { hasTerrain } from "./terrain.js";
 import { TRACKS, THEMES, trackById, DIFFICULTY_NAMES, LAYOUTS, baseId, layoutOf, canReverse, rainy, nightly } from "./tracks.js";
 import { CARS, PAINTS, carById, carSpec, GARAGE_ORDER } from "./cars.js";
-import { registerCarModel, preloadCarModels } from "./carglb.js";
 import { makeCar, setDoors, setRims, setDecal, setFinish, wheelBlur, RIMS, DECALS, FINISHES, LIVERY, UNDERGLOW, setUnderglow } from "./carmodel.js";
 import { Showroom } from "./showroom.js";
 import { Ghost } from "./ghost.js";
@@ -2258,9 +2257,6 @@ setTimeout(() => { if (G.mode === "menu") startTitle(); else afterTitle(); }, 50
 setTimeout(startPresence, 2500);
 
 // ---------- boot ----------
-// modelled car bodies (src/carglb.js) load in the background; once they're in, rebuild the cars that use them
-if (TEST && QS.get("glb")) registerCarModel(QS.get("glbcar") || save.car || "vanta", { file: QS.get("glb"), rotY: Number(QS.get("rot") || 0) }); // dev: try a model
-preloadCarModels(() => { if (G.mode !== "menu") return; buildPlayer(); buildRivals(); G.field = G.rivals; gridUp(); showroom.setCar(G.car); });
 loadTrack(QS.get("track") || save.track || "gp");
 buildPlayer();
 buildRivals();

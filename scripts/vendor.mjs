@@ -20,8 +20,6 @@ const files = [
   "examples/jsm/shaders/OutputShader.js",
   "examples/jsm/environments/RoomEnvironment.js",
   "examples/jsm/utils/BufferGeometryUtils.js",
-  "examples/jsm/loaders/GLTFLoader.js",
-  "examples/jsm/utils/SkeletonUtils.js",
   "LICENSE",
 ];
 rmSync(out, { recursive: true, force: true });
