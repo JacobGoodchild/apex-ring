@@ -28,6 +28,8 @@ test("game works offline after the first visit", async ({ page, context }) => {
   await page.reload();
   // the real game opens on its title screen: tap past it
   await page.waitForSelector("#title:not([hidden])", { timeout: 20_000 }).then(() => page.mouse.click(20, 20)).catch(() => {});
+  // a first-time player is offered the driving school: skip it
+  await page.waitForSelector("#school:not([hidden])", { timeout: 10_000 }).then(() => page.click("#schoolBack")).catch(() => {});
   await expect(page.locator("#raceBtn")).toBeVisible({ timeout: 20_000 });
   await context.setOffline(false);
 });
