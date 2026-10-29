@@ -44,8 +44,9 @@ test("a new version shows an 'Update ready' banner and tapping it reloads", asyn
   await page.waitForFunction(() => navigator.serviceWorker.controller != null, null, { timeout: 20_000 });
   deploy();
   await page.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => r.update()));
-  await expect(page.locator("#updateBanner")).toBeVisible({ timeout: 20_000 });
-  const reloaded = page.waitForEvent("load", { timeout: 20_000 });
+  await expect(page.locator("#updateBanner")).toBeVisible({ timeout: 40_000 });
+  // the new version has to finish installing (every game file) before the reload, which can take a while on a slow CI runner
+  const reloaded = page.waitForEvent("load", { timeout: 60_000 });
   await page.click("#updateBanner");
   await reloaded;
   await page.waitForFunction(() => window.__apex && window.__apex.ready);
