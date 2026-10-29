@@ -240,7 +240,8 @@ function applyPlayers() {
 document.querySelectorAll("#playersTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.split = b.dataset.n === "2"; applyPlayers(); }));
 document.querySelectorAll("#layoutTabs .tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); loadTrack(baseId(G.track.id) + (b.dataset.l ? ":" + b.dataset.l : "")); writeSave(); }));
 $("trackPrev").addEventListener("click", () => pickTrack(-1));
-$("settingsTop").addEventListener("click", () => show("settings"));
+// the cog opens Settings, and pressing it again closes it
+$("settingsTop").addEventListener("click", () => ($("settings").hidden ? show("settings") : show("menu")));
 $("trackNext").addEventListener("click", () => pickTrack(1));
 
 // ---------- player car ----------

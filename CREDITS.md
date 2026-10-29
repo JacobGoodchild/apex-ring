@@ -18,3 +18,4 @@ Almost everything is made in code in this repo. The only third-party art is a se
 | Three.js r186 | https://threejs.org, vendored in `vendor/three/` | MIT (see `vendor/three/LICENSE`) |
 
 The cars are built procedurally; the only downloaded 3D models (trees) are baked into a picture atlas offline.
+- Settings cog icon: Feather Icons (https://feathericons.com), MIT licence.

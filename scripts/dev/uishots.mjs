@@ -2,7 +2,8 @@
 // screens: comma list of menu,setup,garage,career,settings,online,daily (needs serve.mjs 4174)
 import { chromium } from "@playwright/test";
 const tag = process.argv[2] || "ui", screens = (process.argv[3] || "menu,setup").split(",");
-const sizes = { p: [412, 915], l: [915, 412], d: [1366, 768] };
+const ALL = { s: [360, 640], p: [412, 915], l: [915, 412], t: [820, 1180], w: [1000, 560], d: [1366, 768], b: [1920, 1080] };
+const sizes = Object.fromEntries((process.env.SIZES || "s,p,l,t,w,d,b").split(",").map((k) => [k, ALL[k]])); // SIZES=p,l to pick some
 const open = { setup: "#raceBtn", garage: "#garageBtn", career: "#careerBtn", settings: "#settingsBtn", online: "#onlineBtn", daily: "#dailyBtn", help: "#helpBtn" };
 const b = await chromium.launch({ args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 for (const [k, [w, h]] of Object.entries(sizes)) {
