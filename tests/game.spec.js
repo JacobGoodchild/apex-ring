@@ -409,8 +409,11 @@ test.describe("Apex Ring", () => {
     await page.click("#settingsBtn");
     await page.click('#soundTabs [data-s="0"]');
     await page.click('#qualityTabs [data-q="low"]');
+    // rival difficulty now lives on the race screen
+    await page.click("#settingsBack"); await page.click("#raceBtn"); await page.click("#modeRace");
     await page.click('#diffTabs [data-d="hard"]');
     expect((await game(page, () => window.__apex.save)).settings.difficulty).toBe("hard");
+    await page.click("#setupBack"); await page.click("#settingsBtn");
     const sv = await game(page, () => window.__apex.save);
     expect(sv.settings.sound).toBe(false);
     expect(sv.settings.quality).toBe("low");

@@ -30,7 +30,7 @@ import { makeRng } from "./rng.js";
 import { Sparks, Fireworks, Skids, Smoke, SpeedLines, Rain, addFlames, updateFlames, addBeams, setTrail, TRAILS, addContactShadow, updateContactShadow } from "./effects.js";
 import { Minimap, drawTrack } from "./minimap.js";
 import { addWings, setWings, setWingSkin, WING_SKINS } from "./wings.js";
-import { onlineReady, signIn, saveProfile, postLap, topLaps, friendLaps, addFriend, myId, Room, roomCode, postGhost, getGhost, ghostOwners, lapsSince, friendsList, touchSeen, myInbox } from "./online.js";
+import { onlineReady, signIn, saveProfile, postLap, topLaps, friendLaps, addFriend, myId, Room, roomCode, postGhost, getGhost, ghostOwners, lapsSince, friendsList, touchSeen, myInbox, allBestLaps, topStats, postStats } from "./online.js";
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -279,8 +279,8 @@ function makeBoss(ev) {
   model.group.traverse((o) => { if (o.isMesh) o.castShadow = false; }); model.body.children[0].castShadow = true;
   addFlames(model); addBeams(model); addContactShadow(model); model.beams.visible = !!G.night; setFinish(model, 2, prof.color); setTrail(model, 3); setDoors(model, 0);
   scene.add(model.group);
-  const up = { easy: "normal", normal: "hard", hard: "hard" }[save.settings.difficulty || "easy"];
-  const driver = new Driver(veh, prof, save.settings.difficulty === "hard" ? 1.02 : 1, (SEED + 4242) >>> 0, levelOf(up));
+  const up = { easy: "normal", normal: "hard", hard: "hard" }[raceDiff()];
+  const driver = new Driver(veh, prof, raceDiff() === "hard" ? 1.02 : 1, (SEED + 4242) >>> 0, levelOf(up));
   return { carId: def.id, veh, model, driver, baseSkill: driver.skill, name: prof.name, color: prof.color, boss: true, level: levelOf(up) };
 }
 
@@ -308,7 +308,7 @@ function gridUp() {
   const ps = slot(Math.min(G.gridSlot, G.rivals.length)); G.player.reset(ps[0], ps[1]);
   let k = 0;
   const ps2 = G.player.spec;
-  const level = levelOf(save.settings.difficulty);
+  const level = levelOf(raceDiff());
   const band = { off: 0, low: 0.5, normal: 1, high: 1.8 }[save.settings.catchup || "normal"] ?? 1;
   for (const r of G.rivals) { r.out = false; r.driver.skill = r.baseSkill; r.driver.level = level; r.driver.band = band; }
   for (const r of G.field) {
@@ -320,7 +320,7 @@ function gridUp() {
     const [d, lat] = slot(G.field.length === 1 ? 0 : k++); r.veh.track = G.path; r.veh.boost = 0.25; r.veh.reset(d, lat); r.finished = null;
   }
   G.raceTime = 0; G.lapStart = 0; G.lapTimes = []; G.finishOrder = []; G.playerFinish = null; hlReset(); G.photoFin = false; G.slowmo = 0; G.lastPos = -1;
-  skids.clear(); G.driftPts = 0; G.airPops = 0; G.mult = 1; G.lastBank = -9; G.draftM = 0; G.topSpeed = 0; G.bestDrift = 0;
+  skids.clear(); G.driftPts = 0; G.airPops = 0; G.mult = 1; G.lastBank = -9; G.draftM = 0; G.topSpeed = 0; G.bestDrift = 0; G.bestAir = 0;
   if (G.rocks && G.path) G.path.hazards = G.path.hazards.filter((h) => h.type !== "rock"); G.rocks = []; G.nextRock = 18; G.rockRnd = makeRng((SEED ^ 0x5eed) >>> 0); G.driftShow = 0; G.totalDrift = 0; G.cleanLaps = 0; G.lapWall = 0; G.newRecord = false;
 }
 
@@ -799,7 +799,7 @@ function selectEvent(ev, quiet) {
   document.querySelectorAll("#events .node").forEach((n) => n.classList.toggle("sel", n.id === "ev-" + (ev.daily ? "daily" : ev.id)));
   $("evDetail").hidden = false;
   $("evDName").textContent = ev.name;
-  $("evDDesc").textContent = ev.daily ? `${ev.desc} New challenge every day.` : `${TYPE_LABEL[ev.type]} · ${trackById(ev.track).name}${ev.type === "attack" ? ` · ${ev.time} s` : ` · ${ev.laps} laps`}. ${ev.desc}`;
+  $("evDDesc").textContent = ev.daily ? `${ev.desc} New challenge every day.` : `${TYPE_LABEL[ev.type]} · ${trackById(ev.track).name}${ev.type === "attack" ? ` · ${ev.time} s` : ` · ${ev.laps} laps`}${["race", "elim", "h2h", "boss"].includes(ev.type) ? ` · ${{ easy: "Easy", normal: "Medium", hard: "Hard" }[["easy", "normal", "hard"][Math.min(3, Math.max(1, trackById(ev.track).difficulty || 1)) - 1]]} rivals` : ""}. ${ev.desc}`;
   const st = save.career[ev.id], r = ev.reward;
   $("evDReward").innerHTML = st && st.done ? `Best: <b>${"★".repeat(st.stars)}${"☆".repeat(3 - st.stars)}</b>` : `Reward <b>+${(r.coins || 0).toLocaleString("en-GB")}</b>${r.gems ? ` <b class="gem">+${r.gems} gems</b>` : ""}${ev.unlock && ev.unlock.car ? ` · wins the <b>${carById(ev.unlock.car).name}</b>` : ""}`;
   $("evGo").textContent = st && st.done ? "Replay event" : "Start event";
@@ -861,42 +861,81 @@ const seasonStart = (d = new Date()) => new Date(Date.UTC(d.getUTCFullYear(), d.
 const seasonName = (d = new Date()) => d.toLocaleString("en-GB", { month: "long", timeZone: "UTC" }) + " season";
 // the weekly challenge: one track for everyone, picked from the week's date (no server needed to agree on it)
 function weeklyTrack(d = new Date()) { const wk = Math.floor(weekStart(d).getTime() / 6048e5), pool = TRACKS.filter((t) => t.id !== "xtreme"); return pool[(wk * 7 + 3) % pool.length]; }
+// names: old profiles still called "Driver" show as a steady Racer#### worked out from their id
+const dispName = (n, id) => (!n || n === "Driver" ? "Racer" + (1000 + (parseInt(String(id || "0").replace(/[^0-9a-f]/gi, "").slice(-6) || "0", 16) % 9000)) : n);
+const layoutLabel = (id) => { const d = TRACKS.find((t) => t.id === baseId(id)), l = LAYOUTS.find(([k]) => k === (String(id).split(":")[1] || "")); return d ? d.name + (l && l[0] ? " · " + l[1] : "") : id; };
+// the leaderboards: Overall (default), Fastest laps per track, and personal records
+const CATS = {
+  overall: { title: "All time · every track", head: ["#", "Racer", "Track", "Time"] },
+  laps: { title: "", head: ["#", "Racer", "Time"] },
+  drift: { title: "Longest single drift", head: ["#", "Racer", "Points"], col: "drift", fmt: (v) => Math.round(v).toLocaleString("en-GB") },
+  speed: { title: "Highest top speed", head: ["#", "Racer", "Speed"], col: "speed", fmt: (v) => Math.round(v / (mph() ? 1.609 : 1)) + " " + unitName() }, // stored in km/h
+  air: { title: "Longest time in the air", head: ["#", "Racer", "Air time"], col: "air", fmt: (v) => v.toFixed(1) + " s" },
+  wins: { title: "Most races won", head: ["#", "Racer", "Wins"], col: "wins", fmt: (v) => String(Math.round(v)) },
+};
+const lbRow = (pos, name, cells, mine, extra = "") => `<li class="${mine ? "me" : ""}"><span class="pos">${pos}</span><span class="nm">${esc(name)}${extra}</span>${cells.map((c) => `<span class="cell">${c}</span>`).join("")}</li>`;
+function myRecords() { const st = save.stats || {}; return { drift: st.drift || 0, speed: st.top || 0, air: st.air || 0, wins: st.wins || 0 }; }
 function refreshOnline(fetchNow = true) {
-  const t = TRACKS[G.oTrack], best = save.best[t.id], name = myName();
-  $("oTrackName").textContent = t.name;
+  const cat = CATS[G.oCat] ? G.oCat : (G.oCat = "overall"), C = CATS[cat], t = TRACKS[G.oTrack], best = save.best[t.id], name = myName();
+  document.querySelectorAll("#oCats .lbcat").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cat === cat)));
+  $("oLapCtl").hidden = cat !== "laps";
   $("oCode").textContent = friendCode();
   $("oName").value = save.driverName || ""; $("oName").placeholder = myName();
   const st = save.stats || { races: 0, wins: 0, podiums: 0 };
   $("oStats").innerHTML = [["Races", st.races], ["Wins", st.wins], ["Podiums", st.podiums]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("");
+  const season = cat === "laps" && G.oBoard === "season";
+  $("oBoardKind").textContent = cat === "laps" ? (season ? seasonName() : "All time") : C.title;
+  $("oTrackName").textContent = cat === "laps" ? t.name : "";
+  $("oSeasonHint").textContent = season ? "Top 10 at the end of the month earn a title: Apex Legend, Gold or Silver." : cat === "overall" ? "Each racer's best lap, ranked by how close it is to that track's gold medal time." : "";
+  $("oSeason").setAttribute("aria-pressed", String(season)); $("oAll").setAttribute("aria-pressed", String(!season));
+  $("oBoardHead").innerHTML = C.head.map((h) => `<span>${h}</span>`).join("");
+  $("oBoardHead").className = "lbhead c" + C.head.length; $("oBoard").className = "lboard c" + C.head.length;
+  const me = onlineReady() ? myId() : null;
   if (onlineReady() && fetchNow) {
-    // real boards from the server: this season (the month) or all time; a ghost icon where a driver has a lap to race
-    const id = t.id, season = G.oBoard !== "all";
-    $("oBoardKind").textContent = season ? seasonName() : "All time";
-    $("oSeasonHint").textContent = season ? "Top 10 at the end of the month earn a title: Apex Legend, Gold or Silver." : "";
-    $("oSeason").setAttribute("aria-pressed", String(season)); $("oAll").setAttribute("aria-pressed", String(!season));
     $("oBoard").innerHTML = `<li class="empty">Loading…</li>`;
-    ensureProfile().catch(() => {}).then(() => Promise.all([season ? lapsSince(id, seasonStart().toISOString(), new Date(Date.now() + 36e5).toISOString()).then(bestPer) : topLaps(id), friendLaps(id).catch(() => []), ghostOwners(id).catch(() => [])])).then(([top, fr, gh]) => {
-      if (TRACKS[G.oTrack].id !== id) return;
-      const me = myId(), ghosts = new Set((gh || []).map((g) => g.user_id));
-      top = top.slice(0, 100);
-      $("oBoard").innerHTML = top.length ? top.map((r, i) => boardRow(r, i, me, { season, ghosts })).join("") : `<li class="empty">No laps yet${season ? " this season" : ""}. Set one and you're first!</li>`;
-      $("oFriendBoard").innerHTML = fr.length ? fr.map((r, i) => boardRow(r, i, me, { ghosts })).join("") : `<li class="empty">No laps from you or your friends on this track yet.</li>`;
-      const mine = top.findIndex((r) => r.user_id === me);
-      // your title this season is the best rank you hold on any board (it only goes up, and resets with the season)
-      if (season && mine >= 0 && mine < 10) {
-        const cur = save.title && save.title.season === seasonName() ? save.title.rank : 99;
-        if (mine < cur) { save.title = { name: seasonTitle(mine), season: seasonName(), rank: mine }; writeSave(); }
-        if (mine === 0) badge("legend");
-      }
-    }).catch((e) => { $("oBoard").innerHTML = `<li class="empty">Couldn't reach the server: ${esc(e.message)}</li>`; });
+    const fail = (e) => { $("oBoard").innerHTML = `<li class="empty">${/stats/.test(e.message) || /404|relation/.test(e.message) ? "This board is nearly ready: it needs part 4 of the server setup." : "Couldn't reach the server: " + esc(e.message)}</li>`; };
+    if (cat === "overall") {
+      ensureProfile().catch(() => {}).then(() => allBestLaps()).then((rows) => {
+        if (G.oCat !== "overall") return;
+        // each racer's single best lap, scored against the track's gold time (1.00 = gold)
+        const bestBy = new Map();
+        for (const r of rows) { const g = medalTimes(r.track)[0]; if (!g) continue; const sc = r.ms / 1000 / g.t; const b = bestBy.get(r.user_id); if (!b || sc < b.sc) bestBy.set(r.user_id, { ...r, sc }); }
+        const top = [...bestBy.values()].sort((a, b) => a.sc - b.sc).slice(0, 100);
+        $("oBoard").innerHTML = top.length ? top.map((r, i) => lbRow(i + 1, dispName(r.name, r.user_id), [esc(layoutLabel(r.track)), fmt(r.ms / 1000)], r.user_id === me)).join("") : `<li class="empty">No laps yet. Set one and you're first!</li>`;
+      }).catch(fail);
+    } else if (cat === "laps") {
+      const id = t.id;
+      ensureProfile().catch(() => {}).then(() => Promise.all([season ? lapsSince(id, seasonStart().toISOString(), new Date(Date.now() + 36e5).toISOString()).then(bestPer) : topLaps(id), friendLaps(id).catch(() => []), ghostOwners(id).catch(() => [])])).then(([top, fr, gh]) => {
+        if (TRACKS[G.oTrack].id !== id || G.oCat !== "laps") return;
+        const ghosts = new Set((gh || []).map((g) => g.user_id));
+        top = top.slice(0, 100).map((r) => ({ ...r, name: dispName(r.name, r.user_id) }));
+        $("oBoard").innerHTML = top.length ? top.map((r, i) => boardRow(r, i, me, { season, ghosts })).join("") : `<li class="empty">No laps yet${season ? " this season" : ""}. Set one and you're first!</li>`;
+        $("oFriendBoard").innerHTML = fr.length ? fr.map((r, i) => boardRow({ ...r, name: dispName(r.name, r.user_id) }, i, me, { ghosts })).join("") : `<li class="empty">No laps from you or your friends on this track yet.</li>`;
+        const mine = top.findIndex((r) => r.user_id === me);
+        // your title this season is the best rank you hold on any board (it only goes up, and resets with the season)
+        if (season && mine >= 0 && mine < 10) {
+          const cur = save.title && save.title.season === seasonName() ? save.title.rank : 99;
+          if (mine < cur) { save.title = { name: seasonTitle(mine), season: seasonName(), rank: mine }; writeSave(); }
+          if (mine === 0) badge("legend");
+        }
+      }).catch(fail);
+    } else {
+      ensureProfile().catch(() => {}).then(() => topStats(C.col)).then((rows) => {
+        if (G.oCat !== cat) return;
+        $("oBoard").innerHTML = rows.length ? rows.map((r, i) => lbRow(i + 1, dispName(r.profiles && r.profiles.name, r.user_id), [C.fmt(r[C.col])], r.user_id === me)).join("") : `<li class="empty">No records yet. Race and yours goes up!</li>`;
+      }).catch(fail);
+    }
     return;
   }
-  // not set up yet: your own best lap is real; the world's rows are placeholders
-  const rows = [`<li class="me"><span class="pos">–</span><span class="nm">${esc(name)} <small>this device</small></span><span class="tm">${best ? fmt(best) : "no lap yet"}</span></li>`];
-  for (let i = 1; i <= 6; i++) rows.push(`<li class="ghostrow"><span class="pos">${i}</span><span class="nm"><i></i></span><span class="tm"><i></i></span></li>`);
+  // not online (or test mode): your own record is real, the world's rows are placeholders
+  const own = cat === "overall" || cat === "laps" ? (best ? fmt(best) : "no lap yet") : C.fmt(myRecords()[C.col]);
+  const ownCells = cat === "overall" ? [esc(t.name), own] : [own];
+  const rows = [lbRow("–", name, ownCells, true, " <small>this device</small>")];
+  for (let i = 1; i <= 6; i++) rows.push(`<li class="ghostrow"><span class="pos">${i}</span><span class="nm"><i></i></span>${ownCells.map(() => `<span class="cell"><i></i></span>`).join("")}</li>`);
   $("oBoard").innerHTML = rows.join("");
   $("oFriendBoard").innerHTML = `<li class="me"><span class="pos">1</span><span class="nm">${esc(name)}</span><span class="tm">${best ? fmt(best) : "–"}</span></li><li class="empty">Add friends to see their times here.</li>`;
 }
+document.querySelectorAll("#oCats .lbcat").forEach((b) => b.addEventListener("click", () => { sfx.click(); G.oCat = b.dataset.cat; refreshOnline(); }));
 // the server needs a profile (name + friend code) before it takes laps or friends; made once per session
 function ensureProfile(force = false) {
   if (!G.profileP || force) G.profileP = saveProfile(myName(), friendCode()).catch((e) => { G.profileP = null; throw e; });
@@ -1196,6 +1235,7 @@ function setMode(trial, cup = false) {
   if (save.settings.raceMode !== m) { save.settings.raceMode = m; writeSave(); } // the race screen opens on the mode you used last
   $("modeRace").setAttribute("aria-pressed", String(!trial && !cup)); $("modeTrial").setAttribute("aria-pressed", String(trial)); $("modeCup").setAttribute("aria-pressed", String(cup));
   $("cupPick").hidden = !cup; $("trackPick").hidden = cup; ["layoutOpt", "board", "timeOpt", "weatherOpt", "trackStrip"].forEach((id) => ($(id).hidden = cup)); // cups always race by day, dry
+  $("diffOpt").hidden = trial; // a time trial has no rivals
   if (cup) refreshCup();
   refreshLock();
 }
@@ -1360,8 +1400,15 @@ function autopilot(v) {
 // Driver aids follow the settings; "auto" means on when rivals are on Easy.
 function applyAids() { const m = G.track && world.trackGroup && world.trackGroup.getObjectByName("racingLine"); if (m) m.visible = aidOn("line"); }
 // steering assist strength: Auto follows the difficulty (full on Easy, lighter on Medium, off on Hard)
-function assistLevel() { const v = save.settings.assist || "auto"; return v === "on" ? 0.55 : v === "off" || save.settings.drive === "pro" ? 0 : AUTO_ASSIST[save.settings.difficulty || "easy"] || 0; }
-function aidOn(key) { const v = save.settings[key] || "auto"; return v === "on" || (v === "auto" && (save.settings.difficulty || "easy") === "easy"); }
+// how hard the rivals are: career events get harder chapter by chapter on their own (the track's Easy / Medium / Hard
+// rating); quick races, cups and the rest use the Rivals choice on the race screen
+function raceDiff() {
+  const ev = G.event;
+  if (ev && EVENTS.includes(ev)) { const d = trackById(baseId(ev.track)); return ["easy", "normal", "hard"][Math.min(3, Math.max(1, (d && d.difficulty) || 1)) - 1]; }
+  return save.settings.difficulty || "easy";
+}
+function assistLevel() { const v = save.settings.assist || "auto"; return v === "on" ? 0.55 : v === "off" || save.settings.drive === "pro" ? 0 : AUTO_ASSIST[raceDiff()] || 0; }
+function aidOn(key) { const v = save.settings[key] || "auto"; return v === "on" || (v === "auto" && raceDiff() === "easy"); }
 
 function stepRivals(dt) {
   const cars = [G.player, ...G.field.map((r) => r.veh)], L = G.path.length;
@@ -1372,7 +1419,7 @@ function stepRivals(dt) {
       const c2 = readControls2(), aid = assistLevel(), v2 = r.veh;
       const s2 = smoothSteer(r.touch, c2.steer, v2.vF, v2.spec.vmax, dt);
       v2.ctl.steer = G.mode === "race" ? assistSteer(v2, G.path, s2, aid) : 0;
-      v2.ctl.targetSpeed = cornerSpeed(v2, G.path, AUTO_BRAKE[save.settings.difficulty] || 1, aid ? 1 : 0);
+      v2.ctl.targetSpeed = cornerSpeed(v2, G.path, AUTO_BRAKE[raceDiff()] || 1, aid ? 1 : 0);
       if (c2.boost && G.mode === "race") v2.ctl.boost = true;
       v2.step(dt, G.mode === "race");
       if (!done && v2.totalD >= laps() * L) r.finished = G.raceTime;
@@ -1626,7 +1673,7 @@ function step(dt) {
   const steerIn = input.tiltOn ? ctl.steer : smoothSteer(G.touch || (G.touch = {}), ctl.steer, v.vF, v.spec.vmax, dt);
   v.ctl.steer = ap ? ap.steer : racing ? assistSteer(v, G.path, steerIn, aid) : steerIn;
   if (racing && (ctl.boost || ctl.boostHeld)) { v.ctl.boost = true; if (ctl.boost && v.boost <= 0.002) toast("Boost empty", 1200); }
-  v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path, AUTO_BRAKE[save.settings.difficulty] || 1, aid ? 1 : 0);
+  v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path, AUTO_BRAKE[raceDiff()] || 1, aid ? 1 : 0);
   v.ctl.pro = !ap && save.settings.drive === "pro";
   v.ctl.throttle = ctl.throttle; v.ctl.brake = ctl.brake; v.ctl.handbrake = ctl.handbrake;
   if (G.bog > 0) { G.bog -= dt; v.ctl.targetSpeed = Math.min(v.ctl.targetSpeed, 4); }
@@ -1700,6 +1747,7 @@ function step(dt) {
   }
   // big jumps top up the boost meter
   if (v.airDone >= 2 && G.mode === "race") trophy("air2");
+  if (v.airDone > 0 && G.mode === "race" && !G.path.gaps.length) G.bestAir = Math.max(G.bestAir || 0, v.airDone);
   if (v.airDone > 0.7 && G.mode === "race") { hlEvent(2 + v.airDone); v.boost = Math.min(1, v.boost + Math.min(0.3, v.airDone * 0.12)); popDrift(v.airDone.toFixed(1) + "s", "BIG AIR "); sfx.chime(); G.airPops = (G.airPops || 0) + 1; }
   if (v.landed > 4) G.squash = Math.min(0.14, v.landed * 0.012);
   if (v.landed > 4) { chase.shake = Math.min(0.8, v.landed * 0.05); sfx.thud(v.landed); }
@@ -2066,7 +2114,15 @@ const realRace = () => !!G.realRace;
 function logStats(place) {
   const st = (save.stats = save.stats || { races: 0, wins: 0, podiums: 0, km: 0, top: 0, drift: 0 });
   st.races++; if (realRace() && place === 1 && !G.eliminated) st.wins++; if (realRace() && place <= 3 && !G.eliminated) st.podiums++;
-  st.km += Math.max(0, G.player.totalD) / 1000; st.top = Math.max(st.top, G.topSpeed || 0); st.drift = Math.max(st.drift, G.bestDrift || 0);
+  st.km += Math.max(0, G.player.totalD) / 1000; st.top = Math.max(st.top, G.topSpeed || 0); st.drift = Math.max(st.drift, G.bestDrift || 0); st.air = Math.max(st.air || 0, G.bestAir || 0);
+  uploadStats();
+}
+// personal records go up to the record boards when one improves (only once you've been online, never in test mode)
+function uploadStats() {
+  if (!onlineReady() || TEST || !save.wentOnline) return;
+  const r = myRecords(), U = save.upStats || {};
+  if (!Object.keys(r).some((k) => r[k] > (U[k] || 0))) return;
+  ensureProfile().then(() => postStats({ drift: r.drift, speed: r.speed, air: r.air, wins: r.wins })).then(() => { save.upStats = r; writeSave(); }).catch(() => {});
 }
 function raceTrophies(place) {
   logStats(place);

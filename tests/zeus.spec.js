@@ -58,7 +58,8 @@ test("online with a server: world board, and a live race with a friend in a room
     if (u.includes("/rest/v1/laps") && r.request().method() === "GET") return json([{ user_id: "x", ms: 61234, car: "vanta", profiles: { name: "Ace" } }, { user_id: "me-1", ms: 65000, car: "vanta", profiles: { name: "Jake" } }, { user_id: "x", ms: 70000, car: "vanta", profiles: { name: "Ace" } }]);
     if (u.includes("/rest/v1/ghosts")) return json([{ user_id: "x", ms: 61234 }]);
     if (u.includes("/rpc/my_friends")) return json([]);
-    if (u.includes("/rest/v1/leaderboard")) return json([{ user_id: "x", name: "Ace", ms: 61234, car: "vanta" }, { user_id: "me-1", name: "Jake", ms: 65000, car: "vanta" }]);
+    if (u.includes("/rest/v1/leaderboard")) return json([{ user_id: "x", name: "Ace", track: "gp", ms: 61234, car: "vanta" }, { user_id: "me-1", name: "Jake", track: "oval", ms: 25000, car: "vanta" }, { user_id: "old-7", name: "Driver", track: "gp", ms: 70000, car: "vanta" }]);
+    if (u.includes("/rest/v1/stats")) return json([{ user_id: "x", drift: 5400, profiles: { name: "Ace" } }]);
     return json({});
   });
   await page.routeWebSocket(/fake\.supabase\.test\/realtime/, (ws) => {
@@ -75,6 +76,18 @@ test("online with a server: world board, and a live race with a friend in a room
   });
   await openGame(page, "online=1");
   await page.click("#onlineBtn");
+  // the default board is Overall: every racer's best lap on any track, ranked against that track's gold time
+  await expect(page.locator("#oBoard li")).toHaveCount(3);
+  await expect(page.locator("#oBoard li").first()).toContainText("Jake"); // 25.0 s on Dusk Oval beats 61.2 s on Apex Ring GP
+  await expect(page.locator("#oBoard")).toContainText("Apex Ring GP");
+  await expect(page.locator("#oBoard")).not.toContainText("Driver"); // old default names show as Racer####
+  await expect(page.locator("#oBoard")).toContainText(/Racer\d{4}/);
+  // record boards
+  await page.click('#oCats [data-cat="drift"]');
+  await expect(page.locator("#oBoard li").first()).toContainText("5,400");
+  // fastest laps on one track, this season: titles by rank and ghosts to race
+  await page.click('#oCats [data-cat="laps"]');
+  await page.click("#oSeason");
   await expect(page.locator("#oBoard li")).toHaveCount(2);
   await expect(page.locator("#oBoard")).toContainText("Ace");
   await expect(page.locator("#oBoard .ttl").first()).toHaveText("Apex Legend"); // season titles by rank

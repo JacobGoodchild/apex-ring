@@ -430,3 +430,44 @@ body:has(#finish:not([hidden])) #toast { top: auto; bottom: calc(var(--safe-b) +
 }
 .menufoot .linkbtn svg { flex-shrink: 0; }
 @media (orientation: portrait) and (max-height: 720px) { .ministats { display: none; } }
+/* ---------- leaderboards: a category menu that wraps to fit any screen, big readable rows ---------- */
+.lbcats { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(150 * var(--u)), 1fr)); gap: var(--s2); margin-bottom: var(--s3); }
+.lbcat { display: flex; flex-direction: column; align-items: flex-start; gap: calc(2 * var(--u)); text-align: left; cursor: pointer; color: var(--text);
+  background: linear-gradient(160deg, rgba(30, 39, 56, .95), rgba(14, 19, 29, .95)); border: 0; border-radius: var(--r); padding: calc(12 * var(--u)) calc(14 * var(--u));
+  box-shadow: inset 0 0 0 1px var(--line2); transition: box-shadow .15s, background .15s; }
+.lbcat b { font: italic 800 calc(20 * var(--u))/1 var(--display); text-transform: uppercase; letter-spacing: .02em; }
+.lbcat span { font: 600 calc(13 * var(--u)) var(--body); color: var(--muted); }
+.lbcat:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+.lbcat[aria-pressed="true"] { background: linear-gradient(180deg, var(--accent2), var(--accent)); box-shadow: none; color: var(--accent-ink); }
+.lbcat[aria-pressed="true"] span { color: rgba(26, 13, 2, .75); }
+.lbbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); margin: var(--s2) 0; }
+.lbtitle { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
+.lbtitle span { font: 700 calc(14 * var(--u)) var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--accent2); }
+.lbtitle b { font: italic 800 calc(30 * var(--u))/1 var(--display); text-transform: uppercase; }
+.lbtitle b:empty { display: none; }
+.lbctl { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.lbctl .tab { font-size: calc(16 * var(--u)); padding: calc(10 * var(--u)) calc(14 * var(--u)); }
+#oGlobal .hint { font-size: calc(14 * var(--u)); color: var(--muted); margin-bottom: var(--s2); }
+.lbhead, #oBoard li { display: grid; gap: var(--s3); align-items: center; }
+.lbhead { padding: 0 calc(14 * var(--u)) calc(6 * var(--u)); font: 700 calc(13 * var(--u)) var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.lbhead.c3, #oBoard.c3 li { grid-template-columns: calc(44 * var(--u)) minmax(0, 1fr) auto; }
+.lbhead.c4, #oBoard.c4 li { grid-template-columns: calc(44 * var(--u)) minmax(0, 1.2fr) minmax(0, 1fr) auto; }
+.lbhead span:last-child, #oBoard .cell:last-child, #oBoard .tm { text-align: right; }
+#oBoard li { padding: calc(12 * var(--u)) calc(14 * var(--u)); background: rgba(255, 255, 255, .055); font: 600 calc(17 * var(--u)) var(--body); color: var(--text); }
+#oBoard li:nth-child(odd) { background: rgba(255, 255, 255, .085); }
+#oBoard li.me { background: rgba(255, 122, 26, .2); }
+#oBoard .pos { font: italic 800 calc(22 * var(--u)) var(--display); color: var(--text); }
+#oBoard li:nth-child(1) .pos { color: #ffc23d; } #oBoard li:nth-child(2) .pos { color: #dfe6ef; } #oBoard li:nth-child(3) .pos { color: #e8995a; }
+#oBoard .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#oBoard .cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d8deea; }
+#oBoard .cell:last-child, #oBoard .tm { font: 700 calc(19 * var(--u)) var(--display); font-variant-numeric: tabular-nums; color: var(--text); }
+#oBoard li.empty { display: block; font-size: calc(15 * var(--u)); }
+@media (max-width: 480px) {
+  .lbcats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lbcat { padding: calc(9 * var(--u)) calc(10 * var(--u)); } .lbcat b { font-size: calc(17 * var(--u)); } .lbcat span { display: none; }
+  #oBoard li { font-size: calc(15 * var(--u)); padding: calc(10 * var(--u)); } .lbhead.c4, #oBoard.c4 li { grid-template-columns: calc(30 * var(--u)) minmax(0, 1fr) minmax(0, 1fr) auto; }
+}
+.scrhead .seg .tab { font-size: calc(16 * var(--u)); padding: calc(10 * var(--u)) calc(16 * var(--u)); }
+@media (orientation: portrait), (max-width: 700px) { .scrhead .seg .tab { font-size: calc(14 * var(--u)); padding: calc(10 * var(--u)) calc(4 * var(--u)); } }
+@media (min-width: 481px) { .lbcats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 480px) { #oBoard.c4 .cell:not(:last-child) { white-space: normal; font-size: calc(13 * var(--u)); line-height: 1.15; } }

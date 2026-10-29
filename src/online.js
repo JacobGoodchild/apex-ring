@@ -67,6 +67,21 @@ export async function addFriend(code) {
   await signIn();
   return call("/rest/v1/rpc/add_friend", { method: "POST", body: JSON.stringify({ code }) });
 }
+// every driver's best lap on every track (the overall board ranks them against each track's gold time)
+export async function allBestLaps(limit = 1000) {
+  return call(`/rest/v1/leaderboard?order=ms.asc&limit=${limit}&select=user_id,name,track,ms,car`, {}, !!sess);
+}
+// personal records (part 4 of the server setup): longest drift, top speed, biggest air, wins; one row per driver
+const STAT_COLS = new Set(["drift", "speed", "air", "wins"]);
+export async function topStats(col, limit = 100) {
+  if (!STAT_COLS.has(col)) throw new Error("bad board");
+  return call(`/rest/v1/stats?${col}=gt.0&order=${col}.desc&limit=${limit}&select=user_id,${col},profiles(name)`, {}, !!sess);
+}
+export async function postStats(st) {
+  await signIn();
+  const body = { drift: Math.round(st.drift || 0), speed: +(st.speed || 0).toFixed(2), air: +(st.air || 0).toFixed(2), wins: Math.round(st.wins || 0) };
+  await call("/rest/v1/stats?on_conflict=user_id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(body) });
+}
 // ghosts: each driver's best lap per track as a ghost code, raced by others
 export async function postGhost(track, seconds, car, data) {
   await signIn();

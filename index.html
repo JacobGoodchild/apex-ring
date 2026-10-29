@@ -202,6 +202,8 @@
             <div class="tabs" id="timeTabs"><button class="tab" data-t="day" type="button">Day</button><button class="tab" data-t="night" type="button">Night</button></div></div>
           <div class="opt" id="weatherOpt"><div class="label">Weather</div>
             <div class="tabs" id="weatherTabs"><button class="tab" data-w="dry" type="button">Dry</button><button class="tab" data-w="rain" type="button">Rain</button></div></div>
+          <div class="opt" id="diffOpt"><div class="label">Rivals</div>
+            <div class="tabs" id="diffTabs"><button class="tab" data-d="easy" type="button">Easy</button><button class="tab" data-d="normal" type="button">Medium</button><button class="tab" data-d="hard" type="button">Hard</button></div></div>
           <div class="opt" id="playersOpt"><div class="label">Players</div>
             <div class="tabs" id="playersTabs"><button class="tab" data-n="1" type="button">1P</button><button class="tab" data-n="2" type="button">2P split</button></div></div>
           <div class="hint" id="playersHint" hidden>Player 1: A/D and W. Player 2: ← → and ↑. Two gamepads work too.</div>
@@ -256,9 +258,23 @@
       <div class="seg" role="tablist"><button class="tab" data-o="global" type="button" aria-pressed="true">Global</button><button class="tab" data-o="weekly" type="button">Weekly</button><button class="tab" data-o="friends" type="button">Friends</button><button class="tab" data-o="race" type="button">Race</button><button class="tab" data-o="profile" type="button">Profile</button></div></header>
     <div class="onlinegrid">
       <section class="opanel" id="oGlobal">
-        <div class="row between"><div class="label"><span id="oBoardKind">Season</span> · <span id="oTrackName"></span></div><div class="tabs mini"><button class="tab" id="oPrev" type="button">‹</button><button class="tab" id="oNext" type="button">›</button></div></div>
-        <div class="tabs mini"><button class="tab" id="oSeason" type="button" aria-pressed="true">This season</button><button class="tab" id="oAll" type="button">All time</button></div>
+        <nav class="lbcats" id="oCats" aria-label="Leaderboards">
+          <button class="lbcat" data-cat="overall" type="button" aria-pressed="true"><b>Overall</b><span>Best laps, every track</span></button>
+          <button class="lbcat" data-cat="laps" type="button"><b>Fastest laps</b><span>One track at a time</span></button>
+          <button class="lbcat" data-cat="drift" type="button"><b>Longest drift</b><span>Biggest single drift</span></button>
+          <button class="lbcat" data-cat="speed" type="button"><b>Top speed</b><span>Fastest ever</span></button>
+          <button class="lbcat" data-cat="air" type="button"><b>Biggest air</b><span>Longest jump</span></button>
+          <button class="lbcat" data-cat="wins" type="button"><b>Most wins</b><span>Races won</span></button>
+        </nav>
+        <div class="lbbar">
+          <div class="lbtitle"><span id="oBoardKind">All time</span><b id="oTrackName"></b></div>
+          <div class="lbctl" id="oLapCtl" hidden>
+            <div class="tabs"><button class="tab" id="oPrev" type="button" aria-label="Previous track">‹ Track</button><button class="tab" id="oNext" type="button" aria-label="Next track">Track ›</button></div>
+            <div class="tabs"><button class="tab" id="oSeason" type="button">This season</button><button class="tab" id="oAll" type="button" aria-pressed="true">All time</button></div>
+          </div>
+        </div>
         <div class="hint" id="oSeasonHint"></div>
+        <div class="lbhead" id="oBoardHead"></div>
         <ol class="lboard" id="oBoard"></ol>
         <button class="btn ghost" id="oRefresh" type="button">Refresh</button>
       </section>
@@ -377,10 +393,8 @@
       <button class="btn ghost" id="calBtn" type="button">Calibrate: hold the phone how you'll drive, then tap</button>
       <label class="label" for="tiltSens">Tilt sensitivity</label>
       <input type="range" id="tiltSens" min="0.5" max="2" step="0.1" value="1">
-      <div class="hint">Tilt the phone like a steering wheel. Tap both sides of the screen together twice to boost. The ⦿ Centre button in a race recalibrates.</div>
+      <div class="hint">Tilt the phone like a steering wheel. Hold both sides of the screen to boost. The ⦿ Centre button in a race recalibrates.</div>
     </div>
-    <div class="label">Rivals</div>
-    <div class="tabs" id="diffTabs"><button class="tab" data-d="easy" type="button">Easy</button><button class="tab" data-d="normal" type="button">Medium</button><button class="tab" data-d="hard" type="button">Hard</button></div>
     <div class="label">Rival catch-up</div>
     <div class="tabs" id="bandTabs"><button class="tab" data-b="off" type="button">Off</button><button class="tab" data-b="low" type="button">Low</button><button class="tab" data-b="normal" type="button">Normal</button><button class="tab" data-b="high" type="button">High</button></div>
     <div class="hint">How much rivals ease off when you fall behind (and push when you get far ahead). Off = pure racing.</div>
