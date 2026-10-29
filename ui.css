@@ -491,3 +491,31 @@ body:has(#finish:not([hidden])) #toast { top: auto; bottom: calc(var(--safe-b) +
 #tutBox b { font-size: calc(18 * var(--u)); line-height: 1.25; }
 .tutprog { display: block; margin-top: calc(4 * var(--u)); font: 800 italic calc(16 * var(--u)) var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--accent2); }
 .tutprog:empty { display: none; }
+/* the Start button is always on screen: pinned to the bottom of the options panel while the options scroll above it */
+.setupside .btn.go { position: sticky; bottom: 0; z-index: 2; flex-shrink: 0; box-shadow: 0 calc(-12 * var(--u)) calc(24 * var(--u)) rgba(10, 14, 22, .95); }
+@media (orientation: landscape) and (max-height: 500px) {
+  .setupside .opts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s2) var(--s3); }
+  .setupside .opt .label { margin-bottom: calc(2 * var(--u)); }
+  .setupside .opt .tab { padding-top: calc(7 * var(--u)); padding-bottom: calc(7 * var(--u)); font-size: calc(13 * var(--u)); }
+  .setupside .btn.go { padding-top: calc(10 * var(--u)); padding-bottom: calc(10 * var(--u)); font-size: calc(20 * var(--u)); }
+}
+@media (orientation: landscape) and (max-height: 500px) { .setupside #layoutOpt, .setupside #diffOpt { grid-column: 1 / -1; } }
+/* career on a short, wide screen (a phone on its side, a shrunk window): the map scrolls on the left, the event on the right */
+@media (orientation: landscape) and (max-height: 620px) {
+  #career .card { max-width: min(100%, calc(900 * var(--u))); display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+    column-gap: var(--s4); height: calc(100vh - calc(70 * var(--u))); overflow: hidden; }
+  #career .card > .row { grid-column: 1 / -1; }
+  #career .events { grid-column: 1; grid-row: 2 / 4; max-height: none; min-height: 0; overflow-y: auto; }
+  #career .evdetail { grid-column: 2; grid-row: 2; align-self: start; }
+  #careerBack { grid-column: 2; grid-row: 3; }
+}
+/* the event and lesson descriptions matter, so they stay even where other hints are hidden to save space */
+#career .evdetail .hint, #school .hint { display: block; }
+/* driving school: always below the top bar, scrolls if it must, and two columns of lessons on short wide screens */
+#school { padding-top: calc(var(--safe-t) + calc(70 * var(--u))); align-items: center; }
+#school .card { max-height: calc(100vh - calc(84 * var(--u))); overflow-y: auto; }
+@media (orientation: landscape) and (max-height: 620px) {
+  #school .card { width: min(100%, calc(820 * var(--u))); max-width: none; }
+  #school .lessons { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (orientation: portrait) and (max-height: 700px) { #school { padding-top: calc(var(--safe-t) + calc(62 * var(--u))); } #school .card { padding: var(--s3); } }
