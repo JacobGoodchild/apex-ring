@@ -1887,7 +1887,9 @@ function poseCar(m, v, dt) {
   // a car right against the lens would fill the screen: hide it while it's there (only ever un-hiding what this hid)
   // (chase cams in a normal race only: not split-screen, where P2's own car is in the field, not the replay clip, and not
   // the bonnet cam, where a car you're drafting is meant to be right there)
-  const dy = v.y + 0.8 - camera.position.y, near = G.mode !== "clip" && !G.splitRace && chase.mode !== "bonnet" && dx * dx + dy * dy + dz * dz < 4.2 * 4.2;
+  // (distance to the nearest point along the car's length, so a long car whose nose is at the lens counts)
+  const ex = -dx, ez = -dz, fw = Math.max(-2.5, Math.min(2.5, ex * Math.sin(v.h) + ez * Math.cos(v.h))), cx = ex - fw * Math.sin(v.h), cz = ez - fw * Math.cos(v.h);
+  const dy = v.y + 0.8 - camera.position.y, near = G.mode !== "clip" && !G.splitRace && chase.mode !== "bonnet" && cx * cx + cz * cz + dy * dy < 2.4 * 2.4;
   if (near && m.group.visible) { m.group.visible = false; m.nearHid = true; } else if (!near && m.nearHid) { m.group.visible = true; m.nearHid = false; }
   m.group.position.set(v.x, v.y, v.z); m.group.rotation.set(pitchOf(v), v.h, 0, "YXZ");
   updateContactShadow(m, v.y, v.groundPrev ?? v.y); brakeLights(m, v); if (!far) wheelBlur(m, v.vF);
