@@ -62,7 +62,7 @@ test.describe("Apex Ring", () => {
     await startRace(page);
     await page.evaluate(() => window.__apex.setBoost(1));
     await page.keyboard.press(" ");
-    await page.waitForFunction(() => window.__apex.player.boosting, null, { timeout: 10_000 });
+    // (the burst is short, so look for the charge it spent rather than trying to catch it mid-burst)
     await page.waitForFunction(() => window.__apex.player.boost < 0.9, null, { timeout: 10_000 });
     // a tap is only a short burst: it ends with most of the meter left
     await page.waitForFunction(() => !window.__apex.player.boosting, null, { timeout: 10_000 });

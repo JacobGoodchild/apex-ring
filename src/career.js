@@ -63,7 +63,7 @@ export function dailyEvent(date = new Date()) {
   const base = { id: "daily-" + key, daily: true, name: "Daily Challenge", track: t.id + (lay ? ":" + lay : ""), weather, reward: { coins: 900, gems: 1 } };
   const where = `${t.name}${lay === "r" ? " Reverse" : lay === "m" ? " Mirror" : ""}${weather === "rain" ? " in the rain" : ""}`;
   if (type === "race") return { ...base, type, laps: 2, target: 3, desc: `Podium finish on ${where}.` };
-  if (type === "attack") { const target = 600 + t.difficulty * 350; // gentler since a player said attacks were too hard return { ...base, type, laps: 99, time: 60, target, desc: `60-second drift attack on ${where}: score ${target.toLocaleString("en-GB")}.` }; }
+  if (type === "attack") { const target = 600 + t.difficulty * 350; return { ...base, type, laps: 99, time: 60, target, desc: `60-second drift attack on ${where}: score ${target.toLocaleString("en-GB")}.` }; }
   return { ...base, type: "elim", every: 15, laps: 3, desc: `Knockout on ${where}: last car out every 15 seconds.` };
 }
 
