@@ -499,17 +499,43 @@ the Sky Islands waterfall.
 ## Session 5 (2026-10-29 12:20 → 19:00 UTC = 7:00pm UK checkpoint), from the user's review after a week
 Hourly scheduled task "Apex Ring session 5 check-in" (:41 past) wakes the session. Don't rush: a checkpoint at 19:00, not
 a deadline. Tested batches (scratchpad snaptest.sh), pushed to `claude/bold-cray-7rck1e` and `main`. Plan (tick as done):
-- [ ] G1 Boost: a tap = short burst (~15% of the meter), hold = keeps boosting; any leftover charge is usable (no stuck
+- [x] G1 Boost: a tap = short burst (~15% of the meter), hold = keeps boosting; any leftover charge is usable (no stuck
       sliver, no stopping at ~1/5); phone: one two-thumb tap = short burst, hold both = continuous. (itch comment)
-- [ ] G2 Readable, responsive UI: bigger type and buttons, real contrast (no grey on grey), layouts that reflow at every
+- [x] G2 Readable, responsive UI: bigger type and buttons, real contrast (no grey on grey), layouts that reflow at every
       size (small phone, big phone, tablet, laptop, shrunk window, big monitor) instead of cropping; a real gear icon for
       Settings that also closes it; a big clear Tutorial button. Check screenshots at 6 sizes.
-- [ ] G3 Leaderboards rebuilt: default = all-time overall (place, name, track, time); a clear category menu: Fastest laps,
+- [x] G3 Leaderboards rebuilt: default = all-time overall (place, name, track, time); a clear category menu: Fastest laps,
       Longest drift, Top speed, Biggest air, Most wins, Weekly. New supabase/schema-v4.sql for the user to paste.
-- [ ] G4 Difficulty on the race screen (Easy / Medium / Hard), career difficulty rises by chapter on its own.
-- [ ] G5 Cars: prefer properly modelled CC0 / CC-BY cars (original designs, no real brands), credited; fallback: fix the
+- [x] G4 Difficulty on the race screen (Easy / Medium / Hard), career difficulty rises by chapter on its own.
+- [x] G5 Cars: prefer properly modelled CC0 / CC-BY cars (original designs, no real brands), credited; fallback: fix the
       procedural car (wheels clipping bumpers, floating mirrors, glass flicker while spinning, cropped plate, door seams,
       underglow not showing). Check every car from 8 angles before shipping.
-- [ ] G6 Driving school: short stages (steer, drift with guided corners at a gentler speed, boost, jumps), offered on first
+- [x] G6 Driving school: short stages (steer, drift with guided corners at a gentler speed, boost, jumps), offered on first
       launch and from a visible button; easier Drift Attack targets. (itch comment)
-- [ ] G7 CI: make the PWA update-banner test robust (it timed out on a slow runner).
+- [x] G7 CI: make the PWA update-banner test robust (it timed out on a slow runner).
+
+### Session 5 progress log
+- Boost (G1): Vehicle.step takes c.boost every tick it's asked for; a request tops boostT up to 0.45 s, so a tap is a
+  short burst (~13% of the meter) and holding (input.boostKey, both thumbs held >0.22 s, pad A held -> readControls
+  boostHeld) keeps going right down to empty (no 12% start threshold, no 2.5 s burst). Rivals hold their own bursts
+  (Driver.boostHold, up to 2.5 s) as before.
+- UI scale (G2): every px in styles.css / ui.css became calc(N * var(--u)); --u = clamp(1px, min(0.1vw, 0.162vh), 2px)
+  in :root (1px on phones, up to 2px on a big monitor). Muted text #c0c8d6. Home footer links are real buttons (Tutorial
+  orange), a Feather cog for Settings (MIT, credited) that toggles Settings. scripts/dev/uishots.mjs shoots 7 sizes.
+- Leaderboards (G3): Online > Global has a category menu (#oCats): Overall (default; every racer's best lap on any
+  track, ranked by lap / that layout's gold medal time), Fastest laps (per track, all time by default, season titles),
+  Longest drift / Top speed / Biggest air / Most wins from a new stats table (supabase/schema-v4.sql; postStats on an
+  improved record, save.upStats). dispName() shows old "Driver" profiles as a steady Racer#### from their id.
+- Difficulty (G4): raceDiff(): career events use their track's rating (Easy/Medium/Hard), lessons Easy, everything else
+  the Rivals choice, which moved from Settings to the race screen (#diffOpt, hidden in time trial).
+- Cars (G5, fallback - no reachable CC0/CC-BY realistic original cars; Unity Fan's CC0 concept cars on Sketchfab need a
+  login): loft() takes f(z), a fender hump on the upper sides over each axle shared by every body-following surface;
+  shut doors are hidden (the body is the door); one-sided glass at 0.8 opacity; mirror stalks from the door top; no roof
+  strap or slab intakes; dark seats; plate clear of the bumper; underglow a big soft oval (toneMapped off).
+  Rivals/ghosts/friends are lite. dev/carview8.html (8 angles, &close=1 close-ups) + itch/car8.mjs.
+- Driving school (G6): LESSONS (steer / drift / boost / race) on a #school screen, offered once on first launch; lessons
+  1-3 end themselves when the goal is met (cap = gentler top speed), the race lesson is 2 laps vs 3 Easy rivals from
+  behind. Drift Attack targets about a third lower.
+- CI (G7): the update-banner test allows a minute for the new SW to install before the reload.
+- Lesson learned: run a quick load check (itch/errs.mjs prints page errors) before committing; a stray // comment
+  broke career.js for one commit on the branch.
