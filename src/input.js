@@ -19,11 +19,11 @@ addEventListener("keydown", (e) => {
   }
   const k = KEYS[e.key] || (input.pro && PRO_KEYS[e.key]);
   if (k) { input[k] = true; if (e.key.startsWith("Arrow") || e.key === " ") e.preventDefault(); }
-  else if ((input.pro ? PRO_BOOST : BOOST_KEYS).has(e.key)) { e.preventDefault(); if (!e.repeat) input.boostTaps++; }
+  else if ((input.pro ? PRO_BOOST : BOOST_KEYS).has(e.key)) { e.preventDefault(); input.boostKey = true; if (!e.repeat) input.boostTaps++; }
   else if (input.onKey && !e.repeat) input.onKey(e.key);
 });
-addEventListener("keyup", (e) => { const k = KEYS[e.key] || PRO_KEYS[e.key]; if (k) input[k] = false; if (P2_KEYS[e.key]) input[P2_KEYS[e.key]] = false; });
-addEventListener("blur", () => { input.kl = input.kr = input.ku = input.kd = input.kh = false; input.pad = {}; });
+addEventListener("keyup", (e) => { const k = KEYS[e.key] || PRO_KEYS[e.key]; if (k) input[k] = false; if (BOOST_KEYS.has(e.key) || PRO_BOOST.has(e.key)) input.boostKey = false; if (P2_KEYS[e.key]) input[P2_KEYS[e.key]] = false; });
+addEventListener("blur", () => { input.kl = input.kr = input.ku = input.kd = input.kh = input.boostKey = false; input.pad = {}; });
 
 // Pro-mode on-screen buttons: each element's data-pad names what it holds (l, r, gas, brake, hand) or "boost".
 export function bindPads(root) {
@@ -51,9 +51,9 @@ export function bindZones(left, right) {
       try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
       pointers.set(e.pointerId, side); recount(); el.classList.add("on");
       if (input.touchL && input.touchR && !input.both) {
-        // both thumbs down together: two of these in quick succession = boost
+        // both thumbs down together: two quick two-thumb taps = a short burst; holding both thumbs (see readControls) = boost
         input.both = true;
-        const t = now();
+        const t = now(); input.bothT = t;
         if (t - input.lastBoth < 0.45) { input.boostTaps++; input.lastBoth = -1; } else input.lastBoth = t;
       }
     });
@@ -78,7 +78,7 @@ export function readPad(i) {
   let steer = Math.abs(p.axes[0] || 0) > 0.12 ? p.axes[0] : 0;
   if (b(14)) steer = -1; if (b(15)) steer = 1;
   const a = b(0), prev = padPrev[i];
-  const out = { steer, boost: a && !prev.a, throttle: Math.max(v(7), b(12) ? 1 : 0), brake: Math.max(v(6), b(13) ? 1 : 0), handbrake: b(1) || b(2), pause: b(9) && !prev.start };
+  const out = { steer, boost: a && !prev.a, boostHeld: a, throttle: Math.max(v(7), b(12) ? 1 : 0), brake: Math.max(v(6), b(13) ? 1 : 0), handbrake: b(1) || b(2), pause: b(9) && !prev.start };
   padPrev[i] = { a, start: b(9) };
   return out;
 }
@@ -87,7 +87,7 @@ export function readPad(i) {
 export function readControls2() {
   let s = (input.p2r ? 1 : 0) - (input.p2l ? 1 : 0), boost = (input.boost2 || 0) > 0; input.boost2 = 0;
   const gp = readPad(1);
-  if (gp) { if (gp.steer) s = gp.steer; boost = boost || gp.boost; }
+  if (gp) { if (gp.steer) s = gp.steer; boost = boost || gp.boostHeld; }
   return { steer: Math.max(-1, Math.min(1, s)), boost };
 }
 
@@ -101,13 +101,16 @@ export function readControls(consume = true) {
   }
   if (input.kl || input.pad.l) s -= 1;
   if (input.kr || input.pad.r) s += 1;
-  const boost = input.boostTaps > 0;
+  // a tap (key press, double two-thumb tap) asks for a short burst; holding a boost key, or both thumbs for a moment,
+  // keeps boosting for as long as it's held
+  const thumbs = input.both && input.touchL && input.touchR && performance.now() / 1000 - (input.bothT || 0) > 0.22;
+  const boost = input.boostTaps > 0, boostHeld = !!input.boostKey || thumbs;
   if (consume) input.boostTaps = 0;
   const p = input.pad, gp = readPad(0);
-  const out = { steer: Math.max(-1, Math.min(1, s)), boost, throttle: input.ku || p.gas ? 1 : 0, brake: input.kd || p.brake ? 1 : 0, handbrake: !!(input.kh || p.hand) };
+  const out = { steer: Math.max(-1, Math.min(1, s)), boost, boostHeld, throttle: input.ku || p.gas ? 1 : 0, brake: input.kd || p.brake ? 1 : 0, handbrake: !!(input.kh || p.hand) };
   if (gp) {
     if (gp.steer) out.steer = Math.max(-1, Math.min(1, gp.steer));
-    out.boost = out.boost || gp.boost; out.throttle = Math.max(out.throttle, gp.throttle); out.brake = Math.max(out.brake, gp.brake); out.handbrake = out.handbrake || gp.handbrake;
+    out.boost = out.boost || gp.boost; out.boostHeld = out.boostHeld || gp.boostHeld; out.throttle = Math.max(out.throttle, gp.throttle); out.brake = Math.max(out.brake, gp.brake); out.handbrake = out.handbrake || gp.handbrake;
     if (gp.pause && input.onKey) input.onKey("p");
   }
   return out;

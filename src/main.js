@@ -1624,7 +1624,7 @@ function step(dt) {
   const aid = assistLevel();
   const steerIn = input.tiltOn ? ctl.steer : smoothSteer(G.touch || (G.touch = {}), ctl.steer, v.vF, v.spec.vmax, dt);
   v.ctl.steer = ap ? ap.steer : racing ? assistSteer(v, G.path, steerIn, aid) : steerIn;
-  if (racing && ctl.boost) { v.ctl.boost = true; if (v.boost <= 0.12) toast("Boost empty", 1200); }
+  if (racing && (ctl.boost || ctl.boostHeld)) { v.ctl.boost = true; if (ctl.boost && v.boost <= 0.002) toast("Boost empty", 1200); }
   v.ctl.targetSpeed = ap ? ap.targetSpeed : cornerSpeed(v, G.path, AUTO_BRAKE[save.settings.difficulty] || 1, aid ? 1 : 0);
   v.ctl.pro = !ap && save.settings.drive === "pro";
   v.ctl.throttle = ctl.throttle; v.ctl.brake = ctl.brake; v.ctl.handbrake = ctl.handbrake;
@@ -1658,7 +1658,7 @@ function step(dt) {
     // first time the meter has charge, explain how to boost
     if (v.boost > 0.3 && !save.boostHint && !TEST) {
       save.boostHint = true; writeSave();
-      toast(matchMedia("(pointer: coarse)").matches ? "Boost ready! Tap BOTH sides of the screen together, twice." : "Boost ready! Press Space.", 4500);
+      toast(matchMedia("(pointer: coarse)").matches ? "Boost ready! Hold BOTH sides of the screen to boost (a quick double tap gives a little)." : "Boost ready! Hold Space to boost, tap it for a little.", 4500);
     }
     G.wasBoosting = v.boosting;
     G.raceTime += dt;
@@ -1963,7 +1963,7 @@ function render(dt) {
       } else $("gapV").hidden = true;
     }
     $("boostFill").style.width = Math.round(v.boost * 100) + "%";
-    $("speedo").classList.toggle("ready", v.boost > 0.12);
+    $("speedo").classList.toggle("ready", v.boost > 0.02);
     $("drift").hidden = !(G.driftPts > 5);
     if (G.driftPts > 5) { $("driftV").textContent = "+" + Math.round(G.driftPts); $("driftX").textContent = G.mult > 1 ? "x" + G.mult : ""; }
     $("draft").classList.toggle("on", (G.draftM || 0) > 0.02); $("draftFill").style.width = Math.round((G.draftM || 0) * 100) + "%";

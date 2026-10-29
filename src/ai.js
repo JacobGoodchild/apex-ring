@@ -113,7 +113,9 @@ export class Driver {
     let straight = Infinity; for (let k = 0; k < 60; k += 4) straight = Math.min(straight, prof[(v.p.i + k) % t.N]);
     // boost: hard rivals pick the straights; easy ones fire it at random-ish moments, often wasting it
     const wantBoost = this.rnd() < Lv.boost ? straight > v.spec.vmax * 0.95 : this.rnd() < 0.004;
-    if (!v.boosting) v.ctl.boost = wantBoost && v.boost > 0.3 && this.rnd() < P.boost * Lv.boost;
+    // a rival that decides to boost holds it for up to 2.5 s (the meter runs out first if it's low)
+    if (!v.boosting && !(this.boostHold > 0) && wantBoost && v.boost > 0.3 && this.rnd() < P.boost * Lv.boost) this.boostHold = 2.5 * (v.spec.boostDur || 1);
+    if (this.boostHold > 0) { this.boostHold -= dt; v.ctl.boost = true; }
     if (!v.boosting) v.boost = Math.min(1, v.boost + dt * 0.02);
     v.ctl.drift = false; v.ctl.brake = false;
   }

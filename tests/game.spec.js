@@ -64,9 +64,17 @@ test.describe("Apex Ring", () => {
     await page.keyboard.press(" ");
     await page.waitForFunction(() => window.__apex.player.boosting, null, { timeout: 10_000 });
     await page.waitForFunction(() => window.__apex.player.boost < 0.9, null, { timeout: 10_000 });
+    // a tap is only a short burst: it ends with most of the meter left
+    await page.waitForFunction(() => !window.__apex.player.boosting, null, { timeout: 10_000 });
+    expect(await page.evaluate(() => window.__apex.player.boost)).toBeGreaterThan(0.78);
+    // holding keeps boosting right down to empty (no unusable sliver left over)
+    await page.evaluate(() => window.__apex.setBoost(0.06));
+    await page.keyboard.down(" ");
+    await page.waitForFunction(() => window.__apex.player.boost < 0.001, null, { timeout: 10_000 });
+    await page.keyboard.up(" ");
   });
 
-  test("touch: halves steer, and tapping both halves together twice boosts", async ({ page }) => {
+  test("touch: halves steer; a double two-thumb tap gives a short boost, holding both boosts on", async ({ page }) => {
     await openGame(page, "rivals=0");
     await startRace(page);
     await page.waitForFunction(() => window.__apex.player.vF > 20, null, { timeout: 30_000 });
@@ -81,7 +89,13 @@ test.describe("Apex Ring", () => {
       await tap("#zoneL", 1, "pointerdown"); await tap("#zoneR", 2, "pointerdown");
       await tap("#zoneL", 1, "pointerup"); await tap("#zoneR", 2, "pointerup");
     }
-    await page.waitForFunction(() => window.__apex.player.boosting, null, { timeout: 5_000 });
+    // (a short burst, so look for the charge it spent rather than catching it mid-burst)
+    await page.waitForFunction(() => window.__apex.player.boost < 0.95, null, { timeout: 5_000 });
+    // holding both thumbs keeps boosting
+    await page.evaluate(() => window.__apex.setBoost(1));
+    await tap("#zoneL", 3, "pointerdown"); await tap("#zoneR", 4, "pointerdown");
+    await page.waitForFunction(() => window.__apex.player.boost < 0.6, null, { timeout: 10_000 });
+    await tap("#zoneL", 3, "pointerup"); await tap("#zoneR", 4, "pointerup");
     // the old buttons are gone
     await expect(page.locator("#padBoost")).toHaveCount(0);
     await expect(page.locator("#padDrift")).toHaveCount(0);

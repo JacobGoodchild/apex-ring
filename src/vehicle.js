@@ -70,9 +70,10 @@ export class Vehicle {
     if (this.drifting && !(pro && c.handbrake) && (this.steer * this.driftDir < 0.35 || vF < s.vmax * 0.35 || !active)) this.drifting = false;
     if (this.drifting && pro && c.handbrake && (vF < 10 || this.steer * this.driftDir < -0.2)) this.drifting = false;
 
-    // boost: a tap fires a burst that lasts up to 2.5 s while the meter has charge
+    // boost: c.boost is set every tick it's asked for. A tap gives a short burst (0.45 s, about an eighth of the meter);
+    // holding keeps it going, right down to the last drop of charge
     const drain = 0.3 / (s.boostDur || 1); // a longer boost duration spends the meter more slowly
-    if (active && c.boost && this.boost > 0.12 && !(this.boostT > 0)) this.boostT = Math.min(2.5 * (s.boostDur || 1), this.boost / drain);
+    if (active && c.boost && this.boost > 0.002) this.boostT = Math.max(this.boostT || 0, 0.45);
     c.boost = false;
     if (this.boostT > 0) this.boostT -= dt;
     // a slipstream slingshot is a free burst that doesn't spend the meter
@@ -86,7 +87,7 @@ export class Vehicle {
     this.wingWant = t.gaps.length && (overGap || t.toGap(p.d) < 260 || (this.airborne && this.wing > 0.3)) ? 1 : 0;
     this.wing = (this.wing || 0) + (this.wingWant - (this.wing || 0)) * Math.min(1, dt * (this.wingWant ? 0.9 : 3.2)); // unfurl slowly for the show, fold away briskly once you've landed
     this.flying = !!overGap && this.airborne && this.wing > 0.45;
-    const metered = active && this.boostT > 0 && this.boost > 0.01;
+    const metered = active && this.boostT > 0 && this.boost > 0.0001;
     this.boosting = metered || sling || pad;
     if (metered) this.boost = Math.max(0, this.boost - dt * drain); else this.boostT = 0;
 
